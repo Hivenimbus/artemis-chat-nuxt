@@ -3,7 +3,7 @@
     <!-- Overlay para mobile -->
     <div
       v-if="isSidebarMobileOpen"
-      class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+      class="fixed inset-0 backdrop-blur-[2px] bg-opacity-20 z-40 md:hidden"
       @click="isSidebarMobileOpen = false"
     />
 
