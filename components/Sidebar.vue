@@ -7,8 +7,8 @@
   >
     <!-- Logo e Título -->
     <div class="flex items-center px-4 py-4 border-b border-gray-200 h-16">
-      <div class="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-        <span class="text-white font-bold text-sm">A</span>
+      <div class="h-11 w-11 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <span class="text-white font-bold text-base">A</span>
       </div>
       <h1
         class="ml-2 text-xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
@@ -97,7 +97,7 @@
     <div class="px-4 py-4 border-t border-gray-200 mt-auto h-16">
       <div class="flex items-center h-full">
         <div class="flex-shrink-0 flex items-center justify-center">
-          <div class="h-8 w-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+          <div class="h-11 w-11 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base">
             {{ userInitials }}
           </div>
         </div>
