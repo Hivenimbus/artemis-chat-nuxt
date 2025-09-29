@@ -1,6 +1,6 @@
 <template>
   <header class="bg-white shadow-sm border-b border-gray-200 h-16">
-    <div class="flex items-center justify-between px-6 py-4 h-full">
+    <div class="flex items-center justify-between px-4 py-4 h-full">
       <!-- Botão de Toggle da Sidebar -->
       <div class="flex items-center">
         <button
