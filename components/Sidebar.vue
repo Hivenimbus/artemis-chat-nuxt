@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out"
+    class="flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden"
     :class="[
       isExpanded ? 'w-64' : 'w-[76px]'
     ]"
@@ -11,9 +11,9 @@
         <span class="text-white font-bold text-sm">A</span>
       </div>
       <h1
-        class="ml-2 text-xl font-semibold text-gray-900 transition-opacity duration-300"
+        class="ml-2 text-xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
         :class="[
-          isExpanded ? 'opacity-100' : 'opacity-0 hidden'
+          isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
         ]"
       >
         Artemis
@@ -48,9 +48,9 @@
           />
         </svg>
         <span
-          class="ml-3 transition-opacity duration-300"
+          class="ml-3 transition-opacity duration-300 delay-100"
           :class="[
-            isExpanded ? 'opacity-100' : 'opacity-0 hidden'
+            isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
           ]"
         >
           Atendimentos
@@ -83,9 +83,9 @@
           />
         </svg>
         <span
-          class="ml-3 transition-opacity duration-300"
+          class="ml-3 transition-opacity duration-300 delay-100"
           :class="[
-            isExpanded ? 'opacity-100' : 'opacity-0 hidden'
+            isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
           ]"
         >
           Contatos
