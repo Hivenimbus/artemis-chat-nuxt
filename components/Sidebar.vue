@@ -6,7 +6,7 @@
     ]"
   >
     <!-- Logo e Título -->
-    <div class="flex items-center px-6 py-4 border-b border-gray-200 h-16">
+    <div class="flex items-center px-4 py-4 border-b border-gray-200 h-16">
       <div class="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
         <span class="text-white font-bold text-sm">A</span>
       </div>
