@@ -1,41 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <!-- Navbar -->
-    <nav class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex items-center">
-            <div class="flex-shrink-0 flex items-center">
-              <div class="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span class="text-white font-bold text-sm">A</span>
-              </div>
-              <h1 class="ml-2 text-xl font-semibold text-gray-900">Artemis</h1>
-            </div>
-            <div class="ml-10 flex items-baseline space-x-4">
-              <NuxtLink to="/dashboard" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                Dashboard
-              </NuxtLink>
-              <NuxtLink to="/atendimentos" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-md text-sm font-medium">
-                Atendimentos
-              </NuxtLink>
-            </div>
-          </div>
-
-          <div class="flex items-center space-x-4">
-            <button class="text-gray-500 hover:text-gray-700">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6 6h-6v-6z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 14l6 6H5v-6z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
-
+  <div class="h-screen bg-gray-50 flex flex-col">
     <!-- Conteúdo principal -->
-    <div class="flex h-[calc(100vh-4rem)]">
+    <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
       <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 overflow-y-auto">
         <!-- Cabeçalho da lista de contatos -->
