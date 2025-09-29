@@ -10,7 +10,7 @@
     <!-- Sidebar -->
     <Sidebar
       :is-expanded="isSidebarExpanded"
-      class="hidden md:flex h-full transition-all duration-300 ease-in-out fixed md:static inset-y-0 left-0 z-50 md:translate-x-0 transform"
+      class="h-full transition-all duration-300 ease-in-out fixed md:static inset-y-0 left-0 z-50 md:translate-x-0 transform md:flex"
       :class="[
         isSidebarExpanded ? 'w-64' : 'w-16',
         isSidebarMobileOpen ? 'translate-x-0' : '-translate-x-full'
