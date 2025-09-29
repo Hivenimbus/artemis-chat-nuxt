@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen bg-gray-50 flex flex-col">
+  <div class="h-full bg-gray-50 flex flex-col">
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
@@ -30,14 +30,14 @@
         </div>
 
         <!-- Lista de contatos -->
-        <div class="divide-y divide-gray-200">
+        <div class="space-y-3 p-3">
           <div
             v-for="contact in filteredContacts"
             :key="contact.id"
             @click="selectContact(contact)"
             :class="[
-              'p-4 hover:bg-gray-50 cursor-pointer transition-colors duration-200',
-              selectedContact?.id === contact.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+              'p-4 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 hover:shadow-md cursor-pointer transition-all duration-200',
+              selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-500 shadow-sm' : ''
             ]"
           >
             <div class="flex items-start space-x-3">
