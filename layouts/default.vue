@@ -1,11 +1,19 @@
 <template>
   <div class="h-screen bg-gray-50 flex">
+    <!-- Overlay para mobile -->
+    <div
+      v-if="isSidebarMobileOpen"
+      class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+      @click="isSidebarMobileOpen = false"
+    />
+
     <!-- Sidebar -->
     <Sidebar
       :is-expanded="isSidebarExpanded"
-      class="hidden md:flex h-full transition-all duration-300"
+      class="hidden md:flex h-full transition-all duration-300 ease-in-out fixed md:static inset-y-0 left-0 z-50 md:translate-x-0 transform"
       :class="[
-        isSidebarExpanded ? 'w-64' : 'w-16'
+        isSidebarExpanded ? 'w-64' : 'w-16',
+        isSidebarMobileOpen ? 'translate-x-0' : '-translate-x-full'
       ]"
     />
 
@@ -29,6 +37,7 @@ const route = useRoute()
 
 // Estado da sidebar
 const isSidebarExpanded = ref(true)
+const isSidebarMobileOpen = ref(false)
 
 // Meta tags globais
 useHead({
@@ -42,10 +51,16 @@ useHead({
 
 // Métodos
 const toggleSidebar = () => {
-  isSidebarExpanded.value = !isSidebarExpanded.value
-  // Salvar preferência no localStorage
-  if (process.client) {
-    localStorage.setItem('sidebarExpanded', isSidebarExpanded.value.toString())
+  // Verificar se estamos no modo mobile
+  if (window.innerWidth < 768) {
+    isSidebarMobileOpen.value = !isSidebarMobileOpen.value
+  } else {
+    // Modo desktop - comportamento normal
+    isSidebarExpanded.value = !isSidebarExpanded.value
+    // Salvar preferência no localStorage
+    if (process.client) {
+      localStorage.setItem('sidebarExpanded', isSidebarExpanded.value.toString())
+    }
   }
 }
 
