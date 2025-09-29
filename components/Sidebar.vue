@@ -21,7 +21,7 @@
     </div>
 
     <!-- Navegação -->
-    <nav class="flex-1 px-2 py-6 space-y-2">
+    <nav class="flex-1 px-4 py-6 space-y-2">
       <NuxtLink
         to="/atendimentos"
         class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
