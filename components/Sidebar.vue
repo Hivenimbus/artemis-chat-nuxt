@@ -2,7 +2,7 @@
   <div
     class="flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300 ease-in-out"
     :class="[
-      isExpanded ? 'w-64' : 'w-16'
+      isExpanded ? 'w-64' : 'w-[76px]'
     ]"
   >
     <!-- Logo e Título -->
