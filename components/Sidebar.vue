@@ -11,7 +11,7 @@
         <span class="text-white font-bold text-base">A</span>
       </div>
       <h1
-        class="ml-2 text-xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
+        class="ml-2 text-2xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
         :class="[
           isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
         ]"
