@@ -16,7 +16,7 @@
           isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
         ]"
       >
-        Artemis
+        Artemis Chat
       </h1>
     </div>
 
