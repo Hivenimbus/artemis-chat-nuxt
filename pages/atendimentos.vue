@@ -135,9 +135,9 @@
         </div>
 
         <!-- Chat quando um contato está selecionado -->
-        <div v-else class="flex-1 flex flex-col">
+        <div v-else class="flex-1 flex flex-col h-full">
           <!-- Cabeçalho do chat -->
-          <div class="bg-white border-b border-gray-200 px-6 py-4">
+          <div class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
             <div class="flex items-center">
               <div class="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
                 {{ getInitials(selectedContact.name) }}
@@ -267,7 +267,7 @@
           </div>
 
           <!-- Área de mensagens -->
-          <div class="flex-1 scrollbar-permanent p-6 space-y-4 overflow-y-auto">
+          <div class="flex-1 min-h-0 scrollbar-permanent p-6 space-y-4 overflow-y-auto">
             <div
               v-for="message in selectedContact.messages"
               :key="message.id"
