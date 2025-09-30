@@ -121,7 +121,7 @@
           </div>
 
           <!-- Paginação (fora do container de scroll) -->
-          <div class="border-t border-gray-200 bg-white px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 flex-shrink-0">
+          <div class="border-t border-gray-200 bg-white px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 flex-shrink-0 rounded-b-lg">
             <!-- Informações de contatos exibidos -->
             <div class="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
               <span v-if="filteredContacts.length > 0">
