@@ -327,6 +327,7 @@ const initScrollbars = () => {
 
   scrollElements.forEach(element => {
     let scrollTimeout
+    let isHoveringScrollbar = false
 
     const showScrollbar = () => {
       element.classList.add('scrollbar-visible')
@@ -335,17 +336,41 @@ const initScrollbars = () => {
 
     const hideScrollbar = () => {
       scrollTimeout = setTimeout(() => {
-        element.classList.remove('scrollbar-visible')
+        if (!isHoveringScrollbar) {
+          element.classList.remove('scrollbar-visible')
+        }
       }, 1000)
     }
 
-    // Mostrar no hover
+    const checkScrollbarHover = (event) => {
+      const rect = element.getBoundingClientRect()
+      const scrollbarZone = rect.right - 20 // Zona de 20px da direita
+
+      if (event.clientX >= scrollbarZone) {
+        isHoveringScrollbar = true
+        showScrollbar()
+      } else {
+        isHoveringScrollbar = false
+        hideScrollbar()
+      }
+    }
+
+    // Mostrar no hover no elemento inteiro
     element.addEventListener('mouseenter', showScrollbar)
     element.addEventListener('mouseleave', hideScrollbar)
+
+    // Detectar hover específico na área da scrollbar
+    element.addEventListener('mousemove', checkScrollbarHover)
 
     // Mostrar durante o scroll
     element.addEventListener('scroll', () => {
       showScrollbar()
+      hideScrollbar()
+    })
+
+    // Esconder quando o mouse sai do elemento
+    element.addEventListener('mouseleave', () => {
+      isHoveringScrollbar = false
       hideScrollbar()
     })
   })
@@ -464,7 +489,7 @@ useHead({
 .scrollbar-permanent::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 4px;
-  opacity: 0.2;
+  opacity: 0;
   transition: all 0.3s ease;
 }
 
@@ -480,7 +505,7 @@ useHead({
 /* Para Firefox */
 .scrollbar-permanent {
   scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+  scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.3s ease;
 }
 
