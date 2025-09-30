@@ -3,7 +3,7 @@
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
-      <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 scrollbar-permanent">
+    <div class="w-full md:w-2/6 lg:w-2/6 bg-white border-r border-gray-200 scrollbar-permanent">
         <!-- Cabeçalho da lista de contatos -->
         <div class="p-4 border-b border-gray-200">
           <div class="flex items-center justify-between mb-4">
@@ -33,6 +33,38 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
               </svg>
             </button>
+          </div>
+
+          <!-- Navbar de Status -->
+          <div class="border-b border-gray-200">
+            <div class="bg-gray-100 p-1 rounded-lg">
+              <nav class="flex space-x-1" aria-label="Status dos atendimentos">
+                <button
+                  v-for="status in statusOptions"
+                  :key="status.value"
+                  @click="selectedStatus = status.value"
+                  :class="[
+                    'flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-between',
+                    selectedStatus === status.value
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                  ]"
+                >
+                  <span>{{ status.label }}</span>
+                  <span
+                    v-if="status.count !== undefined"
+                    :class="[
+                      'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                      selectedStatus === status.value
+                        ? 'bg-indigo-100 text-indigo-600'
+                        : 'bg-gray-300 text-gray-600'
+                    ]"
+                  >
+                    {{ status.count }}
+                  </span>
+                </button>
+              </nav>
+            </div>
           </div>
         </div>
 
@@ -209,6 +241,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 5 * 60 * 1000), // 5 minutos atrás
     tags: ['Prioridade', 'VIP'],
     unreadCount: 2,
+    status: 'ativo',
     messages: [
       { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 5 * 60 * 1000) },
       { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 4 * 60 * 1000) },
@@ -223,6 +256,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 30 * 60 * 1000), // 30 minutos atrás
     tags: ['Resolvido'],
     unreadCount: 0,
+    status: 'concluido',
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu produto', sender: 'contact', timestamp: new Date(Date.now() - 60 * 60 * 1000) },
       { id: 2, text: 'Claro, qual o problema?', sender: 'user', timestamp: new Date(Date.now() - 55 * 60 * 1000) },
@@ -237,6 +271,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
     tags: ['Entrega', 'Urgente'],
     unreadCount: 1,
+    status: 'aguardando',
     messages: [
       { id: 1, text: 'Quando meu produto será entregue?', sender: 'contact', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }
     ]
@@ -249,6 +284,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
     tags: ['Novo Cliente'],
     unreadCount: 0,
+    status: 'ativo',
     messages: [
       { id: 1, text: 'Quero fazer um pedido', sender: 'contact', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! O que você gostaria de pedir?', sender: 'user', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000) }
@@ -262,6 +298,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 horas atrás
     tags: ['Reclamação', 'Troca'],
     unreadCount: 1,
+    status: 'aguardando',
     messages: [
       { id: 1, text: 'Produto chegou com defeito', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000) }
     ]
@@ -274,6 +311,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
     tags: ['Elogio', 'Resolvido'],
     unreadCount: 0,
+    status: 'concluido',
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000) },
       { id: 2, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000) },
@@ -288,6 +326,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
     tags: ['Cancelamento', 'Urgente'],
     unreadCount: 2,
+    status: 'ativo',
     messages: [
       { id: 1, text: 'Quero cancelar meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000) }
     ]
@@ -300,6 +339,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 horas atrás
     tags: ['Sugestão', 'Feedback'],
     unreadCount: 0,
+    status: 'concluido',
     messages: [
       { id: 1, text: 'Gostaria de fazer uma sugestão', sender: 'contact', timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! Adoraria ouvir sua sugestão', sender: 'user', timestamp: new Date(Date.now() - 17 * 60 * 60 * 1000) }
@@ -313,6 +353,7 @@ const contacts = ref([
     lastMessageTime: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 horas atrás
     tags: ['Dúvida', 'Promoção'],
     unreadCount: 0,
+    status: 'aguardando',
     messages: [
       { id: 1, text: 'Quando vai ter promoção novamente?', sender: 'contact', timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000) },
       { id: 2, text: 'Temos promoções mensais, fique de olho!', sender: 'user', timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000) }
@@ -323,6 +364,24 @@ const contacts = ref([
 const selectedContact = ref(null)
 const searchTerm = ref('')
 const newMessage = ref('')
+const selectedStatus = ref('todos')
+
+// Opções de status com contagens
+const statusOptions = computed(() => {
+  const statusCounts = {
+    todos: contacts.value.length,
+    aguardando: contacts.value.filter(c => c.status === 'aguardando').length,
+    ativo: contacts.value.filter(c => c.status === 'ativo').length,
+    concluido: contacts.value.filter(c => c.status === 'concluido').length
+  }
+
+  return [
+    { label: 'Todos', value: 'todos', count: statusCounts.todos },
+    { label: 'Aguardando', value: 'aguardando', count: statusCounts.aguardando },
+    { label: 'Ativo', value: 'ativo', count: statusCounts.ativo },
+    { label: 'Concluído', value: 'concluido', count: statusCounts.concluido }
+  ]
+})
 
 // Controle de scrollbars
 onMounted(() => {
@@ -383,16 +442,26 @@ const initScrollbars = () => {
   })
 }
 
-// Filtrar contatos baseado no termo de pesquisa
+// Filtrar contatos baseado no termo de pesquisa e status
 const filteredContacts = computed(() => {
-  if (!searchTerm.value) return contacts.value
+  let filtered = contacts.value
 
-  const search = searchTerm.value.toLowerCase()
-  return contacts.value.filter(contact =>
-    contact.name.toLowerCase().includes(search) ||
-    contact.phone.includes(search) ||
-    contact.tags.some(tag => tag.toLowerCase().includes(search))
-  )
+  // Filtrar por status
+  if (selectedStatus.value !== 'todos') {
+    filtered = filtered.filter(contact => contact.status === selectedStatus.value)
+  }
+
+  // Filtrar por termo de pesquisa
+  if (searchTerm.value) {
+    const search = searchTerm.value.toLowerCase()
+    filtered = filtered.filter(contact =>
+      contact.name.toLowerCase().includes(search) ||
+      contact.phone.includes(search) ||
+      contact.tags.some(tag => tag.toLowerCase().includes(search))
+    )
+  }
+
+  return filtered
 })
 
 // Selecionar contato
