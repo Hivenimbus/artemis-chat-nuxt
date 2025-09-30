@@ -36,7 +36,7 @@
           </div>
 
           <!-- Navbar de Status -->
-          <div class="mt-3 border-b border-gray-200">
+          <div class="mt-3">
             <div class="bg-gray-100 p-1 rounded-lg">
               <nav class="flex space-x-1" aria-label="Status dos atendimentos">
                 <button
@@ -113,13 +113,7 @@
                   </span>
                 </div>
 
-                <!-- Indicador de mensagens não lidas -->
-                <div v-if="contact.unreadCount > 0" class="flex items-center justify-between mt-2">
-                  <div class="bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {{ contact.unreadCount }}
-                  </div>
                 </div>
-              </div>
             </div>
           </div>
         </div>
