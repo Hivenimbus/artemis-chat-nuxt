@@ -137,7 +137,7 @@
                   <!-- Filtro por tags -->
                   <div class="mb-4">
                     <p class="text-sm font-medium text-gray-700 mb-2">Filtrar por tags:</p>
-                    <div class="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded">
+                    <div class="space-y-1 max-h-40 scrollbar-always-visible border border-gray-200 rounded">
                       <label
                         v-for="tag in availableTags"
                         :key="tag"
@@ -1204,6 +1204,36 @@ useHead({
 
 /* Para Firefox */
 #chat-messages {
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #f3f4f6;
+}
+
+/* Scrollbar sempre visível para dropdowns */
+.scrollbar-always-visible {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.scrollbar-always-visible::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-always-visible::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.scrollbar-always-visible::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 3px;
+}
+
+.scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Para Firefox */
+.scrollbar-always-visible {
   scrollbar-width: thin;
   scrollbar-color: #6b7280 #f3f4f6;
 }
