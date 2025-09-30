@@ -13,7 +13,7 @@
             :key="caixa.value"
             @click="selectedCaixaEntrada = caixa.value"
             :class="[
-              'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
+              'flex-1 py-1 px-4 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
               selectedCaixaEntrada === caixa.value
                 ? 'bg-white text-indigo-700 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
