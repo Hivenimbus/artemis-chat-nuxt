@@ -294,27 +294,41 @@
 
           <!-- Input de mensagem -->
           <div class="bg-white border-t border-gray-200 px-6 py-4">
-            <div class="flex items-center space-x-4">
-              <button class="text-gray-400 hover:text-gray-600">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                </svg>
-              </button>
-              <input
-                type="text"
-                v-model="newMessage"
-                @keyup.enter="sendMessage"
-                placeholder="Digite sua mensagem..."
-                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <button
-                @click="sendMessage"
-                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                </svg>
-              </button>
+            <div class="space-y-3">
+              <!-- Campo de mensagem maior -->
+              <div class="flex items-end space-x-3">
+                <textarea
+                  v-model="newMessage"
+                  @keydown.enter.prevent="handleEnterKey"
+                  placeholder="Digite sua mensagem..."
+                  class="flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+                  rows="3"
+                ></textarea>
+                <button
+                  @click="sendMessage"
+                  class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Botões de ação abaixo -->
+              <div class="flex justify-start space-x-4">
+                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                  </svg>
+                  <span>Anexar arquivo</span>
+                </button>
+                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <span>Emoji</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -607,6 +621,30 @@ const selectContact = (contact) => {
   selectedContact.value = contact
   // Resetar contador de mensagens não lidas
   contact.unreadCount = 0
+}
+
+// Manipular tecla Enter
+const handleEnterKey = (event) => {
+  if (event.altKey || event.shiftKey) {
+    // Alt+Enter ou Shift+Enter cria uma nova linha
+    const textarea = event.target
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = newMessage.value
+
+    newMessage.value = text.substring(0, start) + '\n' + text.substring(end)
+
+    // Move cursor para após a quebra de linha
+    nextTick(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + 1
+    })
+
+    // Previne o comportamento padrão para evitar envio da mensagem
+    event.preventDefault()
+  } else {
+    // Enter normal envia a mensagem
+    sendMessage()
+  }
 }
 
 // Enviar mensagem
