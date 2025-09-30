@@ -1,5 +1,36 @@
 <template>
   <div class="h-full bg-gray-50 flex flex-col">
+    <!-- Header principal com navbar de caixas de entrada -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold text-gray-900">Atendimentos</h1>
+
+        <!-- Navbar de Caixas de Entrada -->
+        <div class="bg-gray-100 p-1 rounded-lg">
+        <nav class="flex space-x-1" aria-label="Caixas de entrada">
+          <button
+            v-for="caixa in caixasEntradaOptions"
+            :key="caixa.value"
+            @click="selectedCaixaEntrada = caixa.value"
+            :class="[
+              'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
+              selectedCaixaEntrada === caixa.value
+                ? 'bg-white text-indigo-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            ]"
+          >
+            <span v-if="caixa.count !== undefined">
+              {{ caixa.label }} ({{ caixa.count }})
+            </span>
+            <span v-else>
+              {{ caixa.label }}
+            </span>
+          </button>
+        </nav>
+          </div>
+      </div>
+    </div>
+
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
@@ -7,7 +38,7 @@
         <!-- Cabeçalho da lista de contatos -->
         <div class="p-4 border-b border-gray-200">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Atendimentos</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Conversas</h2>
           </div>
 
           <!-- Barra de pesquisa -->
@@ -349,6 +380,7 @@ const contacts = ref([
     tags: ['Prioridade', 'VIP'],
     unreadCount: 2,
     status: 'ativo',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
       { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 24 * 60 * 1000) },
@@ -387,6 +419,7 @@ const contacts = ref([
     tags: ['Resolvido'],
     unreadCount: 0,
     status: 'concluido',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu produto', sender: 'contact', timestamp: new Date(Date.now() - 60 * 60 * 1000) },
       { id: 2, text: 'Claro, qual o problema?', sender: 'user', timestamp: new Date(Date.now() - 55 * 60 * 1000) },
@@ -402,6 +435,7 @@ const contacts = ref([
     tags: ['Entrega', 'Urgente'],
     unreadCount: 1,
     status: 'aguardando',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Quando meu produto será entregue?', sender: 'contact', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }
     ]
@@ -415,6 +449,7 @@ const contacts = ref([
     tags: ['Novo Cliente'],
     unreadCount: 0,
     status: 'ativo',
+    caixa_entrada: 'Vendas',
     messages: [
       { id: 1, text: 'Quero fazer um pedido', sender: 'contact', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! O que você gostaria de pedir?', sender: 'user', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000) }
@@ -429,6 +464,7 @@ const contacts = ref([
     tags: ['Reclamação', 'Troca'],
     unreadCount: 1,
     status: 'aguardando',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Produto chegou com defeito', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000) }
     ]
@@ -442,6 +478,7 @@ const contacts = ref([
     tags: ['Elogio', 'Resolvido'],
     unreadCount: 0,
     status: 'concluido',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000) },
       { id: 2, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000) },
@@ -457,6 +494,7 @@ const contacts = ref([
     tags: ['Cancelamento', 'Urgente'],
     unreadCount: 2,
     status: 'ativo',
+    caixa_entrada: 'Urgente',
     messages: [
       { id: 1, text: 'Quero cancelar meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000) }
     ]
@@ -470,6 +508,7 @@ const contacts = ref([
     tags: ['Sugestão', 'Feedback'],
     unreadCount: 0,
     status: 'concluido',
+    caixa_entrada: 'Suporte',
     messages: [
       { id: 1, text: 'Gostaria de fazer uma sugestão', sender: 'contact', timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! Adoraria ouvir sua sugestão', sender: 'user', timestamp: new Date(Date.now() - 17 * 60 * 60 * 1000) }
@@ -484,6 +523,7 @@ const contacts = ref([
     tags: ['Dúvida', 'Promoção'],
     unreadCount: 0,
     status: 'aguardando',
+    caixa_entrada: 'Prospecção',
     messages: [
       { id: 1, text: 'Quando vai ter promoção novamente?', sender: 'contact', timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000) },
       { id: 2, text: 'Temos promoções mensais, fique de olho!', sender: 'user', timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000) }
@@ -495,10 +535,28 @@ const selectedContact = ref(null)
 const searchTerm = ref('')
 const newMessage = ref('')
 const selectedStatus = ref('todos')
+const selectedCaixaEntrada = ref('Suporte')
 const showTagDropdown = ref(false)
 const showStatusDropdown = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
+
+// Opções de caixas de entrada
+const caixasEntradaOptions = computed(() => {
+  const caixaCounts = {
+    Suporte: contacts.value.filter(c => c.caixa_entrada === 'Suporte').length,
+    Vendas: contacts.value.filter(c => c.caixa_entrada === 'Vendas').length,
+    Urgente: contacts.value.filter(c => c.caixa_entrada === 'Urgente').length,
+    Prospecção: contacts.value.filter(c => c.caixa_entrada === 'Prospecção').length
+  }
+
+  return [
+    { label: 'Suporte', value: 'Suporte', count: caixaCounts.Suporte },
+    { label: 'Vendas', value: 'Vendas', count: caixaCounts.Vendas },
+    { label: 'Urgente', value: 'Urgente', count: caixaCounts.Urgente },
+    { label: 'Prospecção', value: 'Prospecção', count: caixaCounts.Prospecção }
+  ]
+})
 
 // Tags do sistema disponíveis
 const systemTags = ref([
@@ -594,9 +652,12 @@ const initScrollbars = () => {
   })
 }
 
-// Filtrar contatos baseado no termo de pesquisa e status
+// Filtrar contatos baseado no termo de pesquisa, caixa de entrada e status
 const filteredContacts = computed(() => {
   let filtered = contacts.value
+
+  // Filtrar por caixa de entrada
+  filtered = filtered.filter(contact => contact.caixa_entrada === selectedCaixaEntrada.value)
 
   // Filtrar por status
   if (selectedStatus.value !== 'todos') {
