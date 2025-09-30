@@ -485,6 +485,8 @@
 </template>
 
 <script setup>
+import { nextTick } from 'vue'
+
 // Dados mockados para demonstração
 const contacts = ref([
   {
@@ -887,6 +889,19 @@ const selectContact = (contact) => {
   selectedContact.value = contact
   // Resetar contador de mensagens não lidas
   contact.unreadCount = 0
+
+  // Rolar automaticamente para a última mensagem
+  nextTick(() => {
+    scrollToBottom()
+  })
+}
+
+// Rolar para a parte inferior do chat
+const scrollToBottom = () => {
+  const chatMessages = document.getElementById('chat-messages')
+  if (chatMessages) {
+    chatMessages.scrollTop = chatMessages.scrollHeight
+  }
 }
 
 // Manipular tecla Enter
@@ -929,6 +944,11 @@ const sendMessage = () => {
   selectedContact.value.lastMessageTime = message.timestamp
 
   newMessage.value = ''
+
+  // Rolar para ver a nova mensagem
+  nextTick(() => {
+    scrollToBottom()
+  })
 }
 
 // Obter iniciais do nome
