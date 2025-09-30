@@ -44,23 +44,17 @@
                   :key="status.value"
                   @click="selectedStatus = status.value"
                   :class="[
-                    'flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-between',
+                    'flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
                     selectedStatus === status.value
                       ? 'bg-white text-indigo-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
                   ]"
                 >
-                  <span>{{ status.label }}</span>
-                  <span
-                    v-if="status.count !== undefined"
-                    :class="[
-                      'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
-                      selectedStatus === status.value
-                        ? 'bg-indigo-100 text-indigo-600'
-                        : 'bg-gray-300 text-gray-600'
-                    ]"
-                  >
-                    {{ status.count }}
+                  <span v-if="status.count !== undefined">
+                    {{ status.label }} ({{ status.count }})
+                  </span>
+                  <span v-else>
+                    {{ status.label }}
                   </span>
                 </button>
               </nav>
