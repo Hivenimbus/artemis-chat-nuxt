@@ -2,11 +2,11 @@
   <div class="h-full bg-gray-50 flex flex-col">
     <!-- Header principal com navbar de caixas de entrada -->
     <div class="bg-white border-b border-gray-200 px-6 py-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center">
         <h1 class="text-xl font-bold text-gray-900">Atendimentos</h1>
 
         <!-- Navbar de Caixas de Entrada -->
-        <div class="bg-gray-100 p-1 rounded-lg">
+        <div class="bg-gray-100 p-1 rounded-lg ml-4">
         <nav class="flex space-x-1" aria-label="Caixas de entrada">
           <button
             v-for="caixa in caixasEntradaOptions"
@@ -27,7 +27,7 @@
             </span>
           </button>
         </nav>
-          </div>
+        </div>
       </div>
     </div>
 
