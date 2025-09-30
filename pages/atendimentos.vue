@@ -36,7 +36,7 @@
           </div>
 
           <!-- Navbar de Status -->
-          <div class="border-b border-gray-200">
+          <div class="mt-3 border-b border-gray-200">
             <div class="bg-gray-100 p-1 rounded-lg">
               <nav class="flex space-x-1" aria-label="Status dos atendimentos">
                 <button
@@ -44,7 +44,7 @@
                   :key="status.value"
                   @click="selectedStatus = status.value"
                   :class="[
-                    'flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
+                    'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
                     selectedStatus === status.value
                       ? 'bg-white text-indigo-700 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
