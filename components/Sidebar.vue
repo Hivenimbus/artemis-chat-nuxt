@@ -58,6 +58,41 @@
       </NuxtLink>
 
       <NuxtLink
+        to="/agendamentos"
+        class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
+        :class="[
+          isActive('/agendamentos')
+            ? 'bg-indigo-50 text-indigo-700'
+            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+        ]"
+      >
+        <svg
+          class="h-5 w-5 flex-shrink-0"
+          :class="[
+            isActive('/agendamentos') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+          ]"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+        <span
+          class="ml-3 transition-opacity duration-300 delay-100"
+          :class="[
+            isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
+          ]"
+        >
+          Agendamentos
+        </span>
+      </NuxtLink>
+
+      <NuxtLink
         to="/contatos"
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
