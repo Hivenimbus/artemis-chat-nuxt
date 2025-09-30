@@ -3,7 +3,7 @@
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
-      <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 overflow-y-auto">
+      <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-gray-200 scrollbar-permanent">
         <!-- Cabeçalho da lista de contatos -->
         <div class="p-4 border-b border-gray-200">
           <div class="flex items-center justify-between mb-4">
@@ -135,7 +135,7 @@
           </div>
 
           <!-- Área de mensagens -->
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+          <div class="flex-1 scrollbar-permanent p-6 space-y-4">
             <div
               v-for="message in selectedContact.messages"
               :key="message.id"
@@ -246,12 +246,110 @@ const contacts = ref([
       { id: 1, text: 'Quero fazer um pedido', sender: 'contact', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! O que você gostaria de pedir?', sender: 'user', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000) }
     ]
+  },
+  {
+    id: 5,
+    name: 'Carlos Mendes',
+    phone: '11955555555',
+    lastMessage: 'Produto chegou com defeito',
+    lastMessageTime: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 horas atrás
+    tags: ['Reclamação', 'Troca'],
+    unreadCount: 1,
+    messages: [
+      { id: 1, text: 'Produto chegou com defeito', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000) }
+    ]
+  },
+  {
+    id: 6,
+    name: 'Fernanda Souza',
+    phone: '21944444444',
+    lastMessage: 'Obrigado pelo atendimento rápido',
+    lastMessageTime: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
+    tags: ['Elogio', 'Resolvido'],
+    unreadCount: 0,
+    messages: [
+      { id: 1, text: 'Preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+      { id: 2, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000) },
+      { id: 3, text: 'Obrigado pelo atendimento rápido', sender: 'contact', timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000) }
+    ]
+  },
+  {
+    id: 7,
+    name: 'Ricardo Alves',
+    phone: '31933333333',
+    lastMessage: 'Quero cancelar meu pedido',
+    lastMessageTime: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
+    tags: ['Cancelamento', 'Urgente'],
+    unreadCount: 2,
+    messages: [
+      { id: 1, text: 'Quero cancelar meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000) }
+    ]
+  },
+  {
+    id: 8,
+    name: 'Juliana Lima',
+    phone: '11922222222',
+    lastMessage: 'Gostaria de fazer uma sugestão',
+    lastMessageTime: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 horas atrás
+    tags: ['Sugestão', 'Feedback'],
+    unreadCount: 0,
+    messages: [
+      { id: 1, text: 'Gostaria de fazer uma sugestão', sender: 'contact', timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000) },
+      { id: 2, text: 'Claro! Adoraria ouvir sua sugestão', sender: 'user', timestamp: new Date(Date.now() - 17 * 60 * 60 * 1000) }
+    ]
+  },
+  {
+    id: 9,
+    name: 'Roberto Silva',
+    phone: '21911111111',
+    lastMessage: 'Quando vai ter promoção novamente?',
+    lastMessageTime: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 horas atrás
+    tags: ['Dúvida', 'Promoção'],
+    unreadCount: 0,
+    messages: [
+      { id: 1, text: 'Quando vai ter promoção novamente?', sender: 'contact', timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000) },
+      { id: 2, text: 'Temos promoções mensais, fique de olho!', sender: 'user', timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000) }
+    ]
   }
 ])
 
 const selectedContact = ref(null)
 const searchTerm = ref('')
 const newMessage = ref('')
+
+// Controle de scrollbars
+onMounted(() => {
+  initScrollbars()
+})
+
+const initScrollbars = () => {
+  const scrollElements = document.querySelectorAll('.scrollbar-permanent')
+
+  scrollElements.forEach(element => {
+    let scrollTimeout
+
+    const showScrollbar = () => {
+      element.classList.add('scrollbar-visible')
+      clearTimeout(scrollTimeout)
+    }
+
+    const hideScrollbar = () => {
+      scrollTimeout = setTimeout(() => {
+        element.classList.remove('scrollbar-visible')
+      }, 1000)
+    }
+
+    // Mostrar no hover
+    element.addEventListener('mouseenter', showScrollbar)
+    element.addEventListener('mouseleave', hideScrollbar)
+
+    // Mostrar durante o scroll
+    element.addEventListener('scroll', () => {
+      showScrollbar()
+      hideScrollbar()
+    })
+  })
+}
 
 // Filtrar contatos baseado no termo de pesquisa
 const filteredContacts = computed(() => {
@@ -343,3 +441,55 @@ useHead({
   ]
 })
 </script>
+
+<style scoped>
+/* Scrollbar permanente com visibilidade controlada */
+.scrollbar-permanent {
+  scrollbar-gutter: stable;
+  overflow-y: auto;
+  -ms-overflow-style: none;  /* IE e Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-permanent::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+
+.scrollbar-permanent::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.scrollbar-permanent::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+  opacity: 0.2;
+  transition: all 0.3s ease;
+}
+
+.scrollbar-permanent.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  opacity: 1;
+}
+
+.scrollbar-permanent.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Para Firefox */
+.scrollbar-permanent {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.scrollbar-permanent.scrollbar-visible {
+  scrollbar-color: #9ca3af transparent;
+}
+
+/* Garantir que o container sempre reserve espaço */
+.scrollbar-permanent {
+  overflow-y: scroll !important;
+}
+</style>
