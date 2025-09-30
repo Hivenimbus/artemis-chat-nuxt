@@ -150,7 +150,7 @@
                 <!-- Botão de Tag -->
                 <div class="relative">
                   <button
-                    @click="showTagDropdown = !showTagDropdown"
+                    @click="toggleTagDropdown"
                     class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                     title="Adicionar tags"
                   >
@@ -220,7 +220,7 @@
                 <!-- Botão de Status -->
                 <div class="relative">
                   <button
-                    @click="showStatusDropdown = !showStatusDropdown"
+                    @click="toggleStatusDropdown"
                     class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                     title="Alterar status"
                   >
@@ -705,6 +705,21 @@ const closeTagDropdown = () => {
 
 const closeStatusDropdown = () => {
   showStatusDropdown.value = false
+}
+
+// Funções para toggle dropdowns com comportamento mutualmente exclusivo
+const toggleTagDropdown = () => {
+  if (showStatusDropdown.value) {
+    showStatusDropdown.value = false
+  }
+  showTagDropdown.value = !showTagDropdown.value
+}
+
+const toggleStatusDropdown = () => {
+  if (showTagDropdown.value) {
+    showTagDropdown.value = false
+  }
+  showStatusDropdown.value = !showStatusDropdown.value
 }
 
 const getStatusLabel = (status) => {
