@@ -188,7 +188,7 @@
                       </div>
 
                       <!-- Botão Adicionar Tag -->
-                      <div class="border-t pt-2">
+                      <div class="pt-2">
                         <button
                           @click="showAddTagInput = !showAddTagInput"
                           class="w-full px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
