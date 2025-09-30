@@ -267,7 +267,7 @@
           </div>
 
           <!-- Área de mensagens -->
-          <div class="flex-1 min-h-0 scrollbar-permanent p-6 space-y-4 overflow-y-auto">
+          <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 280px);" id="chat-messages">
             <div
               v-for="message in selectedContact.messages"
               :key="message.id"
@@ -336,9 +336,32 @@ const contacts = ref([
     unreadCount: 2,
     status: 'ativo',
     messages: [
-      { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 5 * 60 * 1000) },
-      { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 4 * 60 * 1000) },
-      { id: 3, text: 'Meu pedido #1234 está atrasado', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 1000) }
+      { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
+      { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 24 * 60 * 1000) },
+      { id: 3, text: 'Meu pedido #1234 está atrasado', sender: 'contact', timestamp: new Date(Date.now() - 23 * 60 * 1000) },
+      { id: 4, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 22 * 60 * 1000) },
+      { id: 5, text: 'Obrigado pelo atendimento rápido', sender: 'contact', timestamp: new Date(Date.now() - 21 * 60 * 1000) },
+      { id: 6, text: 'Verifiquei seu pedido e ele já foi despachado', sender: 'user', timestamp: new Date(Date.now() - 20 * 60 * 1000) },
+      { id: 7, text: 'Que bom! Quando ele deve chegar?', sender: 'contact', timestamp: new Date(Date.now() - 19 * 60 * 1000) },
+      { id: 8, text: 'A previsão de entrega é até sexta-feira', sender: 'user', timestamp: new Date(Date.now() - 18 * 60 * 1000) },
+      { id: 9, text: 'Perfeito, obrigado pela informação', sender: 'contact', timestamp: new Date(Date.now() - 17 * 60 * 1000) },
+      { id: 10, text: 'De nada! Se precisar de mais algo, é só chamar', sender: 'user', timestamp: new Date(Date.now() - 16 * 60 * 1000) },
+      { id: 11, text: 'Só mais uma dúvida, o pedido vem com nota fiscal?', sender: 'contact', timestamp: new Date(Date.now() - 15 * 60 * 1000) },
+      { id: 12, text: 'Sim, todos os nossos pedidos vêm com nota fiscal eletrônica', sender: 'user', timestamp: new Date(Date.now() - 14 * 60 * 1000) },
+      { id: 13, text: 'Excelente, isso é muito importante para mim', sender: 'contact', timestamp: new Date(Date.now() - 13 * 60 * 1000) },
+      { id: 14, text: 'A nota fiscal será enviada para seu e-mail cadastrado', sender: 'user', timestamp: new Date(Date.now() - 12 * 60 * 1000) },
+      { id: 15, text: 'Perfeito, já anotei isso. Obrigado mais uma vez!', sender: 'contact', timestamp: new Date(Date.now() - 11 * 60 * 1000) },
+      { id: 16, text: 'Foi um prazer ajudar! Estou à disposição', sender: 'user', timestamp: new Date(Date.now() - 10 * 60 * 1000) },
+      { id: 17, text: 'Tenha um ótimo dia!', sender: 'contact', timestamp: new Date(Date.now() - 9 * 60 * 1000) },
+      { id: 18, text: 'Você também! Até logo!', sender: 'user', timestamp: new Date(Date.now() - 8 * 60 * 1000) },
+      { id: 19, text: 'Oi, só para confirmar, meu pedido já saiu para entrega?', sender: 'contact', timestamp: new Date(Date.now() - 7 * 60 * 1000) },
+      { id: 20, text: 'Sim! Seu pedido já foi despachado hoje de manhã.', sender: 'user', timestamp: new Date(Date.now() - 6 * 60 * 1000) },
+      { id: 21, text: 'Que ótimo! Você tem o código de rastreamento?', sender: 'contact', timestamp: new Date(Date.now() - 5 * 60 * 1000) },
+      { id: 22, text: 'Claro! O código é: BR123456789BR', sender: 'user', timestamp: new Date(Date.now() - 4 * 60 * 1000) },
+      { id: 23, text: 'Perfeito, já vou rastrear no site dos Correios.', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 1000) },
+      { id: 24, text: 'Ótima ideia! Qualquer dúvida é só me chamar.', sender: 'user', timestamp: new Date(Date.now() - 2 * 60 * 1000) },
+      { id: 25, text: 'Obrigado pela ajuda! Vocês são incríveis!', sender: 'contact', timestamp: new Date(Date.now() - 1 * 60 * 1000) },
+      { id: 26, text: 'Foi um prazer ajudar! Volte sempre!', sender: 'user', timestamp: new Date() }
     ]
   },
   {
@@ -782,5 +805,29 @@ useHead({
 /* Garantir que o container sempre reserve espaço */
 .scrollbar-permanent {
   overflow-y: scroll !important;
+}
+
+/* Chat messages scrollbar específica */
+#chat-messages {
+  scrollbar-gutter: stable;
+  overflow-y: scroll !important;
+}
+
+#chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+#chat-messages::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+#chat-messages::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+#chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 </style>
