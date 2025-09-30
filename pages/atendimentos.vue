@@ -238,15 +238,7 @@
                     <div class="p-3">
                       <p class="text-sm font-medium text-gray-900 mb-3">Alterar Status</p>
 
-                      <!-- Status atual -->
-                      <div class="mb-3">
-                        <p class="text-xs text-gray-500 mb-1">Atual:</p>
-                        <div class="px-2 py-1 bg-gray-100 rounded text-xs">
-                          {{ getStatusLabel(selectedContact?.status) }}
-                        </div>
-                      </div>
-
-                      <!-- Novos status -->
+                      <!-- Opções de status -->
                       <div class="space-y-1">
                         <button
                           v-for="status in [
@@ -275,7 +267,7 @@
           </div>
 
           <!-- Área de mensagens -->
-          <div class="flex-1 scrollbar-permanent p-6 space-y-4">
+          <div class="flex-1 scrollbar-permanent p-6 space-y-4 overflow-y-auto">
             <div
               v-for="message in selectedContact.messages"
               :key="message.id"
