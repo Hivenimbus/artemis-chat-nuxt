@@ -44,8 +44,8 @@
 
         <!-- Lista de Contatos em Cards -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <!-- Container da lista com scroll -->
-          <div class="flex-1 p-4 overflow-y-auto">
+          <!-- Container da lista com scroll customizado -->
+          <div class="flex-1 p-4 custom-scrollbar-container">
             <div class="space-y-3">
               <div
                 v-for="contact in paginatedContacts"
@@ -542,3 +542,46 @@ useHead({
   ]
 })
 </script>
+
+<style scoped>
+/* Custom scrollbar que só aparece ao passar o mouse */
+.custom-scrollbar-container {
+  scrollbar-color: transparent transparent;
+  overflow: overlay;
+  overflow-y: auto;
+  transition: scrollbar-color 0.3s ease;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+/* Chrome, Safari e Edge */
+.custom-scrollbar-container::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+
+.custom-scrollbar-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-container::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+/* Ao passar o mouse, mostra a scrollbar */
+.custom-scrollbar-container:hover {
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.custom-scrollbar-container:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* Scrollbar mais visível quando ativamente em uso */
+.custom-scrollbar-container:hover::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.7);
+}
+
+</style>
