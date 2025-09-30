@@ -147,16 +147,129 @@
                 <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
               </div>
               <div class="ml-auto flex items-center space-x-2">
-                <button class="text-gray-400 hover:text-gray-600">
-                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                  </svg>
-                </button>
-                <button class="text-gray-400 hover:text-gray-600">
-                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
-                  </svg>
-                </button>
+                <!-- Botão de Tag -->
+                <div class="relative">
+                  <button
+                    @click="showTagDropdown = !showTagDropdown"
+                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    title="Adicionar tags"
+                  >
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown de Tags -->
+                  <div
+                    v-if="showTagDropdown"
+                    v-click-outside="closeTagDropdown"
+                    class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                  >
+                    <div class="p-3">
+                      <p class="text-sm font-medium text-gray-900 mb-3">Gerenciar Tags</p>
+
+                      <!-- Tags do sistema -->
+                      <div class="max-h-40 overflow-y-auto mb-3">
+                        <div class="space-y-2">
+                          <label
+                            v-for="systemTag in systemTags"
+                            :key="systemTag"
+                            class="flex items-center px-2 py-2 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              :checked="selectedContact?.tags?.includes(systemTag) || false"
+                              @change="toggleTag(systemTag)"
+                              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                            <span class="ml-2 text-sm text-gray-700">{{ systemTag }}</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <!-- Botão Adicionar Tag -->
+                      <div class="border-t pt-2">
+                        <button
+                          @click="showAddTagInput = !showAddTagInput"
+                          class="w-full px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
+                        >
+                          + Adicionar Tag
+                        </button>
+
+                        <!-- Input para nova tag (aparece quando clicado) -->
+                        <div v-if="showAddTagInput" class="mt-2 flex">
+                          <input
+                            v-model="newTag"
+                            type="text"
+                            placeholder="Nome da tag..."
+                            class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            @keyup.enter="addNewSystemTag"
+                          />
+                          <button
+                            @click="addNewSystemTag"
+                            class="px-2 py-1 bg-indigo-600 text-white text-sm rounded-r-md hover:bg-indigo-700"
+                          >
+                            OK
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Botão de Status -->
+                <div class="relative">
+                  <button
+                    @click="showStatusDropdown = !showStatusDropdown"
+                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    title="Alterar status"
+                  >
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown de Status -->
+                  <div
+                    v-if="showStatusDropdown"
+                    v-click-outside="closeStatusDropdown"
+                    class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                  >
+                    <div class="p-3">
+                      <p class="text-sm font-medium text-gray-900 mb-3">Alterar Status</p>
+
+                      <!-- Status atual -->
+                      <div class="mb-3">
+                        <p class="text-xs text-gray-500 mb-1">Atual:</p>
+                        <div class="px-2 py-1 bg-gray-100 rounded text-xs">
+                          {{ getStatusLabel(selectedContact?.status) }}
+                        </div>
+                      </div>
+
+                      <!-- Novos status -->
+                      <div class="space-y-1">
+                        <button
+                          v-for="status in [
+                            { value: 'aguardando', label: 'Aguardando' },
+                            { value: 'ativo', label: 'Ativo' },
+                            { value: 'concluido', label: 'Concluído' }
+                          ]"
+                          :key="status.value"
+                          @click="updateStatus(status.value)"
+                          :disabled="selectedContact?.status === status.value"
+                          :class="[
+                            'w-full px-2 py-1 text-left text-xs rounded transition-colors duration-200',
+                            selectedContact?.status === status.value
+                              ? 'bg-indigo-100 text-indigo-700'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          ]"
+                        >
+                          {{ status.label }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -353,6 +466,28 @@ const selectedContact = ref(null)
 const searchTerm = ref('')
 const newMessage = ref('')
 const selectedStatus = ref('todos')
+const showTagDropdown = ref(false)
+const showStatusDropdown = ref(false)
+const showAddTagInput = ref(false)
+const newTag = ref('')
+
+// Tags do sistema disponíveis
+const systemTags = ref([
+  'Prioridade',
+  'VIP',
+  'Resolvido',
+  'Entrega',
+  'Urgente',
+  'Novo Cliente',
+  'Reclamação',
+  'Elogio',
+  'Dúvida',
+  'Sugestão',
+  'Cancelamento',
+  'Promoção',
+  'Feedback',
+  'Troca'
+])
 
 // Opções de status com contagens
 const statusOptions = computed(() => {
@@ -520,6 +655,66 @@ const getTagColor = (tag) => {
   }
 
   return colors[tag] || 'bg-gray-100 text-gray-800'
+}
+
+// Funções de gerenciamento de tags
+const toggleTag = (tag) => {
+  if (!selectedContact.value) return
+
+  const tagIndex = selectedContact.value.tags.indexOf(tag)
+  if (tagIndex > -1) {
+    // Remover tag se já estiver selecionada
+    selectedContact.value.tags.splice(tagIndex, 1)
+  } else {
+    // Adicionar tag se não estiver selecionada
+    selectedContact.value.tags.push(tag)
+  }
+}
+
+const addNewSystemTag = () => {
+  if (!newTag.value.trim()) return
+
+  const tagName = newTag.value.trim()
+
+  // Adicionar às tags do sistema se não existir
+  if (!systemTags.value.includes(tagName)) {
+    systemTags.value.push(tagName)
+  }
+
+  // Adicionar ao contato selecionado
+  if (selectedContact.value && !selectedContact.value.tags.includes(tagName)) {
+    selectedContact.value.tags.push(tagName)
+  }
+
+  newTag.value = ''
+  showAddTagInput.value = false
+}
+
+// Funções de gerenciamento de status
+const updateStatus = (newStatus) => {
+  if (!selectedContact.value) return
+
+  selectedContact.value.status = newStatus
+  showStatusDropdown.value = false
+}
+
+// Funções para fechar dropdowns
+const closeTagDropdown = () => {
+  showTagDropdown.value = false
+}
+
+const closeStatusDropdown = () => {
+  showStatusDropdown.value = false
+}
+
+const getStatusLabel = (status) => {
+  const labels = {
+    'aguardando': 'Aguardando',
+    'ativo': 'Ativo',
+    'concluido': 'Concluído'
+  }
+
+  return labels[status] || status
 }
 
 // Meta tags da página
