@@ -823,11 +823,17 @@ useHead({
 }
 
 #chat-messages::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #6b7280;
   border-radius: 4px;
 }
 
 #chat-messages::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Para Firefox */
+#chat-messages {
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #f3f4f6;
 }
 </style>
