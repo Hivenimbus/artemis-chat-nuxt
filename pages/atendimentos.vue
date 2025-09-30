@@ -93,14 +93,85 @@
                 </svg>
               </div>
             </div>
-            <button
-              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors duration-200"
-              title="Filtrar contatos"
-            >
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-              </svg>
-            </button>
+            <!-- Botão de filtro com dropdown -->
+            <div class="relative">
+              <button
+                @click="toggleFilterDropdown"
+                :class="[
+                  'px-4 py-2 border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors duration-200 flex items-center space-x-2',
+                  filterOptions.unreadOnly || filterOptions.selectedTags.length > 0
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 text-gray-600'
+                ]"
+                title="Filtrar contatos"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                </svg>
+                <span v-if="filterOptions.unreadOnly || filterOptions.selectedTags.length > 0" class="text-xs font-medium">
+                  {{ (filterOptions.unreadOnly ? 1 : 0) + filterOptions.selectedTags.length }}
+                </span>
+              </button>
+
+              <!-- Dropdown de opções de filtro -->
+              <div
+                v-if="showFilterDropdown"
+                v-click-outside="closeFilterDropdown"
+                class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+              >
+                <div class="p-4">
+                  <h3 class="text-sm font-medium text-gray-900 mb-3">Filtrar Contatos</h3>
+
+                  <!-- Filtro de mensagens não lidas -->
+                  <div class="mb-4">
+                    <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        v-model="filterOptions.unreadOnly"
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span class="ml-2 text-sm text-gray-700">Apenas mensagens não lidas</span>
+                    </label>
+                  </div>
+
+                  <!-- Filtro por tags -->
+                  <div class="mb-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Filtrar por tags:</p>
+                    <div class="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded">
+                      <label
+                        v-for="tag in availableTags"
+                        :key="tag"
+                        class="flex items-center cursor-pointer hover:bg-gray-50 p-2"
+                      >
+                        <input
+                          type="checkbox"
+                          :value="tag"
+                          v-model="filterOptions.selectedTags"
+                          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span class="ml-2 text-sm text-gray-700">{{ tag }}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Botões de ação -->
+                  <div class="flex justify-between pt-3 border-t border-gray-200">
+                    <button
+                      @click="clearFilters"
+                      class="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 hover:bg-gray-100 rounded"
+                    >
+                      Limpar filtros
+                    </button>
+                    <button
+                      @click="applyFilters"
+                      class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                    >
+                      Aplicar filtros
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Navbar de Status -->
@@ -143,9 +214,17 @@
           >
             <div class="flex items-start space-x-3">
               <!-- Avatar -->
-              <div class="flex-shrink-0">
+              <div class="flex-shrink-0 relative">
                 <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
                   {{ getInitials(contact.name) }}
+                </div>
+
+                <!-- Indicador de mensagens não lidas -->
+                <div
+                  v-if="contact.unreadCount > 0"
+                  class="absolute -top-1 -right-1 h-5 w-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white"
+                >
+                  {{ contact.unreadCount > 9 ? '9+' : contact.unreadCount }}
                 </div>
               </div>
 
@@ -578,6 +657,13 @@ const showStatusDropdown = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
 
+// Estado do dropdown de filtro
+const showFilterDropdown = ref(false)
+const filterOptions = ref({
+  unreadOnly: false,
+  selectedTags: []
+})
+
 // Estado do dropdown de caixa de entrada
 const showCaixaEntradaDropdown = ref(false)
 const searchCaixaEntrada = ref('')
@@ -749,23 +835,47 @@ const initScrollbars = () => {
 
 // Filtrar contatos baseado no termo de pesquisa, caixa de entrada e status
 const filteredContacts = computed(() => {
-  let filtered = contacts.value
+  if (!contacts.value || !Array.isArray(contacts.value)) {
+    return []
+  }
+
+  let filtered = contacts.value.filter(contact => contact != null)
 
   // Filtrar por caixa de entrada
-  filtered = filtered.filter(contact => contact.caixa_entrada === selectedCaixaEntrada.value)
+  filtered = filtered.filter(contact =>
+    contact.caixa_entrada === selectedCaixaEntrada.value
+  )
 
   // Filtrar por status
   if (selectedStatus.value !== 'todos') {
-    filtered = filtered.filter(contact => contact.status === selectedStatus.value)
+    filtered = filtered.filter(contact =>
+      contact.status === selectedStatus.value
+    )
   }
 
   // Filtrar por termo de pesquisa
   if (searchTerm.value) {
     const search = searchTerm.value.toLowerCase()
     filtered = filtered.filter(contact =>
-      contact.name.toLowerCase().includes(search) ||
-      contact.phone.includes(search) ||
-      contact.tags.some(tag => tag.toLowerCase().includes(search))
+      (contact.name && contact.name.toLowerCase().includes(search)) ||
+      (contact.phone && contact.phone.includes(search)) ||
+      (contact.lastMessage && contact.lastMessage.toLowerCase().includes(search)) ||
+      (contact.tags && Array.isArray(contact.tags) &&
+       contact.tags.some(tag => tag && tag.toLowerCase().includes(search)))
+    )
+  }
+
+  // Aplicar filtros avançados
+  if (filterOptions.unreadOnly) {
+    filtered = filtered.filter(contact =>
+      contact.unreadCount > 0
+    )
+  }
+
+  if (filterOptions.selectedTags && Array.isArray(filterOptions.selectedTags) && filterOptions.selectedTags.length > 0) {
+    filtered = filtered.filter(contact =>
+      contact.tags && Array.isArray(contact.tags) &&
+      filterOptions.selectedTags.some(tag => contact.tags.includes(tag))
     )
   }
 
@@ -949,6 +1059,50 @@ const selectCaixaEntrada = (value) => {
   selectedCaixaEntrada.value = value
   showCaixaEntradaDropdown.value = false
   searchCaixaEntrada.value = '' // Limpar pesquisa após seleção
+}
+
+// Obter tags disponíveis
+const availableTags = computed(() => {
+  if (!contacts.value || !Array.isArray(contacts.value)) {
+    return []
+  }
+
+  const allTags = contacts.value
+    .filter(contact => contact && contact.tags && Array.isArray(contact.tags))
+    .flatMap(contact => contact.tags)
+
+  return [...new Set(allTags)].sort()
+})
+
+// Funções do dropdown de filtro
+const toggleFilterDropdown = () => {
+  if (showTagDropdown.value) {
+    showTagDropdown.value = false
+  }
+  if (showStatusDropdown.value) {
+    showStatusDropdown.value = false
+  }
+  if (showCaixaEntradaDropdown.value) {
+    showCaixaEntradaDropdown.value = false
+  }
+  showFilterDropdown.value = !showFilterDropdown.value
+}
+
+const closeFilterDropdown = () => {
+  showFilterDropdown.value = false
+}
+
+const clearFilters = () => {
+  filterOptions.value = {
+    unreadOnly: false,
+    selectedTags: []
+  }
+  showFilterDropdown.value = false
+}
+
+const applyFilters = () => {
+  showFilterDropdown.value = false
+  // A filtragem será aplicada automaticamente via reatividade
 }
 
 const getStatusLabel = (status) => {
