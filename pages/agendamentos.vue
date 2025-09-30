@@ -102,7 +102,6 @@
                 <div
                   v-for="appointment in day.appointments.slice(0, 2)"
                   :key="appointment.id"
-                  @click.stop="editAppointment(appointment)"
                   :class="[
                     'text-xs px-1 py-0.5 rounded truncate',
                     getStatusColor(appointment.status)
