@@ -5,28 +5,65 @@
       <div class="flex items-center">
         <h1 class="text-xl font-bold text-gray-900">Atendimentos</h1>
 
-        <!-- Navbar de Caixas de Entrada -->
-        <div class="bg-gray-100 p-1 rounded-lg ml-4">
-        <nav class="flex space-x-1" aria-label="Caixas de entrada">
+        <!-- Dropdown de Caixa de Entrada -->
+        <div class="relative">
           <button
-            v-for="caixa in caixasEntradaOptions"
-            :key="caixa.value"
-            @click="selectedCaixaEntrada = caixa.value"
-            :class="[
-              'flex-1 py-1 px-4 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center whitespace-nowrap',
-              selectedCaixaEntrada === caixa.value
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-            ]"
+            @click="toggleCaixaEntradaDropdown"
+            class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200 ml-4"
+            title="Selecionar caixa de entrada"
           >
-            <span v-if="caixa.count !== undefined">
-              {{ caixa.label }} ({{ caixa.count }})
-            </span>
-            <span v-else>
-              {{ caixa.label }}
-            </span>
+            <!-- Ícone de caixa de entrada -->
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <span>{{ selectedCaixaEntrada }}</span>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
           </button>
-        </nav>
+
+          <!-- Dropdown Menu -->
+          <div
+            v-if="showCaixaEntradaDropdown"
+            v-click-outside="closeCaixaEntradaDropdown"
+            class="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+          >
+            <div class="p-3">
+              <p class="text-sm font-medium text-gray-900 mb-3">Selecionar Caixa de Entrada</p>
+
+              <!-- Barra de Pesquisa -->
+              <div class="mb-3">
+                <input
+                  v-model="searchCaixaEntrada"
+                  type="text"
+                  placeholder="Pesquisar caixa de entrada..."
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+
+              <!-- Lista de Caixas de Entrada -->
+              <div class="max-h-60 overflow-y-auto">
+                <div class="space-y-1">
+                  <button
+                    v-for="caixa in filteredCaixaEntradaOptions"
+                    :key="caixa.value"
+                    @click="selectCaixaEntrada(caixa.value)"
+                    :class="[
+                      'w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 flex items-center justify-between',
+                      selectedCaixaEntrada === caixa.value
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    ]"
+                  >
+                    <span>{{ caixa.label }}</span>
+                    <span v-if="caixa.count > 0" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                      {{ caixa.count }}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -541,21 +578,79 @@ const showStatusDropdown = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
 
+// Estado do dropdown de caixa de entrada
+const showCaixaEntradaDropdown = ref(false)
+const searchCaixaEntrada = ref('')
+
 // Opções de caixas de entrada
 const caixasEntradaOptions = computed(() => {
   const caixaCounts = {
     Suporte: contacts.value.filter(c => c.caixa_entrada === 'Suporte').length,
     Vendas: contacts.value.filter(c => c.caixa_entrada === 'Vendas').length,
     Urgente: contacts.value.filter(c => c.caixa_entrada === 'Urgente').length,
-    Prospecção: contacts.value.filter(c => c.caixa_entrada === 'Prospecção').length
+    Prospecção: contacts.value.filter(c => c.caixa_entrada === 'Prospecção').length,
+    Financeiro: 0,
+    Marketing: 0,
+    Produtos: 0,
+    Logística: 0,
+    RH: 0,
+    TI: 0,
+    Legal: 0,
+    Parcerias: 0,
+    Sugestões: 0,
+    Reclamações: 0,
+    Elogios: 0,
+    'Contas a Pagar': 0,
+    'Contas a Receber': 0,
+    'Compras': 0,
+    'Estoque': 0,
+    'Qualidade': 0,
+    'Treinamento': 0,
+    'Segurança': 0,
+    'Almoxarifado': 0,
+    'Manutenção': 0,
+    'Atendimento Prioritário': 0
   }
 
   return [
     { label: 'Suporte', value: 'Suporte', count: caixaCounts.Suporte },
     { label: 'Vendas', value: 'Vendas', count: caixaCounts.Vendas },
     { label: 'Urgente', value: 'Urgente', count: caixaCounts.Urgente },
-    { label: 'Prospecção', value: 'Prospecção', count: caixaCounts.Prospecção }
+    { label: 'Prospecção', value: 'Prospecção', count: caixaCounts.Prospecção },
+    { label: 'Financeiro', value: 'Financeiro', count: caixaCounts.Financeiro },
+    { label: 'Marketing', value: 'Marketing', count: caixaCounts.Marketing },
+    { label: 'Produtos', value: 'Produtos', count: caixaCounts.Produtos },
+    { label: 'Logística', value: 'Logística', count: caixaCounts.Logística },
+    { label: 'RH', value: 'RH', count: caixaCounts.RH },
+    { label: 'TI', value: 'TI', count: caixaCounts.TI },
+    { label: 'Legal', value: 'Legal', count: caixaCounts.Legal },
+    { label: 'Parcerias', value: 'Parcerias', count: caixaCounts.Parcerias },
+    { label: 'Sugestões', value: 'Sugestões', count: caixaCounts.Sugestões },
+    { label: 'Reclamações', value: 'Reclamações', count: caixaCounts.Reclamações },
+    { label: 'Elogios', value: 'Elogios', count: caixaCounts.Elogios },
+    { label: 'Contas a Pagar', value: 'Contas a Pagar', count: caixaCounts['Contas a Pagar'] },
+    { label: 'Contas a Receber', value: 'Contas a Receber', count: caixaCounts['Contas a Receber'] },
+    { label: 'Compras', value: 'Compras', count: caixaCounts.Compras },
+    { label: 'Estoque', value: 'Estoque', count: caixaCounts.Estoque },
+    { label: 'Qualidade', value: 'Qualidade', count: caixaCounts.Qualidade },
+    { label: 'Treinamento', value: 'Treinamento', count: caixaCounts.Treinamento },
+    { label: 'Segurança', value: 'Segurança', count: caixaCounts.Segurança },
+    { label: 'Almoxarifado', value: 'Almoxarifado', count: caixaCounts.Almoxarifado },
+    { label: 'Manutenção', value: 'Manutenção', count: caixaCounts.Manutenção },
+    { label: 'Atendimento Prioritário', value: 'Atendimento Prioritário', count: caixaCounts['Atendimento Prioritário'] }
   ]
+})
+
+// Computed para filtrar caixas de entrada no dropdown
+const filteredCaixaEntradaOptions = computed(() => {
+  if (!searchCaixaEntrada.value) {
+    return caixasEntradaOptions.value
+  }
+
+  const search = searchCaixaEntrada.value.toLowerCase()
+  return caixasEntradaOptions.value.filter(caixa =>
+    caixa.label.toLowerCase().includes(search)
+  )
 })
 
 // Tags do sistema disponíveis
@@ -821,6 +916,10 @@ const closeStatusDropdown = () => {
   showStatusDropdown.value = false
 }
 
+const closeCaixaEntradaDropdown = () => {
+  showCaixaEntradaDropdown.value = false
+}
+
 // Funções para toggle dropdowns com comportamento mutualmente exclusivo
 const toggleTagDropdown = () => {
   if (showStatusDropdown.value) {
@@ -834,6 +933,22 @@ const toggleStatusDropdown = () => {
     showTagDropdown.value = false
   }
   showStatusDropdown.value = !showStatusDropdown.value
+}
+
+const toggleCaixaEntradaDropdown = () => {
+  if (showStatusDropdown.value) {
+    showStatusDropdown.value = false
+  }
+  if (showTagDropdown.value) {
+    showTagDropdown.value = false
+  }
+  showCaixaEntradaDropdown.value = !showCaixaEntradaDropdown.value
+}
+
+const selectCaixaEntrada = (value) => {
+  selectedCaixaEntrada.value = value
+  showCaixaEntradaDropdown.value = false
+  searchCaixaEntrada.value = '' // Limpar pesquisa após seleção
 }
 
 const getStatusLabel = (status) => {
