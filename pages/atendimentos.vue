@@ -1052,6 +1052,9 @@ const toggleCaixaEntradaDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
+  if (showFilterDropdown.value) {
+    showFilterDropdown.value = false
+  }
   showCaixaEntradaDropdown.value = !showCaixaEntradaDropdown.value
 }
 
