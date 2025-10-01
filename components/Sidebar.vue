@@ -126,6 +126,41 @@
           Contatos
         </span>
       </NuxtLink>
+
+      <NuxtLink
+        to="/kanbans"
+        class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
+        :class="[
+          isActive('/kanbans')
+            ? 'bg-indigo-50 text-indigo-700'
+            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+        ]"
+      >
+        <svg
+          class="h-5 w-5 flex-shrink-0"
+          :class="[
+            isActive('/kanbans') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+          ]"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 17v1a1 1 0 001 1h4a1 1 0 001-1v-1m3-2V8a2 2 0 00-2-2H8a2 2 0 00-2 2v8m5-4h.01M9 16h.01"
+          />
+        </svg>
+        <span
+          class="ml-3 transition-opacity duration-300 delay-100"
+          :class="[
+            isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
+          ]"
+        >
+          Kanbans
+        </span>
+      </NuxtLink>
     </nav>
 
     <!-- Seção inferior -->
