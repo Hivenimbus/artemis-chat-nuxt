@@ -1,7 +1,7 @@
 <template>
-  <div class="h-screen bg-gray-50 overflow-hidden">
+  <div class="h-full bg-gray-50 flex flex-col">
     <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
             <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center h-full">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -32,7 +32,7 @@
       </div>
 
       <!-- Kanbans Grid -->
-      <div v-else class="flex-1 py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start">
+      <div v-else class="flex-1 overflow-y-auto py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start">
         <div
           v-for="kanban in kanbans"
           :key="kanban.id"
