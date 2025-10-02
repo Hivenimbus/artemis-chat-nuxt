@@ -22,80 +22,109 @@
     </div>
 
     <!-- Add/Edit Card Modal -->
-    <Teleport to="body">
-      <div v-if="showCardModal" class="fixed z-50 inset-0 overflow-y-auto">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeCardModal"></div>
-          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <form @submit.prevent="saveCard">
-              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  {{ editingCard ? 'Editar Tarefa' : 'Nova Tarefa' }}
-                </h3>
-                <div class="space-y-4">
-                  <div>
-                    <label for="card-title" class="block text-sm font-medium text-gray-700">
-                      Título
-                    </label>
-                    <input
-                      id="card-title"
-                      v-model="cardForm.title"
-                      type="text"
-                      required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      placeholder="Título da tarefa"
-                    />
-                  </div>
-                  <div>
-                    <label for="card-description" class="block text-sm font-medium text-gray-700">
-                      Descrição (opcional)
-                    </label>
-                    <textarea
-                      id="card-description"
-                      v-model="cardForm.description"
-                      rows="4"
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      placeholder="Descrição da tarefa..."
-                    ></textarea>
-                  </div>
-                  <div>
-                    <label for="card-column" class="block text-sm font-medium text-gray-700">
-                      Coluna
-                    </label>
-                    <select
-                      id="card-column"
-                      v-model="cardForm.columnId"
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                    >
-                      <option v-for="column in columns" :key="column.id" :value="column.id">
-                        {{ column.title }}
-                      </option>
-                    </select>
-                  </div>
+    <div
+      v-if="showCardModal"
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      style="background-color: rgba(0, 0, 0, 0.5);"
+      @click.self="closeCardModal"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
+        @click.stop
+      >
+        <form @submit.prevent="saveCard">
+          <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+              {{ editingCard ? 'Editar Tarefa' : 'Nova Tarefa' }}
+            </h3>
+
+            <div class="space-y-4">
+              <div>
+                <label for="card-title" class="block text-sm font-medium text-gray-700">
+                  Título
+                </label>
+                <input
+                  id="card-title"
+                  v-model="cardForm.title"
+                  type="text"
+                  required
+                  class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Título da tarefa"
+                />
+              </div>
+
+              <div>
+                <label for="card-description" class="block text-sm font-medium text-gray-700">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  id="card-description"
+                  v-model="cardForm.description"
+                  rows="4"
+                  class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Descrição da tarefa..."
+                ></textarea>
+              </div>
+
+              <div>
+                <label for="card-column" class="block text-sm font-medium text-gray-700">
+                  Coluna
+                </label>
+                <select
+                  id="card-column"
+                  v-model="cardForm.columnId"
+                  class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option v-for="column in columns" :key="column.id" :value="column.id">
+                    {{ column.title }}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <div class="flex items-center">
+                  <input
+                    id="card-urgent"
+                    v-model="cardForm.isUrgent"
+                    type="checkbox"
+                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label for="card-urgent" class="ml-2 block text-sm text-gray-900">
+                    <span class="flex items-center">
+                      <svg class="w-4 h-4 mr-1 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Marcar como urgente
+                    </span>
+                  </label>
                 </div>
+                <p class="mt-1 text-xs text-gray-500">
+                  Tarefas urgentes terão prioridade visual no quadro
+                </p>
               </div>
-              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="submit"
-                  :disabled="savingCard"
-                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                >
-                  <span v-if="savingCard">Salvando...</span>
-                  <span v-else>{{ editingCard ? 'Atualizar' : 'Adicionar' }}</span>
-                </button>
-                <button
-                  type="button"
-                  @click="closeCardModal"
-                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
+
+          <div class="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
+            <button
+              type="button"
+              @click="closeCardModal"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              :disabled="savingCard"
+              class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              <span v-if="savingCard">Salvando...</span>
+              <span v-else>{{ editingCard ? 'Atualizar' : 'Adicionar' }}</span>
+            </button>
+          </div>
+        </form>
       </div>
-    </Teleport>
+    </div>
   </div>
 </template>
 
@@ -114,7 +143,8 @@ const savingCard = ref(false)
 const cardForm = ref({
   title: '',
   description: '',
-  columnId: 'todo'
+  columnId: 'todo',
+  isUrgent: false
 })
 
 // Get cards for a specific column
@@ -130,7 +160,8 @@ const handleAddCard = (columnId) => {
   cardForm.value = {
     title: '',
     description: '',
-    columnId: columnId
+    columnId: columnId,
+    isUrgent: false
   }
   showCardModal.value = true
 }
@@ -141,7 +172,8 @@ const handleEditCard = (card) => {
   cardForm.value = {
     title: card.title,
     description: card.description || '',
-    columnId: card.columnId
+    columnId: card.columnId,
+    isUrgent: card.isUrgent || false
   }
   showCardModal.value = true
 }
@@ -196,6 +228,7 @@ const saveCard = async () => {
       editingCard.value.title = cardForm.value.title
       editingCard.value.description = cardForm.value.description
       editingCard.value.columnId = cardForm.value.columnId
+      editingCard.value.isUrgent = cardForm.value.isUrgent
       editingCard.value.updated_at = new Date().toISOString()
 
       // Reposition if column changed
@@ -218,6 +251,7 @@ const saveCard = async () => {
         columnId: cardForm.value.columnId,
         title: cardForm.value.title,
         description: cardForm.value.description,
+        isUrgent: cardForm.value.isUrgent,
         position: maxPosition + 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -242,7 +276,8 @@ const closeCardModal = () => {
   cardForm.value = {
     title: '',
     description: '',
-    columnId: 'todo'
+    columnId: 'todo',
+    isUrgent: false
   }
 }
 
@@ -256,6 +291,7 @@ onMounted(() => {
       columnId: 'todo',
       title: 'Configurar projeto',
       description: 'Instalar dependências e configurar ambiente de desenvolvimento',
+      isUrgent: true,
       position: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -266,6 +302,7 @@ onMounted(() => {
       columnId: 'todo',
       title: 'Criar layout inicial',
       description: 'Desenvolver estrutura básica das páginas',
+      isUrgent: false,
       position: 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -276,6 +313,7 @@ onMounted(() => {
       columnId: 'doing',
       title: 'Implementar autenticação',
       description: 'Configurar sistema de login e registro de usuários',
+      isUrgent: false,
       position: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -286,6 +324,7 @@ onMounted(() => {
       columnId: 'done',
       title: 'Definir requisitos',
       description: 'Levantar requisitos com o cliente',
+      isUrgent: false,
       position: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

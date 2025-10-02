@@ -3,14 +3,28 @@
     draggable="true"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
-    class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-move hover:shadow-md transition-shadow duration-200"
-    :class="{ 'opacity-50': isDragging }"
+    class="bg-white rounded-lg shadow-sm border p-4 cursor-move hover:shadow-md transition-shadow duration-200"
+    :class="{
+      'opacity-50': isDragging,
+      'border-red-400 border-l-4': card.isUrgent,
+      'border-gray-200': !card.isUrgent
+    }"
   >
     <!-- Card Header -->
     <div class="flex justify-between items-start mb-3">
-      <h3 class="text-sm font-medium text-gray-900 leading-tight">
-        {{ card.title }}
-      </h3>
+      <div class="flex items-center space-x-2">
+        <h3 class="text-sm font-medium text-gray-900 leading-tight">
+          {{ card.title }}
+        </h3>
+        <div v-if="card.isUrgent" class="flex items-center">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Urgente
+          </span>
+        </div>
+      </div>
       <div class="flex space-x-1 opacity-0 hover:opacity-100 transition-opacity duration-200">
         <button
           @click="$emit('edit-card', card)"
