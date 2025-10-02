@@ -206,32 +206,14 @@ const handleDeleteCard = async (cardId) => {
 // Handle card drop
 const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
   const card = cards.value.find(c => c.id === cardId)
-  if (!card) return
-
-  const oldColumnId = card.columnId
-  const oldPosition = card.position
-
-  // Moving to a different column
-  if (oldColumnId !== newColumnId) {
+  if (card) {
+    const oldColumnId = card.columnId
     card.columnId = newColumnId
     card.position = newPosition
-    repositionCardsInColumn(oldColumnId)
     repositionCardsInColumn(newColumnId)
-  } 
-  // Moving within the same column
-  else {
-    // Get all cards in the same column except the dragged one
-    const columnCards = cards.value
-      .filter(c => c.columnId === oldColumnId && c.id !== cardId)
-      .sort((a, b) => a.position - b.position)
-
-    // Insert the card at the new position
-    columnCards.splice(newPosition, 0, card)
-
-    // Update positions for all cards
-    columnCards.forEach((c, index) => {
-      c.position = index
-    })
+    if (oldColumnId !== newColumnId) {
+      repositionCardsInColumn(oldColumnId)
+    }
   }
 }
 
