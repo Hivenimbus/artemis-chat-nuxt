@@ -145,52 +145,6 @@
                     placeholder="Descreva o propósito deste kanban..."
                   ></textarea>
                 </div>
-
-                <!-- Colunas Section -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Colunas *
-                  </label>
-                  <div class="space-y-2">
-                    <div v-for="(column, index) in form.columns" :key="column.id" class="flex items-center space-x-2">
-                      <div class="flex-1 relative">
-                        <input
-                          v-model="column.title"
-                          type="text"
-                          required
-                          class="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                          :placeholder="`Coluna ${index + 1}`"
-                        />
-                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-medium">
-                          {{ index + 1 }}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        @click="removeColumn(column.id)"
-                        :disabled="form.columns.length <= 1"
-                        class="p-2 text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-                        title="Remover coluna"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Botão Adicionar Coluna -->
-                  <button
-                    type="button"
-                    @click="addColumn"
-                    class="mt-3 w-full px-3 py-2 border border-dashed border-gray-300 rounded-md text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
-                  >
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Adicionar Coluna
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -236,27 +190,8 @@ const editingKanban = ref(null)
 const saving = ref(false)
 const form = ref({
   title: '',
-  description: '',
-  columns: [
-    { id: Date.now() + 1, title: 'Para fazer' },
-    { id: Date.now() + 2, title: 'Fazendo' },
-    { id: Date.now() + 3, title: 'Concluído' }
-  ]
+  description: ''
 })
-
-// Gerenciar colunas
-const addColumn = () => {
-  form.value.columns.push({
-    id: Date.now(),
-    title: ''
-  })
-}
-
-const removeColumn = (columnId) => {
-  if (form.value.columns.length > 1) {
-    form.value.columns = form.value.columns.filter(col => col.id !== columnId)
-  }
-}
 
 // Load kanbans
 const loadKanbans = async () => {
@@ -316,15 +251,8 @@ const saveKanban = async () => {
   try {
     saving.value = true
 
-    // Validar colunas
-    const validColumns = form.value.columns.filter(col => col.title.trim())
-    if (validColumns.length === 0) {
-      alert('É necessário pelo menos uma coluna com título.')
-      return
-    }
-
     if (editingKanban.value) {
-      // Update existing kanban (sem alterar colunas no edit)
+      // Update existing kanban
       const { error } = await supabase
         .from('kanbans')
         .update({
@@ -338,30 +266,15 @@ const saveKanban = async () => {
       if (error) throw error
     } else {
       // Create new kanban
-      const { data: kanbanData, error: kanbanError } = await supabase
+      const { error } = await supabase
         .from('kanbans')
         .insert({
           title: form.value.title,
           description: form.value.description,
           user_id: user.value.id
         })
-        .select()
-        .single()
 
-      if (kanbanError) throw kanbanError
-
-      // Create columns
-      const columnsToInsert = validColumns.map((col, index) => ({
-        kanban_id: kanbanData.id,
-        title: col.title.trim(),
-        position: index
-      }))
-
-      const { error: columnsError } = await supabase
-        .from('kanban_columns')
-        .insert(columnsToInsert)
-
-      if (columnsError) throw columnsError
+      if (error) throw error
     }
 
     closeModal()
@@ -380,12 +293,7 @@ const closeModal = () => {
   editingKanban.value = null
   form.value = {
     title: '',
-    description: '',
-    columns: [
-      { id: Date.now() + 1, title: 'Para fazer' },
-      { id: Date.now() + 2, title: 'Fazendo' },
-      { id: Date.now() + 3, title: 'Concluído' }
-    ]
+    description: ''
   }
 }
 
