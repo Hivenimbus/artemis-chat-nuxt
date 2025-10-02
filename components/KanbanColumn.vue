@@ -67,7 +67,7 @@ const props = defineProps({
 })
 
 // Emits
-defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop'])
 
 // State
 const isDragOver = ref(false)
@@ -106,7 +106,7 @@ const handleDrop = (event) => {
     const newPosition = props.cards.length
 
     // Emit the card drop event
-    $emit('card-drop', {
+    emit('card-drop', {
       cardId,
       newColumnId: props.column.id,
       newPosition

@@ -78,7 +78,7 @@ const handleDragStart = (event) => {
   isDragging.value = true
   event.dataTransfer.effectAllowed = 'move'
   event.dataTransfer.setData('cardId', props.card.id)
-  event.dataTransfer.setData('sourceColumnId', props.card.column_id)
+  event.dataTransfer.setData('sourceColumnId', props.card.columnId)
 
   // Add a custom data attribute for better drag detection
   event.target.classList.add('dragging')
