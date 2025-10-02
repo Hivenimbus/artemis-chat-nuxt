@@ -1,25 +1,32 @@
 <template>
-  <div class="flex flex-col h-full">
+  <div class="kan-col" :data-status="column.title.toLowerCase()">
     <!-- Column Header -->
-    <div class="flex items-center justify-between mb-4 px-3">
-      <h2 class="text-sm font-semibold text-gray-900 flex items-center">
-        <span>{{ column.title }}</span>
-        <span class="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-          {{ cards.length }}
-        </span>
-      </h2>
+    <div class="kan-col__header">
+      <div class="kan-col__header-title">
+        <svg v-if="column.title.includes('Fazer')" class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <svg v-else-if="column.title.includes('Fazendo')" class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <svg v-else class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 class="kan-col__title">{{ column.title }}</h2>
+        <span class="kan-col__badge">{{ cards.length }}</span>
+      </div>
     </div>
 
     <!-- Cards Container -->
     <div
-      class="flex-1 bg-gray-50 rounded-lg p-3 min-h-[400px]"
+      class="kan-col__cards"
+      :class="{ 'kan-col__cards--drag-over': isDragOver }"
       @dragover.prevent="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
-      :class="{ 'bg-indigo-50 border-2 border-indigo-200 border-dashed': isDragOver }"
     >
       <!-- Cards -->
-      <div class="space-y-3">
+      <TransitionGroup name="card-list" tag="div" class="kan-col__cards-list">
         <KanbanCard
           v-for="card in cards"
           :key="card.id"
@@ -27,28 +34,29 @@
           @edit-card="$emit('edit-card', $event)"
           @delete-card="$emit('delete-card', $event)"
         />
-      </div>
+      </TransitionGroup>
 
       <!-- Add Card Button -->
       <button
         @click="$emit('add-card', column.id)"
-        class="mt-3 w-full py-2 px-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
+        class="kan-col__add-btn"
+        :aria-label="`Adicionar cart\u00e3o em ${column.title}`"
       >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="kan-col__add-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
         Adicionar cartão
       </button>
 
       <!-- Drop Indicator -->
-      <div
-        v-if="isDragOver"
-        class="absolute inset-0 flex items-center justify-center pointer-events-none"
-      >
-        <div class="text-indigo-600 font-medium text-sm">
-          Solte o cartão aqui
+      <Transition name="drop-indicator">
+        <div v-if="isDragOver" class="kan-col__drop-indicator">
+          <svg class="kan-col__drop-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+          <span>Solte o cartão aqui</span>
         </div>
-      </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -116,8 +124,271 @@ const handleDrop = (event) => {
 </script>
 
 <style scoped>
-/* Ensure proper positioning for drop indicator */
-.bg-gray-50 {
+/* Local CSS Variables */
+.kan-col {
+  --bg-0: 244 246 250;
+  --bg-1: 255 255 255;
+  --txt-1: 17 24 39;
+  --txt-2: 75 85 99;
+  --txt-3: 156 163 175;
+  --ring: 59 130 246;
+
+  --todo-500: 59 130 246;
+  --todo-400: 96 165 250;
+  --doing-500: 245 158 11;
+  --doing-400: 251 191 36;
+  --done-500: 16 185 129;
+  --done-400: 52 211 153;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+
+  --shadow-1: 0 6px 18px rgba(0,0,0,.08);
+  --shadow-2: 0 12px 28px rgba(0,0,0,.12);
+  --shadow-3: 0 18px 34px rgba(0,0,0,.16);
+
+  --dur-fast: 150ms;
+  --dur-med: 250ms;
+  --dur-slow: 400ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+
+  --col-500: var(--todo-500);
+  --col-400: var(--todo-400);
+  
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  border-top: 4px solid rgb(var(--col-500));
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 600px;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+/* Color Variants per Status */
+.kan-col[data-status*='fazer'] {
+  --col-500: var(--todo-500);
+  --col-400: var(--todo-400);
+}
+
+.kan-col[data-status*='fazendo'] {
+  --col-500: var(--doing-500);
+  --col-400: var(--doing-400);
+}
+
+.kan-col[data-status*='conclu'] {
+  --col-500: var(--done-500);
+  --col-400: var(--done-400);
+}
+
+/* Column Header */
+.kan-col__header {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid rgba(var(--txt-3), 0.1);
+}
+
+.kan-col__header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kan-col__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: rgb(var(--col-500));
+  flex-shrink: 0;
+}
+
+.kan-col__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgb(var(--txt-1));
+  flex: 1;
+}
+
+.kan-col__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, rgb(var(--col-500)), rgb(var(--col-400)));
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(var(--col-500), 0.3);
+}
+
+/* Cards Container */
+.kan-col__cards {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
   position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--col-500), 0.3) transparent;
+}
+
+.kan-col__cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kan-col__cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kan-col__cards::-webkit-scrollbar-thumb {
+  background: rgba(var(--col-500), 0.3);
+  border-radius: 3px;
+}
+
+.kan-col__cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--col-500), 0.5);
+}
+
+.kan-col__cards--drag-over {
+  background: rgba(var(--col-500), 0.05);
+  outline: 2px dashed rgba(var(--col-500), 0.4);
+  outline-offset: -4px;
+}
+
+/* Cards List */
+.kan-col__cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Card List Transitions */
+.card-list-enter-active,
+.card-list-leave-active {
+  transition: all var(--dur-med) var(--ease-out);
+}
+
+.card-list-enter-from {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.card-list-leave-to {
+  opacity: 0;
+  transform: translateX(20px) scale(0.9);
+}
+
+.card-list-move {
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+/* Add Button */
+.kan-col__add-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 2px dashed rgba(var(--col-500), 0.3);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--col-500));
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.kan-col__add-btn:hover {
+  border-color: rgb(var(--col-500));
+  background: rgba(var(--col-500), 0.05);
+  transform: translateY(-2px);
+}
+
+.kan-col__add-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--col-500), 0.2);
+}
+
+.kan-col__add-btn:active {
+  transform: translateY(0);
+}
+
+.kan-col__add-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Drop Indicator */
+.kan-col__drop-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(var(--col-500), 0.08);
+  border-radius: var(--radius-sm);
+  color: rgb(var(--col-500));
+  font-weight: 600;
+  font-size: 1rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.kan-col__drop-icon {
+  width: 3rem;
+  height: 3rem;
+  animation: bounce-indicator 1s ease-in-out infinite;
+}
+
+@keyframes bounce-indicator {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Drop Indicator Transitions */
+.drop-indicator-enter-active,
+.drop-indicator-leave-active {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.drop-indicator-enter-from,
+.drop-indicator-leave-to {
+  opacity: 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .kan-col {
+    min-height: 500px;
+  }
+
+  .kan-col__header {
+    padding: 1rem 0.75rem;
+  }
+
+  .kan-col__title {
+    font-size: 0.875rem;
+  }
+
+  .kan-col__badge {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
 }
 </style>
