@@ -2,6 +2,19 @@
   <div class="h-full bg-gray-50">
     <!-- Conteúdo principal -->
     <div class="max-w-7xl mx-auto h-full py-4 px-3 sm:py-6 sm:px-6 lg:px-8 flex flex-col">
+      <!-- Mensagem de Sucesso -->
+      <div
+        v-if="updateSuccess"
+        class="mb-4 sm:mb-6 bg-green-50 border border-green-200 rounded-lg p-4 animate-in slide-in-from-top-2 duration-200"
+      >
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          <span class="text-green-800 font-medium">{{ updateSuccess }}</span>
+        </div>
+      </div>
+
       <!-- Filtros e Ações -->
       <div class="bg-white shadow rounded-lg mb-4 sm:mb-6 flex-shrink-0 flex flex-col h-full">
         <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
@@ -104,17 +117,145 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                       </svg>
                     </NuxtLink>
-                    <button class="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                      <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                      </svg>
-                    </button>
-                    <button class="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                      <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                    <button
+                      @click="toggleContactExpansion(contact.id)"
+                      class="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <svg
+                        :class="[
+                          'h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200',
+                          expandedContacts.includes(contact.id) ? 'rotate-180' : ''
+                        ]"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                       </svg>
                     </button>
                   </div>
+                </div>
+
+                <!-- Formulário de Edição (Expansível) -->
+                <div
+                  v-if="expandedContacts.includes(contact.id)"
+                  class="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200"
+                >
+                  <form @submit.prevent="updateContact(contact.id)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <!-- Nome -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Nome
+                        </label>
+                        <input
+                          v-model="contact.name"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+
+                      <!-- Sobrenome -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Sobrenome
+                        </label>
+                        <input
+                          v-model="contact.lastName"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <!-- Email -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Email
+                        </label>
+                        <input
+                          v-model="contact.email"
+                          type="email"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+
+                      <!-- Telefone -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Telefone
+                        </label>
+                        <input
+                          v-model="contact.phone"
+                          type="tel"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          required
+                        />
+                      </div>
+
+                      <!-- Cidade -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Cidade
+                        </label>
+                        <input
+                          v-model="contact.city"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <!-- País -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          País
+                        </label>
+                        <input
+                          v-model="contact.country"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Empresa -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Empresa
+                      </label>
+                      <input
+                        v-model="contact.company"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <!-- Biografia -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Biografia
+                      </label>
+                      <textarea
+                        v-model="contact.biography"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                      ></textarea>
+                    </div>
+
+                    <!-- Botão de Atualizar -->
+                    <div class="flex justify-end">
+                      <button
+                        type="submit"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                      >
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Atualizar Contato
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -198,6 +339,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP', 'Cliente'],
     lastContact: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+    lastName: 'Silva',
+    city: 'São Paulo',
+    country: 'Brasil',
+    biography: 'Gerente de projetos com mais de 10 anos de experiência em tecnologia.',
+    company: 'Tech Solutions Ltda'
   },
   {
     id: 2,
@@ -207,6 +353,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead'],
     lastContact: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
+    lastName: 'Santos',
+    city: 'Rio de Janeiro',
+    country: 'Brasil',
+    biography: 'Especialista em marketing digital e redes sociais.',
+    company: 'Marketing Digital Agency'
   },
   {
     id: 3,
@@ -216,6 +367,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente'],
     lastContact: new Date(Date.now() - 30 * 60 * 1000), // 30 minutos atrás
+    lastName: 'Oliveira',
+    city: 'Belo Horizonte',
+    country: 'Brasil',
+    biography: 'Desenvolvedor full-stack com foco em aplicações web.',
+    company: 'DevWorks'
   },
   {
     id: 4,
@@ -225,6 +381,11 @@ const contacts = ref([
     status: 'inactive',
     tags: ['Inativo'],
     lastContact: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 dias atrás
+    lastName: 'Costa',
+    city: 'Salvador',
+    country: 'Brasil',
+    biography: 'Designer gráfico com experiência em branding.',
+    company: 'Creative Studio'
   },
   {
     id: 5,
@@ -234,6 +395,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP', 'Empresa'],
     lastContact: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 horas atrás
+    lastName: 'Ferreira',
+    city: 'Brasília',
+    country: 'Brasil',
+    biography: 'Consultor de negócios especializado em transformação digital.',
+    company: 'Business Consulting Group'
   },
   {
     id: 6,
@@ -243,6 +409,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente'],
     lastContact: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
+    lastName: 'Lima',
+    city: 'Porto Alegre',
+    country: 'Brasil',
+    biography: 'Advogada especializada em direito empresarial.',
+    company: 'Law & Associates'
   },
   {
     id: 7,
@@ -252,6 +423,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead', 'Empresa'],
     lastContact: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 dias atrás
+    lastName: 'Almeida',
+    city: 'Curitiba',
+    country: 'Brasil',
+    biography: 'Engenheiro de software com experiência em cloud computing.',
+    company: 'CloudTech Solutions'
   },
   {
     id: 8,
@@ -261,6 +437,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP'],
     lastContact: new Date(Date.now() - 45 * 60 * 1000), // 45 minutos atrás
+    lastName: 'Martins',
+    city: 'Recife',
+    country: 'Brasil',
+    biography: 'Gerente de produtos especializada em SaaS.',
+    company: 'Product Innovations Inc'
   },
   {
     id: 9,
@@ -270,6 +451,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente'],
     lastContact: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 dias atrás
+    lastName: 'Pereira',
+    city: 'Fortaleza',
+    country: 'Brasil',
+    biography: 'Analista financeiro com experiência em investimentos.',
+    company: 'Financial Services Ltd'
   },
   {
     id: 10,
@@ -279,6 +465,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead'],
     lastContact: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
+    lastName: 'Souza',
+    city: 'Manaus',
+    country: 'Brasil',
+    biography: 'Coordenadora de projetos sociais.',
+    company: 'Community Development NGO'
   },
   {
     id: 11,
@@ -288,6 +479,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Empresa'],
     lastContact: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 horas atrás
+    lastName: 'Mendes',
+    city: 'São Paulo',
+    country: 'Brasil',
+    biography: 'CTO de empresa de tecnologia.',
+    company: 'Innovation Tech'
   },
   {
     id: 12,
@@ -297,6 +493,11 @@ const contacts = ref([
     status: 'inactive',
     tags: ['Inativo'],
     lastContact: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 dias atrás
+    lastName: 'Oliveira',
+    city: 'Campinas',
+    country: 'Brasil',
+    biography: 'Analista de sistemas.',
+    company: 'Data Corp'
   },
   {
     id: 13,
@@ -306,6 +507,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP', 'Empresa'],
     lastContact: new Date(Date.now() - 90 * 60 * 1000), // 1.5 horas atrás
+    lastName: 'Dias',
+    city: 'São Paulo',
+    country: 'Brasil',
+    biography: 'Diretor executivo.',
+    company: 'Executive Solutions'
   },
   {
     id: 14,
@@ -315,6 +521,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead', 'VIP'],
     lastContact: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 horas atrás
+    lastName: 'Costa',
+    city: 'Rio de Janeiro',
+    country: 'Brasil',
+    biography: 'Consultora de negócios.',
+    company: 'Business Strategy'
   },
   {
     id: 15,
@@ -324,6 +535,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente'],
     lastContact: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
+    lastName: 'Santos',
+    city: 'Belém',
+    country: 'Brasil',
+    biography: 'Gerente de vendas.',
+    company: 'Sales Excellence'
   },
   {
     id: 16,
@@ -333,6 +549,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP'],
     lastContact: new Date(Date.now() - 15 * 60 * 1000), // 15 minutos atrás
+    lastName: 'Rocha',
+    city: 'São Luís',
+    country: 'Brasil',
+    biography: 'CEO de startup.',
+    company: 'Startup Innovations'
   },
   {
     id: 17,
@@ -342,6 +563,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead'],
     lastContact: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 horas atrás
+    lastName: 'Fernandes',
+    city: 'Goiânia',
+    country: 'Brasil',
+    biography: 'Desenvolvedor mobile.',
+    company: 'Mobile Solutions'
   },
   {
     id: 18,
@@ -351,6 +577,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente', 'Empresa'],
     lastContact: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 dias atrás
+    lastName: 'Alves',
+    city: 'Florianópolis',
+    country: 'Brasil',
+    biography: 'Arquiteta de software.',
+    company: 'Software Architecture'
   },
   {
     id: 19,
@@ -360,6 +591,11 @@ const contacts = ref([
     status: 'inactive',
     tags: ['Inativo'],
     lastContact: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000), // 21 dias atrás
+    lastName: 'Paulo',
+    city: 'Vitória',
+    country: 'Brasil',
+    biography: 'Analista de qualidade.',
+    company: 'Quality Assurance'
   },
   {
     id: 20,
@@ -369,6 +605,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP'],
     lastContact: new Date(Date.now() - 60 * 60 * 1000), // 1 hora atrás
+    lastName: 'Gomes',
+    city: 'Natal',
+    country: 'Brasil',
+    biography: 'Gerente de projetos.',
+    company: 'Project Management'
   },
   {
     id: 21,
@@ -378,6 +619,11 @@ const contacts = ref([
     status: 'active',
     tags: ['Cliente'],
     lastContact: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 dias atrás
+    lastName: 'Barbosa',
+    city: 'Maceió',
+    country: 'Brasil',
+    biography: 'Consultor financeiro.',
+    company: 'Financial Consulting'
   },
   {
     id: 22,
@@ -387,6 +633,11 @@ const contacts = ref([
     status: 'pending',
     tags: ['Novo Lead', 'Empresa'],
     lastContact: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 horas atrás
+    lastName: 'Castro',
+    city: 'João Pessoa',
+    country: 'Brasil',
+    biography: 'Especialista em RH.',
+    company: 'HR Solutions'
   },
   {
     id: 23,
@@ -396,6 +647,11 @@ const contacts = ref([
     status: 'active',
     tags: ['VIP', 'Cliente'],
     lastContact: new Date(Date.now() - 75 * 60 * 1000), // 1.25 horas atrás
+    lastName: 'Nogueira',
+    city: 'Aracaju',
+    country: 'Brasil',
+    biography: 'Empreendedor digital.',
+    company: 'Digital Business'
   }
 ])
 
@@ -405,6 +661,12 @@ const statusFilter = ref('')
 // Paginação
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
+
+// Estado de expansão dos cards
+const expandedContacts = ref([])
+
+// Estado de feedback de atualização
+const updateSuccess = ref(null)
 
 // Computados
 const filteredContacts = computed(() => {
@@ -511,6 +773,41 @@ const getTagColor = (tag) => {
     'Empresa': 'bg-indigo-100 text-indigo-800'
   }
   return colors[tag] || 'bg-gray-100 text-gray-800'
+}
+
+// Métodos de expansão de cards
+const toggleContactExpansion = (contactId) => {
+  const index = expandedContacts.value.indexOf(contactId)
+  if (index > -1) {
+    expandedContacts.value.splice(index, 1)
+  } else {
+    expandedContacts.value.push(contactId)
+  }
+}
+
+// Método de atualização de contato
+const updateContact = (contactId) => {
+  // Encontrar o contato no array
+  const contactIndex = contacts.value.findIndex(c => c.id === contactId)
+
+  if (contactIndex !== -1) {
+    // Simular atualização (em um app real, isso seria uma chamada de API)
+    const updatedContact = { ...contacts.value[contactIndex] }
+
+    // Mostrar feedback de sucesso
+    updateSuccess.value = `Contato "${updatedContact.name}" atualizado com sucesso!`
+
+    // Remover o feedback após 3 segundos
+    setTimeout(() => {
+      updateSuccess.value = null
+    }, 3000)
+
+    // Colapsar o card após atualizar
+    const expandedIndex = expandedContacts.value.indexOf(contactId)
+    if (expandedIndex > -1) {
+      expandedContacts.value.splice(expandedIndex, 1)
+    }
+  }
 }
 
 // Métodos de paginação
