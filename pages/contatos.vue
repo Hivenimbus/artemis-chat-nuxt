@@ -138,11 +138,14 @@
 
                 <!-- Formulário de Edição (Expansível) -->
                 <div
-                  v-if="expandedContacts.includes(contact.id)"
-                  class="mt-4 pt-4 border-t border-gray-200 animate-in slide-in-from-top-2 duration-200"
+                  :class="[
+                    'form-expansion-container',
+                    expandedContacts.includes(contact.id) ? 'expanded' : 'collapsed'
+                  ]"
                 >
                   <form @submit.prevent="updateContact(contact.id)" class="space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Primeiro Grid: Nome e Sobrenome -->
+                    <div class="form-field grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <!-- Nome -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -167,7 +170,10 @@
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       </div>
+                    </div>
 
+                    <!-- Segundo Grid: Email e Telefone -->
+                    <div class="form-field grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <!-- Email -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -193,7 +199,10 @@
                           required
                         />
                       </div>
+                    </div>
 
+                    <!-- Terceiro Grid: Cidade e País -->
+                    <div class="form-field grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <!-- Cidade -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -219,8 +228,8 @@
                       </div>
                     </div>
 
-                    <!-- Biografia e Empresa -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Quarto Grid: Biografia e Empresa -->
+                    <div class="form-field grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <!-- Biografia -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -247,7 +256,7 @@
                     </div>
 
                     <!-- Botão de Atualizar -->
-                    <div class="flex justify-end">
+                    <div class="form-field flex justify-end">
                       <button
                         type="submit"
                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
@@ -900,6 +909,108 @@ useHead({
   .custom-scrollbar-container {
     -webkit-overflow-scrolling: touch;
     overflow-scrolling: touch;
+  }
+}
+
+/* Animação fluida de expansão de formulário */
+.form-expansion-container {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: max-height, opacity, transform;
+  border-top: 1px solid transparent;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.form-expansion-container.expanded {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+  border-top: 1px solid #e5e7eb;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.form-expansion-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  border-top: 1px solid transparent;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Animações stagger para campos do formulário */
+.form-expansion-container.expanded .form-field {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.form-expansion-container.expanded .form-field:nth-child(1) { animation-delay: 0.05s; }
+.form-expansion-container.expanded .form-field:nth-child(2) { animation-delay: 0.1s; }
+.form-expansion-container.expanded .form-field:nth-child(3) { animation-delay: 0.15s; }
+.form-expansion-container.expanded .form-field:nth-child(4) { animation-delay: 0.2s; }
+.form-expansion-container.expanded .form-field:nth-child(5) { animation-delay: 0.25s; }
+.form-expansion-container.expanded .form-field:nth-child(6) { animation-delay: 0.3s; }
+.form-expansion-container.expanded .form-field:nth-child(7) { animation-delay: 0.35s; }
+.form-expansion-container.expanded .form-field:nth-child(8) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Melhorias de performance e micro-interações */
+.form-expansion-container input,
+.form-expansion-container textarea {
+  transition: all 0.2s ease;
+  will-change: border-color, box-shadow;
+}
+
+.form-expansion-container input:focus,
+.form-expansion-container textarea:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.form-expansion-container button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.form-expansion-container button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.form-expansion-container button:active {
+  transform: translateY(0);
+}
+
+/* Animação para o botão de expandir/colapsar */
+.transition-transform {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Melhorias para mobile */
+@media (max-width: 640px) {
+  .form-expansion-container.expanded {
+    max-height: 800px;
+  }
+
+  .form-expansion-container input:focus,
+  .form-expansion-container textarea:focus {
+    transform: none;
   }
 }
 
