@@ -36,15 +36,13 @@
         <div
           v-for="kanban in kanbans"
           :key="kanban.id"
-          class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-all duration-200 cursor-pointer transform hover:scale-105"
+          class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200 cursor-pointer"
           @click="navigateToKanban(kanban.id)"
         >
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <div class="flex-shrink-0">
-                <div
-                  :class="`w-8 h-8 ${kanban.color || 'bg-indigo-500'} rounded-md flex items-center justify-center`"
-                >
+                <div class="w-8 h-8 bg-indigo-500 rounded-md flex items-center justify-center">
                   <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v1a1 1 0 001 1h4a1 1 0 001-1v-1m3-2V8a2 2 0 00-2-2H8a2 2 0 00-2 2v8m5-4h.01M9 16h.01" />
                   </svg>
@@ -71,23 +69,6 @@
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">{{ kanban.title }}</h3>
             <p class="text-sm text-gray-500 mb-4">{{ kanban.description || 'Sem descrição' }}</p>
-
-            <!-- Estatísticas -->
-            <div v-if="kanban.cardCount !== undefined" class="mb-4">
-              <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
-                <span>{{ kanban.cardCount }} tarefas</span>
-                <span>{{ kanban.completedCount || 0 }} concluídas</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  class="h-2 rounded-full transition-all duration-300"
-                  :class="kanban.completedCount > 0 ? 'bg-green-500' : 'bg-gray-300'"
-                  :style="`width: ${kanban.cardCount > 0 ? Math.round((kanban.completedCount / kanban.cardCount) * 100) : 0}%`"
-                ></div>
-              </div>
-            </div>
-
-            <!-- Footer -->
             <div class="flex items-center text-sm text-gray-500">
               <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -254,12 +235,6 @@
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
-// Helper function para obter user ID de forma compatível
-const getUserId = () => {
-  // @nuxtjs/supabase v2.0.0 retorna JWT payload com 'sub' em vez de objeto User com 'id'
-  return user.value?.id || user.value?.sub
-}
-
 // State
 const kanbans = ref([])
 const loading = ref(true)
@@ -275,77 +250,6 @@ const form = ref({
     { id: Date.now() + 3, title: 'Concluído' }
   ]
 })
-
-// Dados mock para desenvolvimento
-const mockKanbans = [
-  {
-    id: 'projeto-pessoal',
-    title: 'Projetos Pessoais',
-    description: 'Gerenciar tarefas e objetivos pessoais',
-    created_at: new Date('2025-01-01'),
-    color: 'bg-blue-500',
-    cardCount: 12,
-    completedCount: 8
-  },
-  {
-    id: 'trabalho-artemis',
-    title: 'Trabalho - Artemis',
-    description: 'Kanban principal para projetos de trabalho',
-    created_at: new Date('2025-01-05'),
-    color: 'bg-purple-500',
-    cardCount: 24,
-    completedCount: 15
-  },
-  {
-    id: 'estudos-programacao',
-    title: 'Estudos - Programação',
-    description: 'Acompanhar progresso nos estudos de desenvolvimento',
-    created_at: new Date('2025-01-10'),
-    color: 'bg-green-500',
-    cardCount: 18,
-    completedCount: 12
-  },
-  {
-    id: 'financas-pessoais',
-    title: 'Finanças Pessoais',
-    description: 'Controlar orçamentos e metas financeiras',
-    created_at: new Date('2025-01-15'),
-    color: 'bg-emerald-500',
-    cardCount: 8,
-    completedCount: 6
-  },
-  {
-    id: 'planejamento-viagem',
-    title: 'Planejamento Viagem',
-    description: 'Organizar tarefas para próxima viagem',
-    created_at: new Date('2025-01-20'),
-    color: 'bg-orange-500',
-    cardCount: 15,
-    completedCount: 7
-  }
-]
-
-// Helper para persistência localStorage
-const saveKanbansToStorage = (kanbansData) => {
-  if (process.client) {
-    localStorage.setItem('kanbans_local', JSON.stringify(kanbansData))
-  }
-}
-
-const loadKanbansFromStorage = () => {
-  if (process.client) {
-    const stored = localStorage.getItem('kanbans_local')
-    return stored ? JSON.parse(stored) : null
-  }
-  return null
-}
-
-// Método para gerar cor aleatória para kanbans
-const getRandomKanbanColor = () => {
-  const colors = ['indigo', 'blue', 'green', 'purple', 'pink', 'orange']
-  const randomIndex = Math.floor(Math.random() * colors.length)
-  return `bg-${colors[randomIndex]}-500`
-}
 
 // Gerenciar colunas
 const addColumn = () => {
@@ -365,30 +269,20 @@ const removeColumn = (columnId) => {
   }
 }
 
-// Load kanbans (versão local/mock para desenvolvimento)
+// Load kanbans
 const loadKanbans = async () => {
   try {
     loading.value = true
+    const { data, error } = await supabase
+      .from('kanbans')
+      .select('*')
+      .eq('user_id', user.value.id)
+      .order('created_at', { ascending: false })
 
-    // Simular tempo de carregamento para experiência realista
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // Tentar carregar do localStorage primeiro
-    const storedKanbans = loadKanbansFromStorage()
-
-    if (storedKanbans) {
-      kanbans.value = storedKanbans
-      console.log('Kanbans carregados do localStorage:', storedKanbans.length)
-    } else {
-      // Primeiro acesso: usar dados mock
-      kanbans.value = [...mockKanbans]
-      saveKanbansToStorage(kanbans.value)
-      console.log('Kanbans mock carregados:', kanbans.value.length)
-    }
-
+    if (error) throw error
+    kanbans.value = data || []
   } catch (error) {
     console.error('Error loading kanbans:', error)
-    kanbans.value = [...mockKanbans] // Fallback para dados mock
   } finally {
     loading.value = false
   }
@@ -409,37 +303,29 @@ const editKanban = (kanban) => {
   showCreateModal.value = true
 }
 
-// Delete kanban (versão local para desenvolvimento)
+// Delete kanban
 const deleteKanban = async (id) => {
   if (!confirm('Tem certeza que deseja excluir este kanban?')) return
 
   try {
-    // Simular tempo de exclusão para experiência realista
-    await new Promise(resolve => setTimeout(resolve, 200))
+    const { error } = await supabase
+      .from('kanbans')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.value.id)
 
-    // Encontrar e remover kanban
-    const kanbanIndex = kanbans.value.findIndex(k => k.id === id)
-    if (kanbanIndex !== -1) {
-      kanbans.value.splice(kanbanIndex, 1)
-
-      // Salvar no localStorage
-      saveKanbansToStorage(kanbans.value)
-
-      console.log('Kanban excluído localmente:', id)
-    }
+    if (error) throw error
+    await loadKanbans()
   } catch (error) {
     console.error('Error deleting kanban:', error)
     alert('Erro ao excluir kanban. Tente novamente.')
   }
 }
 
-// Save kanban (versão local para desenvolvimento)
+// Save kanban
 const saveKanban = async () => {
   try {
     saving.value = true
-
-    // Simular tempo de salvamento para experiência realista
-    await new Promise(resolve => setTimeout(resolve, 300))
 
     // Validar colunas
     const validColumns = form.value.columns.filter(col => col.title.trim())
@@ -449,40 +335,48 @@ const saveKanban = async () => {
     }
 
     if (editingKanban.value) {
-      // Update existing kanban
-      const kanbanIndex = kanbans.value.findIndex(k => k.id === editingKanban.value.id)
-      if (kanbanIndex !== -1) {
-        kanbans.value[kanbanIndex] = {
-          ...kanbans.value[kanbanIndex],
+      // Update existing kanban (sem alterar colunas no edit)
+      const { error } = await supabase
+        .from('kanbans')
+        .update({
           title: form.value.title,
           description: form.value.description,
-          updated_at: new Date(),
-          cardCount: kanbans.value[kanbanIndex].cardCount || 0,
-          completedCount: kanbans.value[kanbanIndex].completedCount || 0
-        }
-      }
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingKanban.value.id)
+        .eq('user_id', user.value.id)
+
+      if (error) throw error
     } else {
       // Create new kanban
-      const newKanban = {
-        id: `kanban-${Date.now()}`,
-        title: form.value.title,
-        description: form.value.description,
-        created_at: new Date(),
-        updated_at: new Date(),
-        color: getRandomKanbanColor(),
-        cardCount: 0,
-        completedCount: 0
-      }
+      const { data: kanbanData, error: kanbanError } = await supabase
+        .from('kanbans')
+        .insert({
+          title: form.value.title,
+          description: form.value.description,
+          user_id: user.value.id
+        })
+        .select()
+        .single()
 
-      kanbans.value.unshift(newKanban)
+      if (kanbanError) throw kanbanError
+
+      // Create columns
+      const columnsToInsert = validColumns.map((col, index) => ({
+        kanban_id: kanbanData.id,
+        title: col.title.trim(),
+        position: index
+      }))
+
+      const { error: columnsError } = await supabase
+        .from('kanban_columns')
+        .insert(columnsToInsert)
+
+      if (columnsError) throw columnsError
     }
 
-    // Salvar no localStorage
-    saveKanbansToStorage(kanbans.value)
-
-    console.log('Kanban salvo localmente:', editingKanban.value ? 'updated' : 'created')
-
     closeModal()
+    await loadKanbans()
   } catch (error) {
     console.error('Error saving kanban:', error)
     alert('Erro ao salvar kanban. Tente novamente.')
