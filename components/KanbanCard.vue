@@ -141,16 +141,7 @@ const handleDragEnd = (event) => {
   outline-offset: 2px;
 }
 
-/* Urgent Card Variant */
-.kan-card--urgent {
-  border-left: 4px solid rgb(var(--danger-500));
-  background: linear-gradient(to right, rgba(var(--danger-500), 0.03), rgb(var(--bg-1)));
-}
-
-.kan-card--urgent:hover {
-  border-left-color: rgb(var(--danger-500));
-  box-shadow: 0 8px 24px rgba(var(--danger-500), 0.15), var(--shadow-2);
-}
+/* Urgent Card Variant - removed border, keeping only badge */
 
 /* Dragging State */
 .kan-card--dragging {
