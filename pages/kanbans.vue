@@ -183,19 +183,12 @@
                   <button
                     type="button"
                     @click="addColumn"
-                    :disabled="form.columns.length >= 6"
-                    class="mt-3 w-full px-3 py-2 border border-dashed rounded-md text-sm flex items-center justify-center transition-colors duration-200"
-                    :class="[
-                      form.columns.length >= 6
-                        ? 'border-gray-200 text-gray-400 cursor-not-allowed bg-gray-50'
-                        : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50'
-                    ]"
+                    class="mt-3 w-full px-3 py-2 border border-dashed border-gray-300 rounded-md text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
                   >
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span v-if="form.columns.length >= 6">Máximo de 6 colunas atingido</span>
-                    <span v-else>Adicionar Coluna ({{ form.columns.length }}/6)</span>
+                    Adicionar Coluna
                   </button>
                 </div>
               </div>
@@ -253,14 +246,10 @@ const form = ref({
 
 // Gerenciar colunas
 const addColumn = () => {
-  if (form.value.columns.length < 6) {
-    form.value.columns.push({
-      id: Date.now(),
-      title: ''
-    })
-  } else {
-    alert('Máximo de 6 colunas permitido.')
-  }
+  form.value.columns.push({
+    id: Date.now(),
+    title: ''
+  })
 }
 
 const removeColumn = (columnId) => {
