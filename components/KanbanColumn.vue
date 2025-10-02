@@ -20,10 +20,7 @@
     <!-- Cards Container -->
     <div
       class="kan-col__cards"
-      :class="{ 
-        'kan-col__cards--drag-over': isDragOver && isDragFromDifferentColumn,
-        'kan-col__cards--reordering': dragOverIndex !== null && !isDragFromDifferentColumn
-      }"
+      :class="{ 'kan-col__cards--drag-over': isDragOver }"
       @dragover.prevent="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
@@ -59,9 +56,9 @@
         Adicionar cartão
       </button>
 
-      <!-- Drop Indicator - Only show when dragging from different column -->
+      <!-- Drop Indicator -->
       <Transition name="drop-indicator">
-        <div v-if="isDragOver && isDragFromDifferentColumn" class="kan-col__drop-indicator">
+        <div v-if="isDragOver" class="kan-col__drop-indicator">
           <svg class="kan-col__drop-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
@@ -91,20 +88,13 @@ const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop'])
 // State
 const isDragOver = ref(false)
 const dragOverIndex = ref(null)
-const isDragFromDifferentColumn = ref(false)
 
 // Handle drag over column (for empty space)
 const handleDragOver = (event) => {
   event.preventDefault()
   event.dataTransfer.dropEffect = 'move'
 
-  // Check if the card is from a different column
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-  const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
-
-  if (!isDragOver.value && isDifferentColumn) {
+  if (!isDragOver.value) {
     isDragOver.value = true
   }
 }
@@ -114,7 +104,6 @@ const handleDragLeave = (event) => {
   // Only set isDragOver to false if the drag is leaving the column container
   if (!event.currentTarget.contains(event.relatedTarget)) {
     isDragOver.value = false
-    isDragFromDifferentColumn.value = false
   }
 }
 
@@ -122,7 +111,6 @@ const handleDragLeave = (event) => {
 const handleDrop = (event) => {
   event.preventDefault()
   isDragOver.value = false
-  isDragFromDifferentColumn.value = false
 
   const cardId = event.dataTransfer.getData('cardId')
   const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
@@ -148,12 +136,6 @@ const handleCardDragOver = (event, index) => {
   event.preventDefault()
   event.stopPropagation()
   event.dataTransfer.dropEffect = 'move'
-  
-  // Check if the card is from a different column
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-  const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
   dragOverIndex.value = index
 }
 
@@ -162,7 +144,6 @@ const handleCardDragLeave = (event, index) => {
   if (!event.currentTarget.contains(event.relatedTarget)) {
     if (dragOverIndex.value === index) {
       dragOverIndex.value = null
-      isDragFromDifferentColumn.value = false
     }
   }
 }
@@ -173,7 +154,6 @@ const handleCardDrop = (event, targetIndex) => {
   event.stopPropagation()
   dragOverIndex.value = null
   isDragOver.value = false
-  isDragFromDifferentColumn.value = false
 
   const cardId = event.dataTransfer.getData('cardId')
   const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
@@ -345,20 +325,12 @@ const handleCardDrop = (event, targetIndex) => {
   outline-offset: -4px;
 }
 
-/* Blur cards and button only when dragging from different column */
+/* Blur cards and button when dragging over */
 .kan-col__cards--drag-over .kan-col__cards-list,
 .kan-col__cards--drag-over .kan-col__add-btn {
   filter: blur(4px);
   opacity: 0.3;
   pointer-events: none;
-  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
-}
-
-/* No blur when reordering within same column */
-.kan-col__cards--reordering .kan-col__cards-list,
-.kan-col__cards--reordering .kan-col__add-btn {
-  filter: none;
-  opacity: 1;
   transition: all 250ms cubic-bezier(.22, 1, .36, 1);
 }
 
