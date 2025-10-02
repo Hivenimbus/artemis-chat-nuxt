@@ -53,22 +53,6 @@
         {{ card.description }}
       </p>
     </div>
-
-    <!-- Card Footer -->
-    <div class="flex items-center justify-between text-xs text-gray-500">
-      <div class="flex items-center space-x-2">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>{{ formatDate(card.created_at) }}</span>
-      </div>
-      <div v-if="card.updated_at !== card.created_at" class="flex items-center space-x-1">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>{{ formatDate(card.updated_at) }}</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -102,30 +86,6 @@ const handleDragStart = (event) => {
 const handleDragEnd = (event) => {
   isDragging.value = false
   event.target.classList.remove('dragging')
-}
-
-// Format date
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffTime = Math.abs(now - date)
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    return 'Hoje'
-  } else if (diffDays === 1) {
-    return 'Ontem'
-  } else if (diffDays < 7) {
-    return `${diffDays}d`
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7)
-    return `${weeks}sem`
-  } else {
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit'
-    })
-  }
 }
 </script>
 
