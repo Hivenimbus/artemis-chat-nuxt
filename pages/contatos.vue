@@ -219,28 +219,31 @@
                       </div>
                     </div>
 
-                    <!-- Empresa -->
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Empresa
-                      </label>
-                      <input
-                        v-model="contact.company"
-                        type="text"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      />
-                    </div>
+                    <!-- Biografia e Empresa -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <!-- Biografia -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Biografia
+                        </label>
+                        <input
+                          v-model="contact.biography"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
 
-                    <!-- Biografia -->
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Biografia
-                      </label>
-                      <textarea
-                        v-model="contact.biography"
-                        rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                      ></textarea>
+                      <!-- Empresa -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Empresa
+                        </label>
+                        <input
+                          v-model="contact.company"
+                          type="text"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
                     </div>
 
                     <!-- Botão de Atualizar -->
