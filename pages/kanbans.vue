@@ -1,22 +1,5 @@
 <template>
   <div class="board-bg min-h-screen">
-    <!-- Hero Header -->
-    <div class="board-header">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between py-6">
-          <div>
-            <h1 class="board-title">
-              <svg class="board-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-              </svg>
-              Meu Quadro Kanban
-            </h1>
-            <p class="board-subtitle">Organize suas tarefas de forma simples e bonita</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Kanban Board -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Kanban Columns -->
@@ -458,44 +441,6 @@ useHead({
   pointer-events: none;
 }
 
-/* Board Header */
-.board-header {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: var(--elev-1);
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  transition: all var(--dur-med) var(--ease-out);
-}
-
-.board-title {
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgb(var(--todo-500)), rgb(var(--done-500)));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.board-title-icon {
-  width: 2rem;
-  height: 2rem;
-  stroke: rgb(var(--todo-500));
-}
-
-.board-subtitle {
-  color: rgb(var(--txt-2));
-  font-size: 1rem;
-  font-weight: 400;
-}
-
 /* Board Columns */
 .board-columns {
   display: flex;
@@ -731,19 +676,6 @@ useHead({
 
 /* Responsive */
 @media (max-width: 640px) {
-  .board-title {
-    font-size: 1.5rem;
-  }
-
-  .board-title-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .board-subtitle {
-    font-size: 0.875rem;
-  }
-
   .board-column-wrapper {
     width: 18rem;
   }
