@@ -32,7 +32,7 @@
       </div>
 
       <!-- Kanbans Grid -->
-      <div v-else class="flex-1 overflow-y-auto py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start">
+      <div v-else class="flex-1 overflow-y-auto py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start relative">
         <div
           v-for="kanban in kanbans"
           :key="kanban.id"
@@ -77,72 +77,101 @@
             </div>
           </div>
         </div>
+
+        <!-- Floating Action Button -->
+        <button
+          @click="showCreateModal = true"
+          class="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-200 z-40 group"
+          title="Criar novo kanban"
+        >
+          <svg class="w-6 h-6 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          <span class="absolute right-full mr-3 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white text-sm px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            Criar Novo Kanban
+          </span>
+        </button>
       </div>
     </div>
 
-    <!-- Create/Edit Modal -->
+      <!-- Create/Edit Modal -->
     <Teleport to="body">
-      <div v-if="showCreateModal" class="fixed z-50 inset-0 overflow-y-auto">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <!-- Background overlay -->
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeModal"></div>
+      <div v-if="showCreateModal" class="fixed z-[9999] inset-0 flex items-center justify-center p-4">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 backdrop-blur-[2px] bg-white/10 transition-opacity" @click="closeModal"></div>
 
-          <!-- Modal panel -->
-          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <form @submit.prevent="saveKanban">
-              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="mb-4">
-                  <h3 class="text-lg leading-6 font-medium text-gray-900">
-                    {{ editingKanban ? 'Editar Kanban' : 'Criar Novo Kanban' }}
-                  </h3>
-                </div>
-                <div class="space-y-4">
-                  <div>
-                    <label for="title" class="block text-sm font-medium text-gray-700">
-                      Título
-                    </label>
-                    <input
-                      id="title"
-                      v-model="form.title"
-                      type="text"
-                      required
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      placeholder="Meu Kanban"
-                    />
-                  </div>
-                  <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700">
-                      Descrição (opcional)
-                    </label>
-                    <textarea
-                      id="description"
-                      v-model="form.description"
-                      rows="3"
-                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm px-3 py-2 border"
-                      placeholder="Descrição do kanban..."
-                    ></textarea>
-                  </div>
-                </div>
-              </div>
-              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="submit"
-                  :disabled="saving"
-                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                >
-                  <span v-if="saving">Salvando...</span>
-                  <span v-else>{{ editingKanban ? 'Atualizar' : 'Criar' }}</span>
-                </button>
+        <!-- Modal panel -->
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <form @submit.prevent="saveKanban">
+            <div class="px-6 py-4">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">
+                  {{ editingKanban ? 'Editar Kanban' : 'Criar Novo Kanban' }}
+                </h3>
                 <button
                   type="button"
                   @click="closeModal"
-                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  class="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  Cancelar
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-            </form>
-          </div>
+
+              <div class="space-y-4">
+                <div>
+                  <label for="title" class="block text-sm font-medium text-gray-700 mb-1">
+                    Título *
+                  </label>
+                  <input
+                    id="title"
+                    v-model="form.title"
+                    type="text"
+                    required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Ex: Meu Projeto Kanban"
+                  />
+                </div>
+                <div>
+                  <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
+                    Descrição (opcional)
+                  </label>
+                  <textarea
+                    id="description"
+                    v-model="form.description"
+                    rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                    placeholder="Descreva o propósito deste kanban..."
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg">
+              <button
+                type="button"
+                @click="closeModal"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                :disabled="saving || !form.title.trim()"
+                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="saving" class="flex items-center">
+                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Salvando...
+                </span>
+                <span v-else>{{ editingKanban ? 'Atualizar' : 'Criar' }}</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </Teleport>
