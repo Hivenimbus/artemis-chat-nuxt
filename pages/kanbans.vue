@@ -444,12 +444,13 @@ useHead({
 /* Board Columns */
 .board-columns {
   display: flex;
+  align-items: flex-start;
   gap: 1.5rem;
   overflow-x: auto;
   padding-bottom: 1rem;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
-  scrollbar-color: rgba(var(--txt-3), 0.3) transparent;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
 }
 
 .board-columns::-webkit-scrollbar {

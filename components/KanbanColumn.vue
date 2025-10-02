@@ -166,8 +166,7 @@ const handleDrop = (event) => {
   border-top: 4px solid rgb(var(--col-500));
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 600px;
+  height: auto;
   transition: all var(--dur-fast) var(--ease-out);
 }
 
@@ -230,9 +229,8 @@ const handleDrop = (event) => {
 
 /* Cards Container */
 .kan-col__cards {
-  flex: 1;
   padding: 1rem;
-  overflow-y: auto;
+  overflow-y: visible;
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--col-500), 0.3) transparent;
@@ -373,10 +371,6 @@ const handleDrop = (event) => {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .kan-col {
-    min-height: 500px;
-  }
-
   .kan-col__header {
     padding: 1rem 0.75rem;
   }
