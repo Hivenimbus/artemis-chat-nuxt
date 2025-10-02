@@ -25,10 +25,10 @@
           </span>
         </div>
       </div>
-      <div class="flex space-x-1 opacity-0 hover:opacity-100 transition-opacity duration-200">
+      <div class="flex space-x-1">
         <button
           @click="$emit('edit-card', card)"
-          class="text-gray-400 hover:text-indigo-600 transition-colors duration-200 p-1 rounded hover:bg-gray-100"
+          class="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-200 p-1.5 rounded-md"
           title="Editar"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -37,7 +37,7 @@
         </button>
         <button
           @click="$emit('delete-card', card.id)"
-          class="text-gray-400 hover:text-red-600 transition-colors duration-200 p-1 rounded hover:bg-gray-100"
+          class="text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-1.5 rounded-md"
           title="Excluir"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
