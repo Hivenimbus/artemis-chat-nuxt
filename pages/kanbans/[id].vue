@@ -199,6 +199,8 @@
 </template>
 
 <script setup>
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
 const route = useRoute()
 
 // State
@@ -219,268 +221,6 @@ const cardForm = ref({
 const savingCard = ref(false)
 const selectedColumnId = ref(null)
 
-// LocalStorage helpers
-const loadKanbansFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('kanbans')
-    return stored ? JSON.parse(stored) : []
-  } catch (error) {
-    console.error('Error loading kanbans from storage:', error)
-    return []
-  }
-}
-
-const saveKanbansToStorage = (kanbansData) => {
-  try {
-    localStorage.setItem('kanbans', JSON.stringify(kanbansData))
-  } catch (error) {
-    console.error('Error saving kanbans to storage:', error)
-  }
-}
-
-const loadCardsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('kanbanCards')
-    return stored ? JSON.parse(stored) : {}
-  } catch (error) {
-    console.error('Error loading cards from storage:', error)
-    return {}
-  }
-}
-
-const saveCardsToStorage = (cardsData) => {
-  try {
-    localStorage.setItem('kanbanCards', JSON.stringify(cardsData))
-  } catch (error) {
-    console.error('Error saving cards to storage:', error)
-  }
-}
-
-// Mock data for testing
-const mockKanbanData = {
-  'projeto-pessoal': {
-    id: 'projeto-pessoal',
-    title: 'Projetos Pessoais',
-    description: 'Gerenciar tarefas e objetivos pessoais',
-    columns: [
-      { id: 'col-1', title: 'Para fazer', position: 0 },
-      { id: 'col-2', title: 'Em andamento', position: 1 },
-      { id: 'col-3', title: 'Concluído', position: 2 }
-    ],
-    color: 'bg-blue-500',
-    cardCount: 12,
-    completedCount: 8
-  },
-  'trabalho-artemis': {
-    id: 'trabalho-artemis',
-    title: 'Trabalho - Artemis',
-    description: 'Kanban principal para projetos de trabalho',
-    columns: [
-      { id: 'col-4', title: 'Backlog', position: 0 },
-      { id: 'col-5', title: 'Desenvolvimento', position: 1 },
-      { id: 'col-6', title: 'Testes', position: 2 },
-      { id: 'col-7', title: 'Deploy', position: 3 }
-    ],
-    color: 'bg-purple-500',
-    cardCount: 24,
-    completedCount: 15
-  },
-  'estudos-programacao': {
-    id: 'estudos-programacao',
-    title: 'Estudos - Programação',
-    description: 'Planejamento de estudos e aprendizado em programação',
-    columns: [
-      { id: 'col-8', title: 'Para Estudar', position: 0 },
-      { id: 'col-9', title: 'Estudando', position: 1 },
-      { id: 'col-10', title: 'Praticando', position: 2 },
-      { id: 'col-11', title: 'Revisado', position: 3 }
-    ],
-    color: 'bg-green-500',
-    cardCount: 15,
-    completedCount: 10
-  },
-  'financas-pessoais': {
-    id: 'financas-pessoais',
-    title: 'Finanças Pessoais',
-    description: 'Gerenciamento financeiro e orçamento',
-    columns: [
-      { id: 'col-12', title: 'Planejar', position: 0 },
-      { id: 'col-13', title: 'Executar', position: 1 },
-      { id: 'col-14', title: 'Revisar', position: 2 }
-    ],
-    color: 'bg-indigo-500',
-    cardCount: 6,
-    completedCount: 2
-  },
-  'planejamento-viagem': {
-    id: 'planejamento-viagem',
-    title: 'Planejamento de Viagem',
-    description: 'Organização de viagens e roteiros',
-    columns: [
-      { id: 'col-15', title: 'Pesquisar', position: 0 },
-      { id: 'col-16', title: 'Reservar', position: 1 },
-      { id: 'col-17', title: 'Preparar', position: 2 },
-      { id: 'col-18', title: 'Viajar', position: 3 }
-    ],
-    color: 'bg-pink-500',
-    cardCount: 10,
-    completedCount: 7
-  }
-}
-
-const mockCardsData = {
-  'projeto-pessoal': [
-    {
-      id: 'card-1',
-      kanban_id: 'projeto-pessoal',
-      column_id: 'col-1',
-      title: 'Fazer exercícios matinais',
-      description: 'Começar rotina de exercícios todos os dias às 6h',
-      position: 0,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-2',
-      kanban_id: 'projeto-pessoal',
-      column_id: 'col-2',
-      title: 'Ler livro de produtividade',
-      description: 'Ler 30 páginas do livro "Hábitos Atômicos"',
-      position: 0,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-3',
-      kanban_id: 'projeto-pessoal',
-      column_id: 'col-3',
-      title: 'Organizar gavetas',
-      description: 'Limpar e organizar todas as gavetas do quarto',
-      position: 0,
-      created_at: new Date(Date.now() - 259200000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ],
-  'trabalho-artemis': [
-    {
-      id: 'card-4',
-      kanban_id: 'trabalho-artemis',
-      column_id: 'col-4',
-      title: 'Preparar apresentação',
-      description: 'Criar slides para reunião semanal',
-      position: 0,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-5',
-      kanban_id: 'trabalho-artemis',
-      column_id: 'col-5',
-      title: 'Revisar código',
-      description: 'Fazer code review do pull request #123',
-      position: 0,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-6',
-      kanban_id: 'trabalho-artemis',
-      column_id: 'col-6',
-      title: 'Testar nova funcionalidade',
-      description: 'Executar testes automatizados da nova feature',
-      position: 0,
-      created_at: new Date(Date.now() - 604800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-7',
-      kanban_id: 'trabalho-artemis',
-      column_id: 'col-7',
-      title: 'Enviar relatório',
-      description: 'Relatório mensal de progresso',
-      position: 0,
-      created_at: new Date(Date.now() - 604800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ],
-  'estudos-programacao': [
-    {
-      id: 'card-8',
-      kanban_id: 'estudos-programacao',
-      column_id: 'col-8',
-      title: 'Curso de Vue.js',
-      description: 'Completar módulo 3 do curso avançado',
-      position: 0,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-9',
-      kanban_id: 'estudos-programacao',
-      column_id: 'col-9',
-      title: 'Praticar algoritmos',
-      description: 'Resolver 5 exercícios no LeetCode',
-      position: 0,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-10',
-      kanban_id: 'estudos-programacao',
-      column_id: 'col-11',
-      title: 'Revisar padrões de projeto',
-      description: 'Estudar Singleton e Factory patterns',
-      position: 0,
-      created_at: new Date(Date.now() - 259200000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ],
-  'financas-pessoais': [
-    {
-      id: 'card-11',
-      kanban_id: 'financas-pessoais',
-      column_id: 'col-12',
-      title: 'Planejar orçamento mensal',
-      description: 'Definir limites de gastos para cada categoria',
-      position: 0,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-12',
-      kanban_id: 'financas-pessoais',
-      column_id: 'col-13',
-      title: 'Pagar contas do mês',
-      description: 'Pagar faturas de cartão e contas fixas',
-      position: 0,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ],
-  'planejamento-viagem': [
-    {
-      id: 'card-13',
-      kanban_id: 'planejamento-viagem',
-      column_id: 'col-15',
-      title: 'Pesquisar destinos',
-      description: 'Pesquisar lugares para férias de verão',
-      position: 0,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'card-14',
-      kanban_id: 'planejamento-viagem',
-      column_id: 'col-16',
-      title: 'Reservar hotel',
-      description: 'Comparar preços e reservar hospedagem',
-      position: 0,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ]
-}
-
 // Computed
 const sortedColumns = computed(() => {
   return columns.value.sort((a, b) => a.position - b.position)
@@ -494,50 +234,53 @@ const getColumnCards = (columnId) => {
 }
 
 // Load kanban data
-const loadKanban = () => {
+const loadKanban = async () => {
   try {
     loading.value = true
     error.value = ''
 
-    // Try to load kanban from localStorage first
-    let kanbansData = loadKanbansFromStorage()
-    let kanbanData = kanbansData.find(k => k.id === route.params.id)
+    // Load kanban
+    const { data: kanbanData, error: kanbanError } = await supabase
+      .from('kanbans')
+      .select('*')
+      .eq('id', route.params.id)
+      .eq('user_id', user.value.id)
+      .single()
 
-    // If not found in localStorage, try mock data
-    if (!kanbanData && mockKanbanData[route.params.id]) {
-      kanbanData = mockKanbanData[route.params.id]
-
-      // Also save mock data to localStorage for consistency
-      kanbansData.push(kanbanData)
-      saveKanbansToStorage(kanbansData)
-    }
-
-    if (!kanbanData) {
-      error.value = 'Kanban não encontrado'
+    if (kanbanError) {
+      if (kanbanError.code === 'PGRST116') {
+        error.value = 'Kanban não encontrado'
+      } else {
+        throw kanbanError
+      }
       return
     }
 
     kanban.value = kanbanData
-    columns.value = kanbanData.columns || []
 
-    // Load cards from localStorage or mock data
-    const allCards = loadCardsFromStorage()
-    let kanbanCards = allCards[route.params.id]
+    // Load columns
+    const { data: columnsData, error: columnsError } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('kanban_id', route.params.id)
+      .order('position', { ascending: true })
 
-    // If no cards in localStorage, try mock cards
-    if (!kanbanCards && mockCardsData[route.params.id]) {
-      kanbanCards = mockCardsData[route.params.id]
+    if (columnsError) throw columnsError
+    columns.value = columnsData || []
 
-      // Save mock cards to localStorage
-      allCards[route.params.id] = kanbanCards
-      saveCardsToStorage(allCards)
-    }
+    // Load cards
+    const { data: cardsData, error: cardsError } = await supabase
+      .from('kanban_cards')
+      .select('*')
+      .eq('kanban_id', route.params.id)
+      .order('position', { ascending: true })
 
-    cards.value = kanbanCards || []
+    if (cardsError) throw cardsError
+    cards.value = cardsData || []
 
     // If no columns exist, create default ones
     if (columns.value.length === 0) {
-      createDefaultColumns()
+      await createDefaultColumns()
     }
   } catch (error) {
     console.error('Error loading kanban:', error)
@@ -548,50 +291,56 @@ const loadKanban = () => {
 }
 
 // Create default columns
-const createDefaultColumns = () => {
+const createDefaultColumns = async () => {
   try {
     const defaultColumns = [
-      { id: `col-${Date.now()}-1`, title: 'A Fazer', position: 0 },
-      { id: `col-${Date.now()}-2`, title: 'Fazendo', position: 1 },
-      { id: `col-${Date.now()}-3`, title: 'Concluído', position: 2 }
+      { title: 'A Fazer', position: 0 },
+      { title: 'Fazendo', position: 1 },
+      { title: 'Concluído', position: 2 }
     ]
 
-    // Update kanban with default columns
-    const kanbansData = loadKanbansFromStorage()
-    const kanbanIndex = kanbansData.findIndex(k => k.id === route.params.id)
+    for (const column of defaultColumns) {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .insert({
+          kanban_id: route.params.id,
+          title: column.title,
+          position: column.position
+        })
 
-    if (kanbanIndex !== -1) {
-      kanbansData[kanbanIndex].columns = defaultColumns
-      saveKanbansToStorage(kanbansData)
-      columns.value = defaultColumns
+      if (error) throw error
     }
+
+    // Reload columns
+    const { data } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('kanban_id', route.params.id)
+      .order('position', { ascending: true })
+
+    columns.value = data || []
   } catch (error) {
     console.error('Error creating default columns:', error)
   }
 }
 
 // Add column
-const addColumn = () => {
+const addColumn = async () => {
   try {
     savingColumn.value = true
 
-    const newColumn = {
-      id: `col-${Date.now()}`,
-      title: newColumnTitle.value,
-      position: columns.value.length
-    }
+    const { error } = await supabase
+      .from('kanban_columns')
+      .insert({
+        kanban_id: route.params.id,
+        title: newColumnTitle.value,
+        position: columns.value.length
+      })
 
-    // Update kanban with new column
-    const kanbansData = loadKanbansFromStorage()
-    const kanbanIndex = kanbansData.findIndex(k => k.id === route.params.id)
-
-    if (kanbanIndex !== -1) {
-      kanbansData[kanbanIndex].columns.push(newColumn)
-      saveKanbansToStorage(kanbansData)
-      columns.value.push(newColumn)
-    }
+    if (error) throw error
 
     closeAddColumnModal()
+    await loadKanban()
   } catch (error) {
     console.error('Error adding column:', error)
     alert('Erro ao adicionar coluna. Tente novamente.')
@@ -623,20 +372,17 @@ const handleEditCard = (card) => {
 }
 
 // Handle delete card
-const handleDeleteCard = (cardId) => {
+const handleDeleteCard = async (cardId) => {
   if (!confirm('Tem certeza que deseja excluir este cartão?')) return
 
   try {
-    // Remove card from localStorage
-    const allCards = loadCardsFromStorage()
-    const kanbanCards = allCards[route.params.id] || []
-    const updatedCards = kanbanCards.filter(card => card.id !== cardId)
+    const { error } = await supabase
+      .from('kanban_cards')
+      .delete()
+      .eq('id', cardId)
 
-    allCards[route.params.id] = updatedCards
-    saveCardsToStorage(allCards)
-
-    // Update local state
-    cards.value = updatedCards
+    if (error) throw error
+    await loadKanban()
   } catch (error) {
     console.error('Error deleting card:', error)
     alert('Erro ao excluir cartão. Tente novamente.')
@@ -644,28 +390,17 @@ const handleDeleteCard = (cardId) => {
 }
 
 // Handle delete column
-const handleDeleteColumn = (columnId) => {
+const handleDeleteColumn = async (columnId) => {
   if (!confirm('Tem certeza que deseja excluir esta coluna? Todos os cartões nesta coluna também serão excluídos.')) return
 
   try {
-    // Remove column from kanban
-    const kanbansData = loadKanbansFromStorage()
-    const kanbanIndex = kanbansData.findIndex(k => k.id === route.params.id)
+    const { error } = await supabase
+      .from('kanban_columns')
+      .delete()
+      .eq('id', columnId)
 
-    if (kanbanIndex !== -1) {
-      kanbansData[kanbanIndex].columns = kanbansData[kanbanIndex].columns.filter(col => col.id !== columnId)
-      saveKanbansToStorage(kanbansData)
-      columns.value = kanbansData[kanbanIndex].columns
-    }
-
-    // Remove cards from this column
-    const allCards = loadCardsFromStorage()
-    const kanbanCards = allCards[route.params.id] || []
-    const updatedCards = kanbanCards.filter(card => card.column_id !== columnId)
-
-    allCards[route.params.id] = updatedCards
-    saveCardsToStorage(allCards)
-    cards.value = updatedCards
+    if (error) throw error
+    await loadKanban()
   } catch (error) {
     console.error('Error deleting column:', error)
     alert('Erro ao excluir coluna. Tente novamente.')
@@ -673,27 +408,19 @@ const handleDeleteColumn = (columnId) => {
 }
 
 // Handle card drop
-const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
+const handleCardDrop = async ({ cardId, newColumnId, newPosition }) => {
   try {
-    // Update card in localStorage
-    const allCards = loadCardsFromStorage()
-    const kanbanCards = allCards[route.params.id] || []
+    const { error } = await supabase
+      .from('kanban_cards')
+      .update({
+        column_id: newColumnId,
+        position: newPosition,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cardId)
 
-    const updatedCards = kanbanCards.map(card => {
-      if (card.id === cardId) {
-        return {
-          ...card,
-          column_id: newColumnId,
-          position: newPosition,
-          updated_at: new Date().toISOString()
-        }
-      }
-      return card
-    })
-
-    allCards[route.params.id] = updatedCards
-    saveCardsToStorage(allCards)
-    cards.value = updatedCards
+    if (error) throw error
+    await loadKanban()
   } catch (error) {
     console.error('Error moving card:', error)
     alert('Erro ao mover cartão. Tente novamente.')
@@ -701,30 +428,22 @@ const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
 }
 
 // Save card
-const saveCard = () => {
+const saveCard = async () => {
   try {
     savingCard.value = true
 
-    const allCards = loadCardsFromStorage()
-    const kanbanCards = allCards[route.params.id] || []
-
     if (editingCard.value) {
       // Update existing card
-      const updatedCards = kanbanCards.map(card => {
-        if (card.id === editingCard.value.id) {
-          return {
-            ...card,
-            title: cardForm.value.title,
-            description: cardForm.value.description,
-            updated_at: new Date().toISOString()
-          }
-        }
-        return card
-      })
+      const { error } = await supabase
+        .from('kanban_cards')
+        .update({
+          title: cardForm.value.title,
+          description: cardForm.value.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingCard.value.id)
 
-      allCards[route.params.id] = updatedCards
-      saveCardsToStorage(allCards)
-      cards.value = updatedCards
+      if (error) throw error
     } else {
       // Create new card
       const maxPosition = Math.max(
@@ -734,24 +453,21 @@ const saveCard = () => {
         -1
       )
 
-      const newCard = {
-        id: `card-${Date.now()}`,
-        kanban_id: route.params.id,
-        column_id: selectedColumnId.value,
-        title: cardForm.value.title,
-        description: cardForm.value.description,
-        position: maxPosition + 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
+      const { error } = await supabase
+        .from('kanban_cards')
+        .insert({
+          kanban_id: route.params.id,
+          column_id: selectedColumnId.value,
+          title: cardForm.value.title,
+          description: cardForm.value.description,
+          position: maxPosition + 1
+        })
 
-      kanbanCards.push(newCard)
-      allCards[route.params.id] = kanbanCards
-      saveCardsToStorage(allCards)
-      cards.value = kanbanCards
+      if (error) throw error
     }
 
     closeCardModal()
+    await loadKanban()
   } catch (error) {
     console.error('Error saving card:', error)
     alert('Erro ao salvar cartão. Tente novamente.')
@@ -771,23 +487,20 @@ const editKanban = () => {
 }
 
 // Update kanban
-const updateKanban = (title, description) => {
+const updateKanban = async (title, description) => {
   try {
-    // Update kanban in localStorage
-    const kanbansData = loadKanbansFromStorage()
-    const kanbanIndex = kanbansData.findIndex(k => k.id === route.params.id)
-
-    if (kanbanIndex !== -1) {
-      kanbansData[kanbanIndex] = {
-        ...kanbansData[kanbanIndex],
+    const { error } = await supabase
+      .from('kanbans')
+      .update({
         title,
         description,
         updated_at: new Date().toISOString()
-      }
-      saveKanbansToStorage(kanbansData)
-      kanban.value.title = title
-      kanban.value.description = description
-    }
+      })
+      .eq('id', route.params.id)
+
+    if (error) throw error
+    kanban.value.title = title
+    kanban.value.description = description
   } catch (error) {
     console.error('Error updating kanban:', error)
     alert('Erro ao atualizar kanban. Tente novamente.')

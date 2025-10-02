@@ -285,12 +285,7 @@ const mockKanbans = [
     created_at: new Date('2025-01-01'),
     color: 'bg-blue-500',
     cardCount: 12,
-    completedCount: 8,
-    columns: [
-      { id: 'col-1', title: 'Para fazer', position: 0 },
-      { id: 'col-2', title: 'Em andamento', position: 1 },
-      { id: 'col-3', title: 'Concluído', position: 2 }
-    ]
+    completedCount: 8
   },
   {
     id: 'trabalho-artemis',
@@ -299,13 +294,7 @@ const mockKanbans = [
     created_at: new Date('2025-01-05'),
     color: 'bg-purple-500',
     cardCount: 24,
-    completedCount: 15,
-    columns: [
-      { id: 'col-4', title: 'Backlog', position: 0 },
-      { id: 'col-5', title: 'Desenvolvimento', position: 1 },
-      { id: 'col-6', title: 'Testes', position: 2 },
-      { id: 'col-7', title: 'Deploy', position: 3 }
-    ]
+    completedCount: 15
   },
   {
     id: 'estudos-programacao',
@@ -314,13 +303,7 @@ const mockKanbans = [
     created_at: new Date('2025-01-10'),
     color: 'bg-green-500',
     cardCount: 18,
-    completedCount: 12,
-    columns: [
-      { id: 'col-8', title: 'Para Estudar', position: 0 },
-      { id: 'col-9', title: 'Estudando', position: 1 },
-      { id: 'col-10', title: 'Praticando', position: 2 },
-      { id: 'col-11', title: 'Revisado', position: 3 }
-    ]
+    completedCount: 12
   },
   {
     id: 'financas-pessoais',
@@ -329,12 +312,7 @@ const mockKanbans = [
     created_at: new Date('2025-01-15'),
     color: 'bg-emerald-500',
     cardCount: 8,
-    completedCount: 6,
-    columns: [
-      { id: 'col-12', title: 'Planejar', position: 0 },
-      { id: 'col-13', title: 'Executar', position: 1 },
-      { id: 'col-14', title: 'Revisar', position: 2 }
-    ]
+    completedCount: 6
   },
   {
     id: 'planejamento-viagem',
@@ -343,13 +321,7 @@ const mockKanbans = [
     created_at: new Date('2025-01-20'),
     color: 'bg-orange-500',
     cardCount: 15,
-    completedCount: 7,
-    columns: [
-      { id: 'col-15', title: 'Pesquisar', position: 0 },
-      { id: 'col-16', title: 'Reservar', position: 1 },
-      { id: 'col-17', title: 'Preparar', position: 2 },
-      { id: 'col-18', title: 'Viajar', position: 3 }
-    ]
+    completedCount: 7
   }
 ]
 
@@ -432,13 +404,7 @@ const editKanban = (kanban) => {
   editingKanban.value = kanban
   form.value = {
     title: kanban.title,
-    description: kanban.description || '',
-    columns: kanban.columns || [
-      // Colunas padrão se kanban não tiver colunas
-      { id: Date.now() + 1, title: 'Para fazer', position: 0 },
-      { id: Date.now() + 2, title: 'Fazendo', position: 1 },
-      { id: Date.now() + 3, title: 'Concluído', position: 2 }
-    ]
+    description: kanban.description || ''
   }
   showCreateModal.value = true
 }
@@ -490,10 +456,6 @@ const saveKanban = async () => {
           ...kanbans.value[kanbanIndex],
           title: form.value.title,
           description: form.value.description,
-          columns: validColumns.map((col, index) => ({
-            ...col,
-            position: index
-          })),
           updated_at: new Date(),
           cardCount: kanbans.value[kanbanIndex].cardCount || 0,
           completedCount: kanbans.value[kanbanIndex].completedCount || 0
@@ -505,10 +467,6 @@ const saveKanban = async () => {
         id: `kanban-${Date.now()}`,
         title: form.value.title,
         description: form.value.description,
-        columns: validColumns.map((col, index) => ({
-          ...col,
-          position: index
-        })),
         created_at: new Date(),
         updated_at: new Date(),
         color: getRandomKanbanColor(),
