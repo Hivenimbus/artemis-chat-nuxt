@@ -497,25 +497,25 @@ useHead({
 
 /* Modal Content */
 .modal-content {
-  background: rgb(var(--bg-1));
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elev-2);
+  background: rgb(255, 255, 255);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(30, 41, 59, 0.12);
   max-width: 32rem;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  border: 1px solid rgba(var(--txt-3), 0.1);
+  border: 1px solid rgba(156, 163, 175, 0.1);
 }
 
 .modal-header {
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(var(--txt-3), 0.1);
+  border-bottom: 1px solid rgba(156, 163, 175, 0.1);
 }
 
 .modal-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: rgb(var(--txt-1));
+  color: rgb(17, 24, 39);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -524,7 +524,7 @@ useHead({
 .modal-title-icon {
   width: 1.75rem;
   height: 1.75rem;
-  color: rgb(var(--ring));
+  color: rgb(59, 130, 246);
 }
 
 .modal-body {
@@ -533,12 +533,12 @@ useHead({
 
 .modal-footer {
   padding: 1rem 1.5rem;
-  background: rgba(var(--bg-0), 0.3);
-  border-top: 1px solid rgba(var(--txt-3), 0.1);
+  background: rgba(244, 246, 250, 0.3);
+  border-top: 1px solid rgba(156, 163, 175, 0.1);
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-radius: 0 0 20px 20px;
 }
 
 /* Form Elements */
@@ -550,25 +550,25 @@ useHead({
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
-  color: rgb(var(--txt-1));
+  color: rgb(17, 24, 39);
   margin-bottom: 0.5rem;
 }
 
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(var(--txt-3), 0.3);
-  border-radius: var(--radius-sm);
+  border: 1px solid rgba(156, 163, 175, 0.3);
+  border-radius: 12px;
   font-size: 0.875rem;
-  color: rgb(var(--txt-1));
-  background: rgb(var(--bg-1));
-  transition: all var(--dur-fast) var(--ease-out);
+  color: rgb(17, 24, 39);
+  background: rgb(255, 255, 255);
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: rgb(var(--ring));
-  box-shadow: 0 0 0 3px rgba(var(--ring), 0.1);
+  border-color: rgb(59, 130, 246);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .form-textarea {
@@ -595,32 +595,32 @@ useHead({
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 0.25rem;
-  border: 2px solid rgba(var(--txt-3), 0.3);
+  border: 2px solid rgba(156, 163, 175, 0.3);
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
 }
 
 .form-checkbox:checked {
-  background: linear-gradient(135deg, rgb(var(--danger-500)), rgb(var(--danger-400)));
-  border-color: rgb(var(--danger-500));
+  background: linear-gradient(135deg, rgb(239, 68, 68), rgb(252, 165, 165));
+  border-color: rgb(239, 68, 68);
 }
 
 .form-checkbox:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--danger-500), 0.1);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .form-checkbox-label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: rgb(var(--txt-1));
+  color: rgb(17, 24, 39);
   cursor: pointer;
 }
 
 .form-helper-text {
   margin-top: 0.5rem;
   font-size: 0.75rem;
-  color: rgb(var(--txt-2));
+  color: rgb(75, 85, 99);
 }
 
 /* Buttons */
@@ -628,8 +628,8 @@ useHead({
   padding: 0.75rem 1.5rem;
   font-size: 0.875rem;
   font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: all var(--dur-fast) var(--ease-out);
+  border-radius: 12px;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
   cursor: pointer;
   border: none;
   display: inline-flex;
@@ -640,7 +640,7 @@ useHead({
 
 .btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--ring), 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .btn:disabled {
@@ -649,14 +649,14 @@ useHead({
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, rgb(var(--todo-500)), rgb(var(--todo-400)));
+  background: linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250));
   color: white;
-  box-shadow: 0 4px 14px rgba(var(--todo-500), 0.3);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(var(--todo-500), 0.4);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -664,14 +664,14 @@ useHead({
 }
 
 .btn-secondary {
-  background: rgb(var(--bg-1));
-  color: rgb(var(--txt-1));
-  border: 1px solid rgba(var(--txt-3), 0.3);
+  background: rgb(255, 255, 255);
+  color: rgb(17, 24, 39);
+  border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(var(--bg-0), 0.5);
-  border-color: rgba(var(--txt-2), 0.4);
+  background: rgba(244, 246, 250, 0.5);
+  border-color: rgba(75, 85, 99, 0.4);
 }
 
 /* Responsive */
