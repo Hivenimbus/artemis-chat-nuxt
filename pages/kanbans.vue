@@ -761,8 +761,8 @@ useHead({
   }
 }
 /* Kanban selector menu */
-.kan-menu { position: fixed; top: 1rem; right: 1rem; z-index: 30; }
-.kan-menu__button { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: rgba(255,255,255,.8); border: 1px solid rgba(156,163,175,.3); border-radius: 12px; box-shadow: 0 8px 24px rgba(30,41,59,.08); color: #111827; font-weight: 600; transition: all 150ms cubic-bezier(.22,1,.36,1); }
+.kan-menu { position: fixed; top: 4.5rem; right: 2rem; z-index: 30; }
+.kan-menu__button { display: inline-flex; align-items: center; gap: .5rem; padding: .375rem .625rem; background: rgba(255,255,255,.8); border: 1px solid rgba(156,163,175,.3); border-radius: 10px; box-shadow: 0 6px 20px rgba(30,41,59,.08); color: #111827; font-weight: 600; transition: all 150ms cubic-bezier(.22,1,.36,1); font-size: .875rem; }
 .kan-menu__button:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(30,41,59,.12); }
 .kan-menu__label { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kan-menu__chev { width: 1rem; height: 1rem; color: #6B7280; }
