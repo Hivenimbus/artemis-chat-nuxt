@@ -15,11 +15,35 @@
           <div class="kan-menu__section">
             <div class="kan-menu__section-title">Meus Kanbans</div>
             <ul class="kan-menu__list">
-              <li v-for="k in kanbans" :key="k.id">
-                <button class="kan-menu__item" :class="{ 'kan-menu__item--active': k.id === currentKanbanId }" @click="selectKanban(k.id)">
-                  <span class="kan-menu__dot" :class="{ 'kan-menu__dot--active': k.id === currentKanbanId }"></span>
-                  <span class="kan-menu__item-label">{{ k.name }}</span>
-                </button>
+              <li v-for="k in kanbans" :key="k.id" class="kan-menu__list-item">
+                <div class="kan-menu__item" :class="{ 'kan-menu__item--active': k.id === currentKanbanId }">
+                  <button class="kan-menu__item-button" @click="selectKanban(k.id)">
+                    <span class="kan-menu__dot" :class="{ 'kan-menu__dot--active': k.id === currentKanbanId }"></span>
+                    <span class="kan-menu__item-label">{{ k.name }}</span>
+                  </button>
+                  <div class="kan-menu__item-actions">
+                    <button 
+                      class="kan-menu__action-btn kan-menu__action-btn--edit"
+                      @click.stop="editKanban(k)"
+                      title="Editar kanban"
+                      :aria-label="`Editar ${k.name}`"
+                    >
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button 
+                      class="kan-menu__action-btn kan-menu__action-btn--delete"
+                      @click.stop="deleteKanban(k.id)"
+                      title="Apagar kanban"
+                      :aria-label="`Apagar ${k.name}`"
+                    >
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </li>
             </ul>
           </div>
@@ -424,6 +448,45 @@ const kanbanForm = ref({
 const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
 const toggleKanbanMenu = () => { showKanbanMenu.value = !showKanbanMenu.value }
 const selectKanban = (id) => { currentKanbanId.value = id; showKanbanMenu.value = false }
+
+// Edit kanban
+const editKanban = (kanban) => {
+  const newName = prompt('Novo nome do kanban:', kanban.name)
+  if (newName && newName.trim() && newName.trim() !== kanban.name) {
+    kanban.name = newName.trim()
+  }
+}
+
+// Delete kanban
+const deleteKanban = (kanbanId) => {
+  const kanban = kanbans.value.find(k => k.id === kanbanId)
+  if (!kanban) return
+
+  if (kanbans.value.length <= 1) {
+    alert('Você não pode excluir o último kanban.')
+    return
+  }
+
+  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.name}"? Todos os cartões serão perdidos.`)) {
+    return
+  }
+
+  // Remove kanban
+  const index = kanbans.value.findIndex(k => k.id === kanbanId)
+  if (index > -1) {
+    kanbans.value.splice(index, 1)
+  }
+
+  // Remove all cards from this kanban
+  cards.value = cards.value.filter(card => card.kanban_id !== kanbanId)
+
+  // If current kanban was deleted, switch to first available
+  if (currentKanbanId.value === kanbanId) {
+    currentKanbanId.value = kanbans.value[0]?.id || 'default'
+  }
+
+  showKanbanMenu.value = false
+}
 
 // Open kanban modal
 const createNewKanban = () => {
@@ -1445,12 +1508,22 @@ useHead({
 .kan-menu__section { padding: .25rem .25rem; }
 .kan-menu__section-title { font-size: .75rem; color: #6B7280; font-weight: 700; padding: .25rem .5rem .5rem; text-transform: uppercase; letter-spacing: .04em; }
 .kan-menu__list { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
-.kan-menu__item { width: 100%; display: flex; align-items: center; gap: .5rem; padding: .5rem .5rem; border-radius: 10px; border: 1px solid transparent; background: transparent; color: #111827; cursor: pointer; transition: all 120ms ease-out; }
+.kan-menu__list-item { position: relative; }
+.kan-menu__item { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem .5rem; border-radius: 10px; border: 1px solid transparent; background: transparent; transition: all 120ms ease-out; }
 .kan-menu__item:hover { background: rgba(59,130,246,.06); border-color: rgba(59,130,246,.15); }
 .kan-menu__item--active { background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.3); }
-.kan-menu__dot { width: .5rem; height: .5rem; border-radius: 9999px; background: #D1D5DB; }
+.kan-menu__item-button { display: flex; align-items: center; gap: .5rem; flex: 1; background: transparent; border: none; color: #111827; cursor: pointer; padding: 0; text-align: left; }
+.kan-menu__dot { width: .5rem; height: .5rem; border-radius: 9999px; background: #D1D5DB; flex-shrink: 0; }
 .kan-menu__dot--active { background: #3B82F6; }
-.kan-menu__item-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kan-menu__item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kan-menu__item-actions { display: flex; gap: .25rem; opacity: 0; transition: opacity 150ms ease; flex-shrink: 0; }
+.kan-menu__item:hover .kan-menu__item-actions { opacity: 1; }
+.kan-menu__action-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; padding: 0; border: none; border-radius: 6px; background: transparent; cursor: pointer; transition: all 120ms ease-out; }
+.kan-menu__action-btn svg { width: .875rem; height: .875rem; }
+.kan-menu__action-btn--edit { color: #6B7280; }
+.kan-menu__action-btn--edit:hover { background: rgba(59,130,246,.1); color: #3B82F6; }
+.kan-menu__action-btn--delete { color: #6B7280; }
+.kan-menu__action-btn--delete:hover { background: rgba(239,68,68,.1); color: #EF4444; }
 .kan-menu__divider { height: 1px; background: rgba(156,163,175,.2); margin: .25rem .25rem; }
 .kan-menu__create { width: 100%; display: inline-flex; align-items: center; gap: .5rem; padding: .5rem; border-radius: 10px; border: 1px solid rgba(156,163,175,.25); background: linear-gradient(135deg, #EFF6FF, #FFFFFF); cursor: pointer; color: #1F2937; font-weight: 600; }
 .kan-menu__create:hover { background: linear-gradient(135deg, #DBEAFE, #FFFFFF); }
