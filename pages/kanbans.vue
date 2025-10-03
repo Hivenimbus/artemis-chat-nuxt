@@ -208,6 +208,123 @@
         </Transition>
       </div>
     </Transition>
+
+    <!-- Create Kanban Modal -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showKanbanModal"
+        class="modal-overlay"
+        @click.self="closeKanbanModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="kanban-modal-title"
+      >
+        <Transition name="modal-pop">
+          <div
+            v-if="showKanbanModal"
+            class="modal-content modal-content--large"
+            @click.stop
+          >
+            <form @submit.prevent="saveKanban">
+              <div class="modal-header">
+                <h3 id="kanban-modal-title" class="modal-title">
+                  <svg class="modal-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Criar Novo Kanban
+                </h3>
+              </div>
+
+              <div class="modal-body">
+                <!-- Kanban Name -->
+                <div class="form-group">
+                  <label for="kanban-name" class="form-label">
+                    Nome do Kanban
+                  </label>
+                  <input
+                    id="kanban-name"
+                    v-model="kanbanForm.name"
+                    type="text"
+                    required
+                    class="form-input"
+                    placeholder="Ex: Projetos, Pessoal, Trabalho..."
+                  />
+                </div>
+
+                <!-- Columns Section -->
+                <div class="form-group">
+                  <div class="form-label-with-action">
+                    <label class="form-label">Colunas (máximo 6)</label>
+                    <button
+                      type="button"
+                      @click="addColumnToForm"
+                      :disabled="kanbanForm.columns.length >= 6"
+                      class="btn-add-column"
+                    >
+                      <svg class="btn-add-column-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Adicionar coluna
+                    </button>
+                  </div>
+
+                  <!-- Columns List -->
+                  <div class="columns-list">
+                    <div
+                      v-for="(column, index) in kanbanForm.columns"
+                      :key="index"
+                      class="column-item"
+                    >
+                      <div class="column-item-number">{{ index + 1 }}</div>
+                      <input
+                        v-model="kanbanForm.columns[index]"
+                        type="text"
+                        required
+                        class="form-input column-item-input"
+                        :placeholder="`Nome da coluna ${index + 1}`"
+                      />
+                      <button
+                        type="button"
+                        @click="removeColumnFromForm(index)"
+                        :disabled="kanbanForm.columns.length <= 1"
+                        class="btn-remove-column"
+                        :aria-label="`Remover coluna ${index + 1}`"
+                      >
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p class="form-helper-text">
+                    Você poderá adicionar, renomear ou remover colunas depois.
+                  </p>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  @click="closeKanbanModal"
+                  class="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  :disabled="savingKanban || !kanbanForm.name.trim() || kanbanForm.columns.length === 0"
+                  class="btn btn-primary"
+                >
+                  <span v-if="savingKanban">Criando...</span>
+                  <span v-else>Criar Kanban</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -266,18 +383,94 @@ const cardForm = ref({
   isUrgent: false
 })
 
+// Kanban modal state
+const showKanbanModal = ref(false)
+const savingKanban = ref(false)
+const kanbanForm = ref({
+  name: '',
+  columns: ['Para Fazer', 'Fazendo', 'Concluído']
+})
+
 const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
 const toggleKanbanMenu = () => { showKanbanMenu.value = !showKanbanMenu.value }
 const selectKanban = (id) => { currentKanbanId.value = id; showKanbanMenu.value = false }
+
+// Open kanban modal
 const createNewKanban = () => {
-  const name = prompt('Nome do novo kanban:')
-  if (!name) return
-  const id = `k_${Date.now()}`
-  kanbans.value.push({ id, name })
-  currentKanbanId.value = id
-  // Opcional: adicionar alguns cards exemplo nesse kanban
-  const now = new Date().toISOString()
-  cards.value.push({ id: `${Date.now()}_1`, kanban_id: id, columnId: 'todo', title: 'Novo kanban criado', description: 'Comece adicionando tarefas', isUrgent: false, position: 0, created_at: now, updated_at: now })
+  showKanbanMenu.value = false
+  showKanbanModal.value = true
+}
+
+// Add column to form
+const addColumnToForm = () => {
+  if (kanbanForm.value.columns.length < 6) {
+    kanbanForm.value.columns.push('')
+  }
+}
+
+// Remove column from form
+const removeColumnFromForm = (index) => {
+  if (kanbanForm.value.columns.length > 1) {
+    kanbanForm.value.columns.splice(index, 1)
+  }
+}
+
+// Save kanban
+const saveKanban = async () => {
+  try {
+    savingKanban.value = true
+    
+    // Create new kanban
+    const id = `k_${Date.now()}`
+    kanbans.value.push({ id, name: kanbanForm.value.name.trim() })
+    
+    // Create columns for this kanban
+    const newColumns = kanbanForm.value.columns
+      .filter(col => col.trim())
+      .map((col, index) => ({
+        id: `col_${Date.now()}_${index}`,
+        title: col.trim(),
+        position: index
+      }))
+    
+    // Switch to new kanban
+    currentKanbanId.value = id
+    
+    // Update columns (this will be kanban-specific in a real app)
+    columns.value = newColumns
+    
+    // Add a welcome card
+    const now = new Date().toISOString()
+    if (newColumns.length > 0) {
+      cards.value.push({
+        id: `${Date.now()}_1`,
+        kanban_id: id,
+        columnId: newColumns[0].id,
+        title: 'Bem-vindo ao seu novo kanban!',
+        description: 'Comece adicionando suas tarefas',
+        isUrgent: false,
+        position: 0,
+        created_at: now,
+        updated_at: now
+      })
+    }
+    
+    closeKanbanModal()
+  } catch (error) {
+    console.error('Error creating kanban:', error)
+    alert('Erro ao criar kanban. Tente novamente.')
+  } finally {
+    savingKanban.value = false
+  }
+}
+
+// Close kanban modal
+const closeKanbanModal = () => {
+  showKanbanModal.value = false
+  kanbanForm.value = {
+    name: '',
+    columns: ['Para Fazer', 'Fazendo', 'Concluído']
+  }
 }
 
 // Column management functions
@@ -962,6 +1155,126 @@ useHead({
   border-color: rgba(75, 85, 99, 0.4);
 }
 
+/* Modal Content Large */
+.modal-content--large {
+  max-width: 42rem;
+}
+
+/* Form Label with Action */
+.form-label-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+/* Button Add Column */
+.btn-add-column {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(59, 130, 246);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.btn-add-column:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-add-column:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-add-column-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Columns List */
+.columns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(244, 246, 250, 0.5);
+  border: 1px solid rgba(156, 163, 175, 0.2);
+  border-radius: 12px;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.column-item:hover {
+  background: rgba(244, 246, 250, 0.8);
+  border-color: rgba(156, 163, 175, 0.3);
+}
+
+.column-item-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250));
+  color: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.column-item-input {
+  flex: 1;
+  margin: 0 !important;
+}
+
+.btn-remove-column {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(156, 163, 175);
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+  flex-shrink: 0;
+}
+
+.btn-remove-column:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgb(239, 68, 68);
+  transform: scale(1.1);
+}
+
+.btn-remove-column:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-remove-column svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .board-columns {
@@ -971,6 +1284,26 @@ useHead({
 
   .modal-title {
     font-size: 1.25rem;
+  }
+
+  .modal-content--large {
+    max-width: 100%;
+  }
+
+  .column-item {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .column-item-number {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-add-column {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.625rem;
   }
 }
 /* Kanban selector menu */
