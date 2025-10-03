@@ -33,22 +33,35 @@
         </div>
       </div>
       <!-- Kanban Columns -->
-      <div class="board-columns">
-        <div
-          v-for="column in columns"
-          :key="column.id"
-          class="board-column-wrapper"
-        >
-          <KanbanColumn
-            :column="column"
-            :cards="getColumnCards(column.id)"
-            @add-card="handleAddCard"
-            @edit-card="handleEditCard"
-            @delete-card="handleDeleteCard"
-            @card-drop="handleCardDrop"
-            @rename-column="handleRenameColumn"
-            @delete-column="handleDeleteColumn"
-          />
+      <div class="board-columns-container">
+        <div class="board-columns" ref="boardColumnsRef">
+          <div
+            v-for="column in columns"
+            :key="column.id"
+            class="board-column-wrapper"
+          >
+            <KanbanColumn
+              :column="column"
+              :cards="getColumnCards(column.id)"
+              @add-card="handleAddCard"
+              @edit-card="handleEditCard"
+              @delete-card="handleDeleteCard"
+              @card-drop="handleCardDrop"
+              @rename-column="handleRenameColumn"
+              @delete-column="handleDeleteColumn"
+            />
+          </div>
+        </div>
+        <!-- Scroll indicators -->
+        <div v-if="showScrollIndicators" class="scroll-indicator scroll-indicator-left" :class="{ 'visible': canScrollLeft }">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </div>
+        <div v-if="showScrollIndicators" class="scroll-indicator scroll-indicator-right" :class="{ 'visible': canScrollRight }">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
         </div>
       </div>
     </div>
@@ -194,6 +207,12 @@ const kanbans = ref([
 const currentKanbanId = ref('default')
 const showKanbanMenu = ref(false)
 
+// Scroll indicators state
+const boardColumnsRef = ref(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+const showScrollIndicators = ref(false)
+
 const cards = ref([])
 const showCardModal = ref(false)
 const editingCard = ref(null)
@@ -230,6 +249,17 @@ const addNewColumn = () => {
     position: columns.value.length
   }
   columns.value.push(newColumn)
+  
+  // Scroll to the new column after DOM update
+  nextTick(() => {
+    const boardColumns = document.querySelector('.board-columns')
+    if (boardColumns) {
+      boardColumns.scrollTo({
+        left: boardColumns.scrollWidth,
+        behavior: 'smooth'
+      })
+    }
+  })
 }
 
 const handleRenameColumn = ({ columnId, newTitle }) => {
@@ -414,6 +444,26 @@ const closeCardModal = () => {
 
 // Load some example cards on mount
 onMounted(() => {
+  // Set up scroll indicators listeners
+  const el = boardColumnsRef.value
+  if (el) {
+    const updateScrollState = () => {
+      canScrollLeft.value = el.scrollLeft > 0
+      canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+      // Show indicators only if content overflows (more de 3 colunas ~ 320px cada)
+      showScrollIndicators.value = el.scrollWidth > el.clientWidth + 10
+    }
+
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState)
+    window.addEventListener('resize', updateScrollState)
+    // Cleanup on unmount
+    onBeforeUnmount(() => {
+      el.removeEventListener('scroll', updateScrollState)
+      window.removeEventListener('resize', updateScrollState)
+    })
+  }
+
   // Add some example cards
   cards.value = [
     {
@@ -568,38 +618,71 @@ useHead({
   pointer-events: none;
 }
 
-/* Board Columns */
-.board-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+/* Board Columns Container */
+.board-columns-container {
+  position: relative;
   width: 100%;
 }
 
-/* Responsive grid adjustments */
-@media (min-width: 768px) {
-  .board-columns {
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  }
+/* Board Columns - Horizontal Scroll Layout */
+.board-columns {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 1rem;
+  scroll-behavior: smooth;
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
 }
 
-@media (min-width: 1024px) {
-  .board-columns {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-  }
+/* Webkit scrollbar styling */
+.board-columns::-webkit-scrollbar {
+  height: 8px;
 }
 
-/* Limit maximum columns per row */
-@media (min-width: 1280px) {
-  .board-columns {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    max-width: none;
-  }
+.board-columns::-webkit-scrollbar-track {
+  background: rgba(244, 246, 250, 0.5);
+  border-radius: 4px;
+}
+
+.board-columns::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+  transition: background 150ms ease;
+}
+
+.board-columns::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
 }
 
 .board-column-wrapper {
-  min-width: 0; /* Permite que o conteúdo encolha */
+  flex: 0 0 320px;
+  min-width: 320px;
+  max-width: 320px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .board-columns {
+    gap: 1rem;
+  }
+  
+  .board-column-wrapper {
+    flex: 0 0 280px;
+    min-width: 280px;
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .board-column-wrapper {
+    flex: 0 0 260px;
+    min-width: 260px;
+    max-width: 260px;
+  }
 }
 
 /* Modal Overlay */
@@ -871,7 +954,72 @@ useHead({
   height: 20px;
 }
 
-/* Responsive adjustments for floating button */
+/* Scroll Indicators */
+.scroll-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+  z-index: 10;
+}
+
+.scroll-indicator.visible {
+  opacity: 1;
+}
+
+.scroll-indicator-left {
+  left: 0;
+  background: linear-gradient(90deg, rgba(244, 246, 250, 0.95), transparent);
+}
+
+.scroll-indicator-right {
+  right: 0;
+  background: linear-gradient(270deg, rgba(244, 246, 250, 0.95), transparent);
+}
+
+.scroll-indicator svg {
+  width: 24px;
+  height: 24px;
+  color: rgb(59, 130, 246);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  animation: bounce-horizontal 2s ease-in-out infinite;
+}
+
+.scroll-indicator-left svg {
+  animation-name: bounce-left;
+}
+
+.scroll-indicator-right svg {
+  animation-name: bounce-right;
+}
+
+@keyframes bounce-left {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes bounce-right {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+/* Responsive adjustments for floating button and scroll indicators */
 @media (max-width: 640px) {
   .add-column-floating {
     right: 1rem;
@@ -886,6 +1034,11 @@ useHead({
   .add-column-icon {
     width: 22px;
     height: 22px;
+  }
+  
+  /* Hide scroll indicators on mobile - touch scrolling is more intuitive */
+  .scroll-indicator {
+    display: none;
   }
 }
 
