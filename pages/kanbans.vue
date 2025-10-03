@@ -88,6 +88,7 @@
         <svg class="add-column-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
+        <span class="add-column-text">Adicionar Coluna</span>
       </button>
     </div>
 
@@ -982,18 +983,20 @@ useHead({
 }
 
 .add-column-btn {
-  width: 44px;
-  height: 44px;
+  height: 48px;
+  padding: 0 1.25rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
+  gap: 0.625rem;
+  border-radius: 24px;
   border: 1px solid rgba(156, 163, 175, 0.35);
   background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(245, 247, 255, 0.95));
   color: rgb(59, 130, 246);
   box-shadow: 0 10px 25px rgba(30, 41, 59, 0.12);
   transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .add-column-btn:disabled {
@@ -1008,7 +1011,7 @@ useHead({
   background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
 }
 
-.add-column-btn:active {
+.add-column-btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -1020,6 +1023,22 @@ useHead({
 .add-column-icon {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
+}
+
+.add-column-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(59, 130, 246);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.add-column-btn:hover:not(:disabled) .add-column-text {
+  color: rgb(37, 99, 235);
+}
+
+.add-column-btn:disabled .add-column-text {
+  color: rgba(59, 130, 246, 0.6);
 }
 
 /* Scroll Indicators */
