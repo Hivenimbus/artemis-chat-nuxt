@@ -284,6 +284,35 @@
                         class="form-input column-item-input"
                         :placeholder="`Nome da coluna ${index + 1}`"
                       />
+                      
+                      <!-- Move Up/Down Buttons -->
+                      <div class="column-item-actions">
+                        <button
+                          type="button"
+                          @click="moveColumnUp(index)"
+                          :disabled="index === 0"
+                          class="btn-move-column btn-move-column--up"
+                          :aria-label="`Mover coluna ${index + 1} para cima`"
+                          title="Mover para cima"
+                        >
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          @click="moveColumnDown(index)"
+                          :disabled="index === kanbanForm.columns.length - 1"
+                          class="btn-move-column btn-move-column--down"
+                          :aria-label="`Mover coluna ${index + 1} para baixo`"
+                          title="Mover para baixo"
+                        >
+                          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+                      
                       <button
                         type="button"
                         @click="removeColumnFromForm(index)"
@@ -413,6 +442,28 @@ const addColumnToForm = () => {
 const removeColumnFromForm = (index) => {
   if (kanbanForm.value.columns.length > 1) {
     kanbanForm.value.columns.splice(index, 1)
+  }
+}
+
+// Move column up in form
+const moveColumnUp = (index) => {
+  if (index > 0) {
+    const columns = [...kanbanForm.value.columns]
+    const temp = columns[index]
+    columns[index] = columns[index - 1]
+    columns[index - 1] = temp
+    kanbanForm.value.columns = columns
+  }
+}
+
+// Move column down in form
+const moveColumnDown = (index) => {
+  if (index < kanbanForm.value.columns.length - 1) {
+    const columns = [...kanbanForm.value.columns]
+    const temp = columns[index]
+    columns[index] = columns[index + 1]
+    columns[index + 1] = temp
+    kanbanForm.value.columns = columns
   }
 }
 
@@ -1268,6 +1319,44 @@ useHead({
   margin: 0 !important;
 }
 
+.column-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.btn-move-column {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 1.625rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(156, 163, 175);
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+  flex-shrink: 0;
+}
+
+.btn-move-column:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgb(59, 130, 246);
+  transform: scale(1.1);
+}
+
+.btn-move-column:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-move-column svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .btn-remove-column {
   display: inline-flex;
   align-items: center;
@@ -1324,6 +1413,20 @@ useHead({
     width: 1.75rem;
     height: 1.75rem;
     font-size: 0.75rem;
+  }
+
+  .column-item-actions {
+    gap: 0.125rem;
+  }
+
+  .btn-move-column {
+    width: 1.75rem;
+    height: 1.5rem;
+  }
+
+  .btn-move-column svg {
+    width: 1rem;
+    height: 1rem;
   }
 
   .btn-add-column {
