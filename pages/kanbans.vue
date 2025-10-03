@@ -33,7 +33,7 @@
         </div>
       </div>
       <!-- Kanban Columns -->
-      <div class="board-columns-container">
+      <div class="board-columns-container" ref="boardColumnsContainerRef">
         <div class="board-columns" ref="boardColumnsRef">
           <div
             v-for="column in columns"
@@ -53,22 +53,38 @@
           </div>
         </div>
         <!-- Scroll indicators -->
-        <div v-if="showScrollIndicators" class="scroll-indicator scroll-indicator-left" :class="{ 'visible': canScrollLeft }">
+        <button 
+          v-if="showScrollIndicators" 
+          class="scroll-indicator scroll-indicator-left" 
+          :class="{ 'visible': canScrollLeft }"
+          @click="scrollColumns('left')"
+          :disabled="!canScrollLeft"
+          aria-label="Rolar para esquerda"
+          title="Ver colunas anteriores"
+        >
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-        </div>
-        <div v-if="showScrollIndicators" class="scroll-indicator scroll-indicator-right" :class="{ 'visible': canScrollRight }">
+        </button>
+        <button 
+          v-if="showScrollIndicators" 
+          class="scroll-indicator scroll-indicator-right" 
+          :class="{ 'visible': canScrollRight }"
+          @click="scrollColumns('right')"
+          :disabled="!canScrollRight"
+          aria-label="Rolar para direita"
+          title="Ver próximas colunas"
+        >
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
-        </div>
+        </button>
       </div>
     </div>
 
     <!-- Add New Column Button (Floating) -->
     <div class="add-column-floating">
-      <button class="add-column-btn" @click="addNewColumn" title="Adicionar nova coluna" aria-label="Adicionar coluna">
+      <button class="add-column-btn" @click="addNewColumn" :disabled="columns.length >= 6" title="Adicionar nova coluna" aria-label="Adicionar coluna">
         <svg class="add-column-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -208,10 +224,33 @@ const currentKanbanId = ref('default')
 const showKanbanMenu = ref(false)
 
 // Scroll indicators state
+const boardColumnsContainerRef = ref(null)
 const boardColumnsRef = ref(null)
 const canScrollLeft = ref(false)
 const canScrollRight = ref(false)
 const showScrollIndicators = ref(false)
+
+// Scroll columns function - scroll by 3 columns at a time
+const scrollColumns = (direction) => {
+  const el = boardColumnsRef.value
+  if (!el) return
+
+  const columnsToScroll = 3
+  // Measure an actual column width for accuracy
+  const sampleCol = el.querySelector('.board-column-wrapper')
+  const columnWidth = sampleCol ? Math.round(sampleCol.getBoundingClientRect().width) : 320
+  // Read computed gap between flex items (columnGap works with flex too)
+  const styles = window.getComputedStyle(el)
+  const gapPx = parseFloat(styles.columnGap || styles.gap) || 24
+
+  const scrollDistance = (columnWidth * columnsToScroll) + (gapPx * (columnsToScroll - 1))
+  const scrollAmount = direction === 'left' ? -scrollDistance : scrollDistance
+
+  el.scrollBy({
+    left: scrollAmount,
+    behavior: 'smooth'
+  })
+}
 
 const cards = ref([])
 const showCardModal = ref(false)
@@ -240,6 +279,11 @@ const createNewKanban = () => {
 
 // Column management functions
 const addNewColumn = () => {
+  if (columns.value.length >= 6) {
+    alert('Limite de 6 colunas por kanban alcançado.')
+    return
+  }
+
   const title = prompt('Nome da nova coluna:')
   if (!title || !title.trim()) return
   
@@ -252,7 +296,7 @@ const addNewColumn = () => {
   
   // Scroll to the new column after DOM update
   nextTick(() => {
-    const boardColumns = document.querySelector('.board-columns')
+    const boardColumns = boardColumnsRef.value
     if (boardColumns) {
       boardColumns.scrollTo({
         left: boardColumns.scrollWidth,
@@ -446,12 +490,30 @@ const closeCardModal = () => {
 onMounted(() => {
   // Set up scroll indicators listeners
   const el = boardColumnsRef.value
-  if (el) {
+  const container = boardColumnsContainerRef.value
+  if (el && container) {
     const updateScrollState = () => {
       canScrollLeft.value = el.scrollLeft > 0
       canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
-      // Show indicators only if content overflows (more de 3 colunas ~ 320px cada)
+      // Show indicators only if content overflows (mais de 3 colunas ~ 320px cada)
       showScrollIndicators.value = el.scrollWidth > el.clientWidth + 10
+
+      // Limit viewport to show only first 3 columns when at start and more than 3 columns
+      const sampleCol = el.querySelector('.board-column-wrapper')
+      const colWidth = sampleCol ? Math.round(sampleCol.getBoundingClientRect().width) : 320
+      const styles = window.getComputedStyle(el)
+      const gapPx = parseFloat(styles.columnGap || styles.gap) || 24
+      const columnsToShow = 3
+      const desiredWidth = (colWidth * columnsToShow) + (gapPx * (columnsToShow - 1))
+      const hasMoreThanThree = columns.value.length > 3
+      const atStart = el.scrollLeft <= 0
+      if (hasMoreThanThree && atStart) {
+        container.style.maxWidth = desiredWidth + 'px'
+        container.style.marginInline = 'auto'
+      } else {
+        container.style.maxWidth = ''
+        container.style.marginInline = ''
+      }
     }
 
     updateScrollState()
@@ -934,7 +996,13 @@ useHead({
   cursor: pointer;
 }
 
-.add-column-btn:hover {
+.add-column-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.1);
+}
+
+.add-column-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 16px 40px rgba(30, 41, 59, 0.16);
   background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
@@ -959,46 +1027,76 @@ useHead({
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 40px;
-  height: 80px;
+  width: 50px;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), transparent);
-  pointer-events: none;
+  border: none;
+  cursor: pointer;
   opacity: 0;
-  transition: opacity 300ms var(--ease-out);
+  pointer-events: none;
+  transition: opacity 300ms var(--ease-out), background 200ms var(--ease-out);
   z-index: 10;
 }
 
 .scroll-indicator.visible {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.scroll-indicator:disabled {
+  cursor: not-allowed;
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .scroll-indicator-left {
   left: 0;
-  background: linear-gradient(90deg, rgba(244, 246, 250, 0.95), transparent);
+  padding-right: 10px;
+  background: linear-gradient(90deg, rgba(244, 246, 250, 0.95) 60%, transparent);
 }
 
 .scroll-indicator-right {
   right: 0;
-  background: linear-gradient(270deg, rgba(244, 246, 250, 0.95), transparent);
+  padding-left: 10px;
+  background: linear-gradient(270deg, rgba(244, 246, 250, 0.95) 60%, transparent);
+}
+
+.scroll-indicator:hover:not(:disabled) {
+  background: linear-gradient(90deg, rgba(244, 246, 250, 1) 70%, transparent);
+}
+
+.scroll-indicator-right:hover:not(:disabled) {
+  background: linear-gradient(270deg, rgba(244, 246, 250, 1) 70%, transparent);
 }
 
 .scroll-indicator svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   color: rgb(59, 130, 246);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-  animation: bounce-horizontal 2s ease-in-out infinite;
+  transition: transform 150ms var(--ease-out), color 150ms var(--ease-out);
 }
 
-.scroll-indicator-left svg {
-  animation-name: bounce-left;
+.scroll-indicator:hover:not(:disabled) svg {
+  color: rgb(37, 99, 235);
+  transform: scale(1.1);
 }
 
-.scroll-indicator-right svg {
-  animation-name: bounce-right;
+.scroll-indicator:active:not(:disabled) svg {
+  transform: scale(0.95);
+}
+
+.scroll-indicator-left:hover:not(:disabled) svg {
+  animation: none;
+  transform: translateX(-3px) scale(1.1);
+}
+
+.scroll-indicator-right:hover:not(:disabled) svg {
+  animation: none;
+  transform: translateX(3px) scale(1.1);
 }
 
 @keyframes bounce-left {
