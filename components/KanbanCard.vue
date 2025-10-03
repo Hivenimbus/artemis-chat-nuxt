@@ -52,6 +52,38 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </button>
+      
+      <!-- Move Card Dropdown -->
+      <div class="kan-card__move" ref="moveMenuRef" v-if="availableColumns.length > 0">
+        <button
+          @click.stop="toggleMoveMenu"
+          class="kan-card__action-btn kan-card__action-btn--move"
+          :aria-label="`Mover ${card.title} para outra coluna`"
+          :aria-expanded="showMoveMenu ? 'true' : 'false'"
+          :aria-haspopup="true"
+          title="Mover para outra coluna"
+        >
+          <svg class="kan-card__action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </button>
+        
+        <!-- Dropdown Menu -->
+        <Transition name="fade-scale">
+          <div v-if="showMoveMenu" class="kan-card__move-menu" role="menu" @click.stop>
+            <div class="kan-card__move-menu-header">Mover para:</div>
+            <button
+              v-for="column in availableColumns"
+              :key="column.id"
+              @click="moveToColumn(column.id)"
+              class="kan-card__move-menu-item"
+              role="menuitem"
+            >
+              {{ column.title }}
+            </button>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <!-- Drag Handle Indicator -->
@@ -69,14 +101,29 @@ const props = defineProps({
   card: {
     type: Object,
     required: true
+  },
+  columns: {
+    type: Array,
+    default: () => []
+  },
+  currentColumnId: {
+    type: [String, Number],
+    required: true
   }
 })
 
 // Emits
-defineEmits(['edit-card', 'delete-card'])
+const emit = defineEmits(['edit-card', 'delete-card', 'move-card'])
 
 // State
 const isDragging = ref(false)
+const showMoveMenu = ref(false)
+const moveMenuRef = ref(null)
+
+// Available columns (exclude current column)
+const availableColumns = computed(() => {
+  return (props.columns || []).filter(col => col.id !== props.currentColumnId)
+})
 
 // Handle drag start
 const handleDragStart = (event) => {
@@ -94,6 +141,32 @@ const handleDragEnd = (event) => {
   isDragging.value = false
   event.target.classList.remove('dragging')
 }
+
+// Toggle move menu
+const toggleMoveMenu = () => {
+  showMoveMenu.value = !showMoveMenu.value
+}
+
+// Move to column
+const moveToColumn = (columnId) => {
+  emit('move-card', columnId)
+  showMoveMenu.value = false
+}
+
+// Click outside to close menu
+const handleClickOutside = (event) => {
+  if (showMoveMenu.value && moveMenuRef.value && !moveMenuRef.value.contains(event.target)) {
+    showMoveMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <style scoped>
@@ -213,6 +286,7 @@ const handleDragEnd = (event) => {
   gap: 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(var(--txt-3), 0.1);
+  position: relative;
 }
 
 .kan-card__action-btn {
@@ -253,9 +327,80 @@ const handleDragEnd = (event) => {
   color: rgb(var(--danger-500));
 }
 
+.kan-card__action-btn--move:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: rgb(16, 185, 129);
+}
+
 .kan-card__action-icon {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+/* Move Card Dropdown */
+.kan-card__move {
+  position: relative;
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.kan-card__move-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  min-width: 180px;
+  background: rgb(var(--bg-1));
+  border: 1px solid rgba(var(--txt-3), 0.2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.kan-card__move-menu-header {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgb(var(--txt-2));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(var(--txt-3), 0.05);
+  border-bottom: 1px solid rgba(var(--txt-3), 0.1);
+}
+
+.kan-card__move-menu-item {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--txt-1));
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  display: block;
+}
+
+.kan-card__move-menu-item:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: rgb(16, 185, 129);
+}
+
+.kan-card__move-menu-item:active {
+  transform: scale(0.98);
+}
+
+/* Fade Scale Transition */
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  transform: scale(0.95) translateY(4px);
+  opacity: 0;
 }
 
 /* Drag Handle */

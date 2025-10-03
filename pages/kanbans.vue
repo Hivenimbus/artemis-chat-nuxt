@@ -42,11 +42,13 @@
           >
             <KanbanColumn
               :column="column"
+              :columns="columns"
               :cards="getColumnCards(column.id)"
               @add-card="handleAddCard"
               @edit-card="handleEditCard"
               @delete-card="handleDeleteCard"
               @card-drop="handleCardDrop"
+              @move-card="handleMoveCard"
               @rename-column="handleRenameColumn"
               @delete-column="handleDeleteColumn"
             />
@@ -411,6 +413,25 @@ const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
       c.position = index
     })
   }
+}
+
+// Handle move card via dropdown
+const handleMoveCard = ({ cardId, fromColumnId, toColumnId }) => {
+  if (fromColumnId === toColumnId) return
+
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return
+
+  const oldColumnId = card.columnId
+  
+  // Move card to end of target column
+  card.columnId = toColumnId
+  const targetColumnCards = cards.value.filter(c => c.kanban_id === currentKanbanId.value && c.columnId === toColumnId)
+  card.position = targetColumnCards.length
+
+  // Reposition cards in both columns
+  repositionCardsInColumn(oldColumnId)
+  repositionCardsInColumn(toColumnId)
 }
 
 // Reposition cards in a column for current kanban

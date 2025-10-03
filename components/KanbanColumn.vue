@@ -66,8 +66,11 @@
         >
           <KanbanCard
             :card="card"
+            :columns="columns"
+            :current-column-id="column.id"
             @edit-card="$emit('edit-card', $event)"
             @delete-card="$emit('delete-card', $event)"
+            @move-card="handleMoveCard(card.id, $event)"
           />
         </div>
       </TransitionGroup>
@@ -107,11 +110,15 @@ const props = defineProps({
   cards: {
     type: Array,
     default: () => []
+  },
+  columns: {
+    type: Array,
+    default: () => []
   }
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card'])
 
 // State
 const isDragOver = ref(false)
@@ -253,6 +260,15 @@ const deleteColumn = () => {
     emit('delete-column', props.column.id)
   }
   showOptions.value = false
+}
+
+// Handle move card via dropdown
+const handleMoveCard = (cardId, toColumnId) => {
+  emit('move-card', {
+    cardId,
+    fromColumnId: props.column.id,
+    toColumnId
+  })
 }
 </script>
 
