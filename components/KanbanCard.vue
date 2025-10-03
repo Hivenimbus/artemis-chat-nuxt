@@ -201,12 +201,19 @@ onBeforeUnmount(() => {
   cursor: move;
   transition: all var(--dur-fast) var(--ease-out);
   user-select: none;
+  z-index: 1;
 }
 
 .kan-card:hover {
   transform: translateY(-2px) scale(1.01);
   box-shadow: var(--shadow-2);
   border-color: rgb(var(--ring));
+  z-index: 2;
+}
+
+/* Increase z-index when move menu is open */
+.kan-card:has(.kan-card__move-menu) {
+  z-index: 200;
 }
 
 .kan-card:focus-within {
@@ -347,13 +354,13 @@ onBeforeUnmount(() => {
 .kan-card__move-menu {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 0.5rem);
+  top: calc(100% + 0.5rem);
   min-width: 180px;
   background: rgb(var(--bg-1));
   border: 1px solid rgba(var(--txt-3), 0.2);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-2);
-  z-index: 100;
+  box-shadow: 0 20px 48px rgba(0,0,0,.25);
+  z-index: 250;
   overflow: hidden;
 }
 
@@ -399,7 +406,7 @@ onBeforeUnmount(() => {
 
 .fade-scale-enter-from,
 .fade-scale-leave-to {
-  transform: scale(0.95) translateY(4px);
+  transform: scale(0.95) translateY(-4px);
   opacity: 0;
 }
 
