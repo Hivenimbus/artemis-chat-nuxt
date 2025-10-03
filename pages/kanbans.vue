@@ -50,19 +50,16 @@
             @delete-column="handleDeleteColumn"
           />
         </div>
-        
-        <!-- Add New Column Button -->
-        <div class="board-column-wrapper">
-          <div class="new-column">
-            <button class="new-column__btn" @click="addNewColumn">
-              <svg class="new-column__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Adicionar coluna</span>
-            </button>
-          </div>
-        </div>
       </div>
+    </div>
+
+    <!-- Add New Column Button (Floating) -->
+    <div class="add-column-floating">
+      <button class="add-column-btn" @click="addNewColumn" title="Adicionar nova coluna" aria-label="Adicionar coluna">
+        <svg class="add-column-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
     </div>
 
     <!-- Add/Edit Card Modal -->
@@ -831,56 +828,65 @@ useHead({
 .kan-menu__create:hover { background: linear-gradient(135deg, #DBEAFE, #FFFFFF); }
 .kan-menu__create-icon { width: 1rem; height: 1rem; color: #3B82F6; }
 
-/* Add New Column Button */
-.new-column {
-  display: flex;
+/* Add Column Floating Button */
+.add-column-floating {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 40;
+}
+
+.add-column-btn {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  padding: 1rem;
-  height: 100%;
-}
-
-.new-column__btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem 1.5rem;
-  border: 2px dashed rgba(156, 163, 175, 0.4);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.5);
-  color: rgb(75, 85, 99);
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 200ms cubic-bezier(.22, 1, .36, 1);
-  width: 100%;
-  min-height: 150px;
-  height: 100%;
-  max-height: 300px;
-}
-
-.new-column__btn:hover {
-  border-color: rgb(59, 130, 246);
-  background: rgba(59, 130, 246, 0.05);
+  border-radius: 9999px;
+  border: 1px solid rgba(156, 163, 175, 0.35);
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(245, 247, 255, 0.95));
   color: rgb(59, 130, 246);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 10px 25px rgba(30, 41, 59, 0.12);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  cursor: pointer;
 }
 
-.new-column__btn:active {
-  transform: translateY(0) scale(0.98);
+.add-column-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(30, 41, 59, 0.16);
+  background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
 }
 
-.new-column__icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  opacity: 0.7;
+.add-column-btn:active {
+  transform: translateY(0);
 }
 
-.new-column__btn:hover .new-column__icon {
-  opacity: 1;
+.add-column-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 16px 40px rgba(30, 41, 59, 0.16);
+}
+
+.add-column-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Responsive adjustments for floating button */
+@media (max-width: 640px) {
+  .add-column-floating {
+    right: 1rem;
+    bottom: 1rem;
+  }
+  
+  .add-column-btn {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .add-column-icon {
+    width: 22px;
+    height: 22px;
+  }
 }
 
 </style>
