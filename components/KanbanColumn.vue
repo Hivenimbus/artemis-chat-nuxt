@@ -15,6 +15,31 @@
         <h2 class="kan-col__title">{{ column.title }}</h2>
         <span class="kan-col__badge">{{ cards.length }}</span>
       </div>
+      
+      <!-- Column Options Menu -->
+      <div class="kan-col__options">
+        <button class="kan-col__options-btn" @click="showOptions = !showOptions" :aria-expanded="showOptions ? 'true' : 'false'">
+          <svg class="kan-col__options-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
+        
+        <!-- Options Dropdown -->
+        <div v-if="showOptions" class="kan-col__options-dropdown">
+          <button class="kan-col__option" @click="startRename">
+            <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Renomear coluna
+          </button>
+          <button v-if="!isDefaultColumn" class="kan-col__option kan-col__option--danger" @click="deleteColumn">
+            <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Excluir coluna
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Cards Container -->
@@ -86,12 +111,18 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column'])
 
 // State
 const isDragOver = ref(false)
 const dragOverIndex = ref(null)
 const isDragFromDifferentColumn = ref(false)
+const showOptions = ref(false)
+
+// Check if this is a default column (can't be deleted)
+const isDefaultColumn = computed(() => 
+  ['todo', 'doing', 'done'].includes(props.column.id)
+)
 
 // Handle drag over column (for empty space)
 const handleDragOver = (event) => {
@@ -207,6 +238,22 @@ const handleCardDrop = (event, targetIndex) => {
     newPosition
   })
 }
+
+// Column management functions
+const startRename = () => {
+  const newName = prompt('Novo nome da coluna:', props.column.title)
+  if (newName && newName.trim()) {
+    emit('rename-column', { columnId: props.column.id, newTitle: newName.trim() })
+  }
+  showOptions.value = false
+}
+
+const deleteColumn = () => {
+  if (confirm(`Tem certeza que deseja excluir a coluna "${props.column.title}"? Todos os cartões serão movidos para "Para Fazer".`)) {
+    emit('delete-column', props.column.id)
+  }
+  showOptions.value = false
+}
 </script>
 
 <style scoped>
@@ -276,12 +323,16 @@ const handleCardDrop = (event, targetIndex) => {
 .kan-col__header {
   padding: 1.25rem 1rem;
   border-bottom: 1px solid rgba(var(--txt-3), 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .kan-col__header-title {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex: 1;
 }
 
 .kan-col__icon {
@@ -311,6 +362,87 @@ const handleCardDrop = (event, targetIndex) => {
   background: linear-gradient(135deg, rgb(var(--col-500)), rgb(var(--col-400)));
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(var(--col-500), 0.3);
+}
+
+/* Column Options Menu */
+.kan-col__options {
+  position: relative;
+}
+
+.kan-col__options-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--txt-2), 0.6);
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.kan-col__options-btn:hover {
+  background: rgba(var(--col-500), 0.08);
+  color: rgb(var(--col-500));
+  transform: scale(1.05);
+}
+
+.kan-col__options-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.kan-col__options-dropdown {
+  position: absolute;
+  right: 0;
+  top: 2.5rem;
+  min-width: 180px;
+  background: rgb(var(--bg-1));
+  border: 1px solid rgba(var(--txt-3), 0.2);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
+  padding: 0.375rem;
+  z-index: 50;
+}
+
+.kan-col__option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--txt-1));
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 120ms ease-out;
+  text-align: left;
+}
+
+.kan-col__option:hover {
+  background: rgba(var(--col-500), 0.06);
+  color: rgb(var(--col-500));
+}
+
+.kan-col__option--danger {
+  color: rgb(239, 68, 68);
+}
+
+.kan-col__option--danger:hover {
+  background: rgba(239, 68, 68, 0.06);
+  color: rgb(220, 38, 38);
+}
+
+.kan-col__option-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 /* Cards Container */

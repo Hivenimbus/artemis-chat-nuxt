@@ -46,7 +46,21 @@
             @edit-card="handleEditCard"
             @delete-card="handleDeleteCard"
             @card-drop="handleCardDrop"
+            @rename-column="handleRenameColumn"
+            @delete-column="handleDeleteColumn"
           />
+        </div>
+        
+        <!-- Add New Column Button -->
+        <div class="board-column-wrapper">
+          <div class="new-column">
+            <button class="new-column__btn" @click="addNewColumn">
+              <svg class="new-column__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Adicionar coluna</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -206,6 +220,47 @@ const createNewKanban = () => {
   // Opcional: adicionar alguns cards exemplo nesse kanban
   const now = new Date().toISOString()
   cards.value.push({ id: `${Date.now()}_1`, kanban_id: id, columnId: 'todo', title: 'Novo kanban criado', description: 'Comece adicionando tarefas', isUrgent: false, position: 0, created_at: now, updated_at: now })
+}
+
+// Column management functions
+const addNewColumn = () => {
+  const title = prompt('Nome da nova coluna:')
+  if (!title || !title.trim()) return
+  
+  const newColumn = {
+    id: `col_${Date.now()}`,
+    title: title.trim(),
+    position: columns.value.length
+  }
+  columns.value.push(newColumn)
+}
+
+const handleRenameColumn = ({ columnId, newTitle }) => {
+  const column = columns.value.find(c => c.id === columnId)
+  if (column) {
+    column.title = newTitle
+  }
+}
+
+const handleDeleteColumn = (columnId) => {
+  // Move all cards from deleted column to 'todo'
+  cards.value.forEach(card => {
+    if (card.columnId === columnId) {
+      card.columnId = 'todo'
+      // Reposition in todo column
+      const todoCards = cards.value.filter(c => c.columnId === 'todo')
+      card.position = todoCards.length
+    }
+  })
+  
+  // Remove the column
+  const columnIndex = columns.value.findIndex(c => c.id === columnId)
+  if (columnIndex > -1) {
+    columns.value.splice(columnIndex, 1)
+  }
+  
+  // Reposition cards in todo column
+  repositionCardsInColumn('todo')
 }
 
 // Get cards for a specific column in current kanban
@@ -518,43 +573,36 @@ useHead({
 
 /* Board Columns */
 .board-columns {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
-  overflow-x: auto;
-  padding-bottom: 1rem;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  width: 100%;
 }
 
-.board-columns::-webkit-scrollbar {
-  height: 8px;
+/* Responsive grid adjustments */
+@media (min-width: 768px) {
+  .board-columns {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
 }
 
-.board-columns::-webkit-scrollbar-track {
-  background: transparent;
+@media (min-width: 1024px) {
+  .board-columns {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
 }
 
-.board-columns::-webkit-scrollbar-thumb {
-  background: rgba(var(--txt-3), 0.3);
-  border-radius: 4px;
-}
-
-.board-columns::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--txt-3), 0.5);
+/* Limit maximum columns per row */
+@media (min-width: 1280px) {
+  .board-columns {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    max-width: none;
+  }
 }
 
 .board-column-wrapper {
-  flex-shrink: 0;
-  width: 20rem;
-  scroll-snap-align: start;
-}
-
-@media (min-width: 640px) {
-  .board-column-wrapper {
-    width: 22rem;
-  }
+  min-width: 0; /* Permite que o conteúdo encolha */
 }
 
 /* Modal Overlay */
@@ -752,8 +800,9 @@ useHead({
 
 /* Responsive */
 @media (max-width: 640px) {
-  .board-column-wrapper {
-    width: 18rem;
+  .board-columns {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .modal-title {
@@ -781,5 +830,57 @@ useHead({
 .kan-menu__create { width: 100%; display: inline-flex; align-items: center; gap: .5rem; padding: .5rem; border-radius: 10px; border: 1px solid rgba(156,163,175,.25); background: linear-gradient(135deg, #EFF6FF, #FFFFFF); cursor: pointer; color: #1F2937; font-weight: 600; }
 .kan-menu__create:hover { background: linear-gradient(135deg, #DBEAFE, #FFFFFF); }
 .kan-menu__create-icon { width: 1rem; height: 1rem; color: #3B82F6; }
+
+/* Add New Column Button */
+.new-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 1rem;
+  height: 100%;
+}
+
+.new-column__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  border: 2px dashed rgba(156, 163, 175, 0.4);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  color: rgb(75, 85, 99);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 200ms cubic-bezier(.22, 1, .36, 1);
+  width: 100%;
+  min-height: 150px;
+  height: 100%;
+  max-height: 300px;
+}
+
+.new-column__btn:hover {
+  border-color: rgb(59, 130, 246);
+  background: rgba(59, 130, 246, 0.05);
+  color: rgb(59, 130, 246);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+.new-column__btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.new-column__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  opacity: 0.7;
+}
+
+.new-column__btn:hover .new-column__icon {
+  opacity: 1;
+}
 
 </style>
