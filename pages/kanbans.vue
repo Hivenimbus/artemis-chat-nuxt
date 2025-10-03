@@ -49,6 +49,7 @@
               @delete-card="handleDeleteCard"
               @card-drop="handleCardDrop"
               @move-card="handleMoveCard"
+              @move-column="handleMoveColumn"
               @rename-column="handleRenameColumn"
               @delete-column="handleDeleteColumn"
             />
@@ -507,6 +508,30 @@ const handleRenameColumn = ({ columnId, newTitle }) => {
   if (column) {
     column.title = newTitle
   }
+}
+
+// Handle move column
+const handleMoveColumn = ({ columnId, direction }) => {
+  const currentIndex = columns.value.findIndex(c => c.id === columnId)
+  if (currentIndex === -1) return
+
+  const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1
+  
+  // Check bounds
+  if (newIndex < 0 || newIndex >= columns.value.length) return
+
+  // Swap columns
+  const columnsCopy = [...columns.value]
+  const temp = columnsCopy[currentIndex]
+  columnsCopy[currentIndex] = columnsCopy[newIndex]
+  columnsCopy[newIndex] = temp
+
+  // Update positions
+  columnsCopy.forEach((col, index) => {
+    col.position = index
+  })
+
+  columns.value = columnsCopy
 }
 
 const handleDeleteColumn = (columnId) => {

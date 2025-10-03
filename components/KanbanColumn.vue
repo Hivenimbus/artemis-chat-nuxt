@@ -32,6 +32,26 @@
             </svg>
             Renomear coluna
           </button>
+          <button 
+            class="kan-col__option" 
+            @click="moveColumnLeft"
+            :disabled="!canMoveLeft"
+          >
+            <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Mover para trás
+          </button>
+          <button 
+            class="kan-col__option" 
+            @click="moveColumnRight"
+            :disabled="!canMoveRight"
+          >
+            <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+            Mover para frente
+          </button>
           <button v-if="!isDefaultColumn" class="kan-col__option kan-col__option--danger" @click="deleteColumn">
             <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -118,7 +138,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column'])
 
 // State
 const isDragOver = ref(false)
@@ -130,6 +150,14 @@ const showOptions = ref(false)
 const isDefaultColumn = computed(() => 
   ['todo', 'doing', 'done'].includes(props.column.id)
 )
+
+// Check if column can move left or right
+const currentColumnIndex = computed(() => {
+  return props.columns.findIndex(col => col.id === props.column.id)
+})
+
+const canMoveLeft = computed(() => currentColumnIndex.value > 0)
+const canMoveRight = computed(() => currentColumnIndex.value < props.columns.length - 1 && currentColumnIndex.value !== -1)
 
 // Handle drag over column (for empty space)
 const handleDragOver = (event) => {
@@ -269,6 +297,28 @@ const handleMoveCard = (cardId, toColumnId) => {
     fromColumnId: props.column.id,
     toColumnId
   })
+}
+
+// Move column left (backwards)
+const moveColumnLeft = () => {
+  if (canMoveLeft.value) {
+    emit('move-column', {
+      columnId: props.column.id,
+      direction: 'left'
+    })
+    showOptions.value = false
+  }
+}
+
+// Move column right (forward)
+const moveColumnRight = () => {
+  if (canMoveRight.value) {
+    emit('move-column', {
+      columnId: props.column.id,
+      direction: 'right'
+    })
+    showOptions.value = false
+  }
 }
 </script>
 
@@ -441,9 +491,14 @@ const handleMoveCard = (cardId, toColumnId) => {
   text-align: left;
 }
 
-.kan-col__option:hover {
+.kan-col__option:hover:not(:disabled) {
   background: rgba(var(--col-500), 0.06);
   color: rgb(var(--col-500));
+}
+
+.kan-col__option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .kan-col__option--danger {
