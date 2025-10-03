@@ -1,7 +1,37 @@
 <template>
   <div class="board-bg min-h-screen">
     <!-- Kanban Board -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+      <!-- Top-right Kanban selector -->
+      <div class="kan-menu">
+        <button class="kan-menu__button" @click="toggleKanbanMenu" :aria-expanded="showKanbanMenu ? 'true' : 'false'">
+          <span class="kan-menu__label">{{ currentKanbanName }}</span>
+          <svg class="kan-menu__chev" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <!-- Backdrop to close -->
+        <div v-if="showKanbanMenu" class="kan-menu__backdrop" @click="showKanbanMenu=false"></div>
+        <!-- Dropdown -->
+        <div v-if="showKanbanMenu" class="kan-menu__dropdown" role="menu">
+          <div class="kan-menu__section">
+            <div class="kan-menu__section-title">Meus Kanbans</div>
+            <ul class="kan-menu__list">
+              <li v-for="k in kanbans" :key="k.id">
+                <button class="kan-menu__item" :class="{ 'kan-menu__item--active': k.id === currentKanbanId }" @click="selectKanban(k.id)">
+                  <span class="kan-menu__dot" :class="{ 'kan-menu__dot--active': k.id === currentKanbanId }"></span>
+                  <span class="kan-menu__item-label">{{ k.name }}</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div class="kan-menu__divider"></div>
+          <div class="kan-menu__section">
+            <button class="kan-menu__create" @click="createNewKanban">
+              <svg class="kan-menu__create-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Criar novo kanban
+            </button>
+          </div>
+        </div>
+      </div>
       <!-- Kanban Columns -->
       <div class="board-columns">
         <div
@@ -146,6 +176,13 @@ const columns = ref([
   { id: 'done', title: 'Concluído', position: 2 }
 ])
 
+const kanbans = ref([
+  { id: 'default', name: 'Kanban Padrão' },
+  { id: 'work', name: 'Projetos' }
+])
+const currentKanbanId = ref('default')
+const showKanbanMenu = ref(false)
+
 const cards = ref([])
 const showCardModal = ref(false)
 const editingCard = ref(null)
@@ -157,10 +194,24 @@ const cardForm = ref({
   isUrgent: false
 })
 
-// Get cards for a specific column
+const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
+const toggleKanbanMenu = () => { showKanbanMenu.value = !showKanbanMenu.value }
+const selectKanban = (id) => { currentKanbanId.value = id; showKanbanMenu.value = false }
+const createNewKanban = () => {
+  const name = prompt('Nome do novo kanban:')
+  if (!name) return
+  const id = `k_${Date.now()}`
+  kanbans.value.push({ id, name })
+  currentKanbanId.value = id
+  // Opcional: adicionar alguns cards exemplo nesse kanban
+  const now = new Date().toISOString()
+  cards.value.push({ id: `${Date.now()}_1`, kanban_id: id, columnId: 'todo', title: 'Novo kanban criado', description: 'Comece adicionando tarefas', isUrgent: false, position: 0, created_at: now, updated_at: now })
+}
+
+// Get cards for a specific column in current kanban
 const getColumnCards = (columnId) => {
   return cards.value
-    .filter(card => card.columnId === columnId)
+    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
     .sort((a, b) => a.position - b.position)
 }
 
@@ -235,10 +286,10 @@ const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
   }
 }
 
-// Reposition cards in a column
+// Reposition cards in a column for current kanban
 const repositionCardsInColumn = (columnId) => {
   const columnCards = cards.value
-    .filter(card => card.columnId === columnId)
+    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
     .sort((a, b) => a.position - b.position)
 
   columnCards.forEach((card, index) => {
@@ -268,14 +319,14 @@ const saveCard = async () => {
       // Create new card
       const maxPosition = Math.max(
         ...cards.value
-          .filter(card => card.columnId === cardForm.value.columnId)
+          .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === cardForm.value.columnId)
           .map(card => card.position),
         -1
       )
 
       const newCard = {
         id: Date.now().toString(), // Simple ID generation
-        kanban_id: 'default',
+        kanban_id: currentKanbanId.value,
         columnId: cardForm.value.columnId,
         title: cardForm.value.title,
         description: cardForm.value.description,
@@ -358,6 +409,12 @@ onMounted(() => {
       updated_at: new Date().toISOString()
     }
   ]
+  // Add example cards for another kanban (work)
+  cards.value.push(
+    { id: 'w1', kanban_id: 'work', columnId: 'todo', title: 'Planejar sprint', description: 'Definir escopo da sprint', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'w2', kanban_id: 'work', columnId: 'doing', title: 'Revisar PRs', description: 'Revisão dos pull requests abertos', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'w3', kanban_id: 'work', columnId: 'done', title: 'Reunião diária', description: 'Daily standup concluída', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+  )
 })
 
 // Meta tags
@@ -703,4 +760,26 @@ useHead({
     font-size: 1.25rem;
   }
 }
+/* Kanban selector menu */
+.kan-menu { position: fixed; top: 1rem; right: 1rem; z-index: 30; }
+.kan-menu__button { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: rgba(255,255,255,.8); border: 1px solid rgba(156,163,175,.3); border-radius: 12px; box-shadow: 0 8px 24px rgba(30,41,59,.08); color: #111827; font-weight: 600; transition: all 150ms cubic-bezier(.22,1,.36,1); }
+.kan-menu__button:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(30,41,59,.12); }
+.kan-menu__label { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kan-menu__chev { width: 1rem; height: 1rem; color: #6B7280; }
+.kan-menu__backdrop { position: fixed; inset: 0; z-index: 29; }
+.kan-menu__dropdown { position: absolute; right: 0; margin-top: .5rem; width: 280px; background: #fff; border: 1px solid rgba(156,163,175,.2); border-radius: 12px; box-shadow: 0 16px 40px rgba(30,41,59,.16); padding: .5rem; z-index: 31; }
+.kan-menu__section { padding: .25rem .25rem; }
+.kan-menu__section-title { font-size: .75rem; color: #6B7280; font-weight: 700; padding: .25rem .5rem .5rem; text-transform: uppercase; letter-spacing: .04em; }
+.kan-menu__list { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
+.kan-menu__item { width: 100%; display: flex; align-items: center; gap: .5rem; padding: .5rem .5rem; border-radius: 10px; border: 1px solid transparent; background: transparent; color: #111827; cursor: pointer; transition: all 120ms ease-out; }
+.kan-menu__item:hover { background: rgba(59,130,246,.06); border-color: rgba(59,130,246,.15); }
+.kan-menu__item--active { background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.3); }
+.kan-menu__dot { width: .5rem; height: .5rem; border-radius: 9999px; background: #D1D5DB; }
+.kan-menu__dot--active { background: #3B82F6; }
+.kan-menu__item-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kan-menu__divider { height: 1px; background: rgba(156,163,175,.2); margin: .25rem .25rem; }
+.kan-menu__create { width: 100%; display: inline-flex; align-items: center; gap: .5rem; padding: .5rem; border-radius: 10px; border: 1px solid rgba(156,163,175,.25); background: linear-gradient(135deg, #EFF6FF, #FFFFFF); cursor: pointer; color: #1F2937; font-weight: 600; }
+.kan-menu__create:hover { background: linear-gradient(135deg, #DBEAFE, #FFFFFF); }
+.kan-menu__create-icon { width: 1rem; height: 1rem; color: #3B82F6; }
+
 </style>
