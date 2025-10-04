@@ -588,8 +588,8 @@ const moveColumnDown = (index) => {
 // Icon and color options
 const iconOptions = [
   { value: 'clipboard', path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: 'Documento' },
-  { value: 'clock', path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 0 0118 0z', label: 'Relógio' },
-  { value: 'check', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 0 0118 0z', label: 'Concluído' },
+  { value: 'clock', path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', label: 'Relógio' },
+  { value: 'check', path: 'M5 13l4 4L19 7', label: 'Concluído' },
   { value: 'alert', path: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', label: 'Urgente' }
 ]
 
@@ -1884,6 +1884,7 @@ useHead({
 .column-custom-icon {
   width: 1.25rem;
   height: 1.25rem;
+  overflow: visible;
 }
 
 .column-custom-dropdown {
@@ -1926,6 +1927,7 @@ useHead({
   height: 1.25rem;
   color: rgb(75, 85, 99);
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .column-color-preview {
