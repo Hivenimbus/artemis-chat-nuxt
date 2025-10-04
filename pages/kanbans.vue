@@ -76,6 +76,8 @@
               @move-column="handleMoveColumn"
               @rename-column="handleRenameColumn"
               @delete-column="handleDeleteColumn"
+              @update-column-icon="handleUpdateColumnIcon"
+              @update-column-color="handleUpdateColumnColor"
             />
           </div>
         </div>
@@ -737,6 +739,20 @@ const handleRenameColumn = ({ columnId, newTitle }) => {
   const column = columns.value.find(c => c.id === columnId)
   if (column) {
     column.title = newTitle
+  }
+}
+
+const handleUpdateColumnIcon = ({ columnId, icon }) => {
+  const column = columns.value.find(c => c.id === columnId)
+  if (column) {
+    column.icon = icon
+  }
+}
+
+const handleUpdateColumnColor = ({ columnId, color }) => {
+  const column = columns.value.find(c => c.id === columnId)
+  if (column) {
+    column.color = color
   }
 }
 

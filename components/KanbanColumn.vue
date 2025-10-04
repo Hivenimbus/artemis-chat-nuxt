@@ -1,5 +1,5 @@
 <template>
-  <div class="kan-col" :data-status="column.title.toLowerCase()" :style="{ '--col-500': columnColor['500'], '--col-400': columnColor['400'] }">
+  <div class="kan-col" :data-status="column.title.toLowerCase()" :style="{ '--col-500': columnColor['500'], '--col-400': columnColor['400'] }" :class="{ 'kan-col--menu-open': showOptions || showIconPicker || showColorPicker }">
     <!-- Column Header -->
     <div class="kan-col__header">
       <div class="kan-col__header-title">
@@ -26,6 +26,59 @@
             </svg>
             Renomear coluna
           </button>
+          
+          <!-- Icon Picker -->
+          <div class="kan-col__option-wrapper">
+            <button class="kan-col__option" @click.stop="toggleIconPicker">
+              <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              Alterar ícone
+              <svg class="kan-col__option-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div v-if="showIconPicker" class="kan-col__sub-dropdown" @click.stop>
+              <button
+                v-for="icon in iconOptions"
+                :key="icon.value"
+                @click="updateIcon(icon.value)"
+                class="kan-col__sub-option"
+                :class="{ 'kan-col__sub-option--active': column.icon === icon.value }"
+              >
+                <svg class="kan-col__sub-option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icon.path" />
+                </svg>
+                <span>{{ icon.label }}</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Color Picker -->
+          <div class="kan-col__option-wrapper">
+            <button class="kan-col__option" @click.stop="toggleColorPicker">
+              <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              Alterar cor
+              <svg class="kan-col__option-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div v-if="showColorPicker" class="kan-col__sub-dropdown" @click.stop>
+              <button
+                v-for="color in colorOptions"
+                :key="color.value"
+                @click="updateColor(color.value)"
+                class="kan-col__sub-option"
+                :class="{ 'kan-col__sub-option--active': column.color === color.value }"
+              >
+                <div class="kan-col__color-preview" :style="{ backgroundColor: color.hex }"></div>
+                <span>{{ color.label }}</span>
+              </button>
+            </div>
+          </div>
+          
           <button 
             class="kan-col__option" 
             @click="moveColumnLeft"
@@ -132,13 +185,15 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
 
 // State
 const isDragOver = ref(false)
 const dragOverIndex = ref(null)
 const isDragFromDifferentColumn = ref(false)
 const showOptions = ref(false)
+const showIconPicker = ref(false)
+const showColorPicker = ref(false)
 
 // Icon paths mapping
 const iconPaths = {
@@ -342,6 +397,47 @@ const moveColumnRight = () => {
     showOptions.value = false
   }
 }
+
+// Icon and color options
+const iconOptions = [
+  { value: 'clipboard', path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: 'Documento' },
+  { value: 'clock', path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', label: 'Relógio' },
+  { value: 'check', path: 'M5 13l4 4L19 7', label: 'Concluído' },
+  { value: 'alert', path: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', label: 'Urgente' }
+]
+
+const colorOptions = [
+  { value: 'blue', label: 'Azul', hex: '#3B82F6' },
+  { value: 'yellow', label: 'Amarelo', hex: '#F59E0B' },
+  { value: 'green', label: 'Verde', hex: '#10B981' },
+  { value: 'red', label: 'Vermelho', hex: '#EF4444' }
+]
+
+// Toggle icon picker
+const toggleIconPicker = () => {
+  showIconPicker.value = !showIconPicker.value
+  showColorPicker.value = false
+}
+
+// Toggle color picker
+const toggleColorPicker = () => {
+  showColorPicker.value = !showColorPicker.value
+  showIconPicker.value = false
+}
+
+// Update column icon
+const updateIcon = (iconValue) => {
+  emit('update-column-icon', { columnId: props.column.id, icon: iconValue })
+  showIconPicker.value = false
+  showOptions.value = false
+}
+
+// Update column color
+const updateColor = (colorValue) => {
+  emit('update-column-color', { columnId: props.column.id, color: colorValue })
+  showColorPicker.value = false
+  showOptions.value = false
+}
 </script>
 
 <style scoped>
@@ -405,6 +501,12 @@ const moveColumnRight = () => {
 .kan-col[data-status*='conclu'] {
   --col-500: var(--done-500);
   --col-400: var(--done-400);
+}
+
+/* Increase z-index when menu is open to appear above other columns */
+.kan-col--menu-open {
+  position: relative;
+  z-index: 9997;
 }
 
 /* Column Header */
@@ -494,7 +596,7 @@ const moveColumnRight = () => {
   border-radius: 10px;
   box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
   padding: 0.375rem;
-  z-index: 50;
+  z-index: 9998;
 }
 
 .kan-col__option {
@@ -536,6 +638,72 @@ const moveColumnRight = () => {
 .kan-col__option-icon {
   width: 1rem;
   height: 1rem;
+  flex-shrink: 0;
+}
+
+.kan-col__option-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.kan-col__option-wrapper {
+  position: relative;
+}
+
+.kan-col__sub-dropdown {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 0.5rem;
+  min-width: 160px;
+  background: rgb(var(--bg-1));
+  border: 1px solid rgba(var(--txt-3), 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(30, 41, 59, 0.12);
+  padding: 0.25rem;
+  z-index: 9999;
+}
+
+.kan-col__sub-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--txt-1));
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 120ms ease-out;
+  text-align: left;
+}
+
+.kan-col__sub-option:hover {
+  background: rgba(var(--col-500), 0.08);
+}
+
+.kan-col__sub-option--active {
+  background: rgba(var(--col-500), 0.12);
+  font-weight: 600;
+}
+
+.kan-col__sub-option-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.kan-col__color-preview {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
