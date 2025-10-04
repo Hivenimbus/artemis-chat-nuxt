@@ -302,12 +302,69 @@
                     >
                       <div class="column-item-number">{{ index + 1 }}</div>
                       <input
-                        v-model="kanbanForm.columns[index]"
+                        v-model="column.name"
                         type="text"
                         required
                         class="form-input column-item-input"
                         :placeholder="`Nome da coluna ${index + 1}`"
                       />
+                      
+                      <!-- Column Customization (Icon and Color) -->
+                      <div class="column-customization">
+                        <!-- Icon Dropdown -->
+                        <div class="column-custom-dropdown-wrapper">
+                          <button
+                            type="button"
+                            @click.stop="toggleIconDropdown(index)"
+                            class="btn-column-custom btn-column-icon"
+                            :aria-label="`Escolher ícone para coluna ${index + 1}`"
+                            title="Escolher ícone"
+                          >
+                            <svg class="column-custom-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(column.icon)" />
+                            </svg>
+                          </button>
+                          <div v-if="openIconDropdown === index" class="column-custom-dropdown">
+                            <div
+                              v-for="iconOption in iconOptions"
+                              :key="iconOption.value"
+                              @click="setColumnIcon(index, iconOption.value)"
+                              class="column-custom-option"
+                              :class="{ 'column-custom-option--active': column.icon === iconOption.value }"
+                            >
+                              <svg class="column-custom-option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="iconOption.path" />
+                              </svg>
+                              <span>{{ iconOption.label }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Color Dropdown -->
+                        <div class="column-custom-dropdown-wrapper">
+                          <button
+                            type="button"
+                            @click.stop="toggleColorDropdown(index)"
+                            class="btn-column-custom btn-column-color"
+                            :style="{ backgroundColor: getColorData(column.color).hex }"
+                            :aria-label="`Escolher cor para coluna ${index + 1}`"
+                            title="Escolher cor"
+                          >
+                          </button>
+                          <div v-if="openColorDropdown === index" class="column-custom-dropdown">
+                            <div
+                              v-for="colorOption in colorOptions"
+                              :key="colorOption.value"
+                              @click="setColumnColor(index, colorOption.value)"
+                              class="column-custom-option"
+                              :class="{ 'column-custom-option--active': column.color === colorOption.value }"
+                            >
+                              <div class="column-color-preview" :style="{ backgroundColor: colorOption.hex }"></div>
+                              <span>{{ colorOption.label }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       
                       <!-- Move Up/Down Buttons -->
                       <div class="column-item-actions">
@@ -442,7 +499,11 @@ const showKanbanModal = ref(false)
 const savingKanban = ref(false)
 const kanbanForm = ref({
   name: '',
-  columns: ['Para Fazer', 'Fazendo', 'Concluído']
+  columns: [
+    { name: 'Para Fazer', icon: 'clipboard', color: 'blue' },
+    { name: 'Fazendo', icon: 'clock', color: 'yellow' },
+    { name: 'Concluído', icon: 'check', color: 'green' }
+  ]
 })
 
 const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
@@ -497,7 +558,7 @@ const createNewKanban = () => {
 // Add column to form
 const addColumnToForm = () => {
   if (kanbanForm.value.columns.length < 6) {
-    kanbanForm.value.columns.push('')
+    kanbanForm.value.columns.push({ name: '', icon: 'clipboard', color: 'blue' })
   }
 }
 
@@ -511,23 +572,70 @@ const removeColumnFromForm = (index) => {
 // Move column up in form
 const moveColumnUp = (index) => {
   if (index > 0) {
-    const columns = [...kanbanForm.value.columns]
-    const temp = columns[index]
-    columns[index] = columns[index - 1]
-    columns[index - 1] = temp
-    kanbanForm.value.columns = columns
+    const cols = kanbanForm.value.columns
+    ;[cols[index - 1], cols[index]] = [cols[index], cols[index - 1]]
   }
 }
 
 // Move column down in form
 const moveColumnDown = (index) => {
-  if (index < kanbanForm.value.columns.length - 1) {
-    const columns = [...kanbanForm.value.columns]
-    const temp = columns[index]
-    columns[index] = columns[index + 1]
-    columns[index + 1] = temp
-    kanbanForm.value.columns = columns
+  const cols = kanbanForm.value.columns
+  if (index < cols.length - 1) {
+    ;[cols[index], cols[index + 1]] = [cols[index + 1], cols[index]]
   }
+}
+
+// Icon and color options
+const iconOptions = [
+  { value: 'clipboard', path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: 'Documento' },
+  { value: 'clock', path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 0 0118 0z', label: 'Relógio' },
+  { value: 'check', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 0 0118 0z', label: 'Concluído' },
+  { value: 'alert', path: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', label: 'Urgente' }
+]
+
+const colorOptions = [
+  { value: 'blue', rgb500: '59 130 246', rgb400: '96 165 250', label: 'Azul', hex: '#3B82F6' },
+  { value: 'yellow', rgb500: '245 158 11', rgb400: '251 191 36', label: 'Amarelo', hex: '#F59E0B' },
+  { value: 'green', rgb500: '16 185 129', rgb400: '52 211 153', label: 'Verde', hex: '#10B981' },
+  { value: 'red', rgb500: '239 68 68', rgb400: '252 165 165', label: 'Vermelho', hex: '#EF4444' }
+]
+
+// State for dropdowns
+const openIconDropdown = ref(null)
+const openColorDropdown = ref(null)
+
+// Toggle icon dropdown
+const toggleIconDropdown = (index) => {
+  openIconDropdown.value = openIconDropdown.value === index ? null : index
+  openColorDropdown.value = null
+}
+
+// Toggle color dropdown
+const toggleColorDropdown = (index) => {
+  openColorDropdown.value = openColorDropdown.value === index ? null : index
+  openIconDropdown.value = null
+}
+
+// Set column icon
+const setColumnIcon = (index, icon) => {
+  kanbanForm.value.columns[index].icon = icon
+  openIconDropdown.value = null
+}
+
+// Set column color
+const setColumnColor = (index, color) => {
+  kanbanForm.value.columns[index].color = color
+  openColorDropdown.value = null
+}
+
+// Get icon path by value
+const getIconPath = (iconValue) => {
+  return iconOptions.find(i => i.value === iconValue)?.path || iconOptions[0].path
+}
+
+// Get color data by value
+const getColorData = (colorValue) => {
+  return colorOptions.find(c => c.value === colorValue) || colorOptions[0]
 }
 
 // Save kanban
@@ -541,10 +649,12 @@ const saveKanban = async () => {
     
     // Create columns for this kanban
     const newColumns = kanbanForm.value.columns
-      .filter(col => col.trim())
+      .filter(col => col.name.trim())
       .map((col, index) => ({
         id: `col_${Date.now()}_${index}`,
-        title: col.trim(),
+        title: col.name.trim(),
+        icon: col.icon,
+        color: col.color,
         position: index
       }))
     
@@ -584,7 +694,11 @@ const closeKanbanModal = () => {
   showKanbanModal.value = false
   kanbanForm.value = {
     name: '',
-    columns: ['Para Fazer', 'Fazendo', 'Concluído']
+    columns: [
+      { name: 'Para Fazer', icon: 'clipboard', color: 'blue' },
+      { name: 'Fazendo', icon: 'clock', color: 'yellow' },
+      { name: 'Concluído', icon: 'check', color: 'green' }
+    ]
   }
 }
 
@@ -601,6 +715,8 @@ const addNewColumn = () => {
   const newColumn = {
     id: `col_${Date.now()}`,
     title: title.trim(),
+    icon: 'clipboard',
+    color: 'blue',
     position: columns.value.length
   }
   columns.value.push(newColumn)
@@ -877,8 +993,18 @@ onMounted(() => {
     onBeforeUnmount(() => {
       el.removeEventListener('scroll', updateScrollState)
       window.removeEventListener('resize', updateScrollState)
+      document.removeEventListener('click', closeDropdowns)
     })
   }
+
+  // Close dropdowns when clicking outside
+  const closeDropdowns = (event) => {
+    if (!event.target.closest('.column-custom-dropdown-wrapper')) {
+      openIconDropdown.value = null
+      openColorDropdown.value = null
+    }
+  }
+  document.addEventListener('click', closeDropdowns)
 
   // Add some example cards
   cards.value = [
@@ -1711,6 +1837,123 @@ useHead({
   /* Hide scroll indicators on mobile - touch scrolling is more intuitive */
   .scroll-indicator {
     display: none;
+  }
+}
+
+/* Column Customization */
+.column-customization {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.column-custom-dropdown-wrapper {
+  position: relative;
+}
+
+.btn-column-custom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid rgba(156, 163, 175, 0.3);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+  flex-shrink: 0;
+}
+
+.btn-column-custom:hover {
+  border-color: rgb(59, 130, 246);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  transform: scale(1.05);
+}
+
+.btn-column-icon {
+  color: rgb(75, 85, 99);
+}
+
+.btn-column-color {
+  border-width: 2px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.column-custom-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.column-custom-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.375rem;
+  min-width: 160px;
+  background: white;
+  border: 1px solid rgba(156, 163, 175, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
+  padding: 0.375rem;
+  z-index: 100;
+}
+
+.column-custom-option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 120ms ease-out;
+  font-size: 0.875rem;
+  color: rgb(17, 24, 39);
+}
+
+.column-custom-option:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.column-custom-option--active {
+  background: rgba(59, 130, 246, 0.12);
+  font-weight: 600;
+}
+
+.column-custom-option-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: rgb(75, 85, 99);
+  flex-shrink: 0;
+}
+
+.column-color-preview {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.column-item {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .column-customization {
+    gap: 0.375rem;
+  }
+  
+  .btn-column-custom {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .column-custom-icon {
+    width: 1rem;
+    height: 1rem;
   }
 }
 

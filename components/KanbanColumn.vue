@@ -1,16 +1,10 @@
 <template>
-  <div class="kan-col" :data-status="column.title.toLowerCase()">
+  <div class="kan-col" :data-status="column.title.toLowerCase()" :style="{ '--col-500': columnColor['500'], '--col-400': columnColor['400'] }">
     <!-- Column Header -->
     <div class="kan-col__header">
       <div class="kan-col__header-title">
-        <svg v-if="column.title.includes('Fazer')" class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        <svg v-else-if="column.title.includes('Fazendo')" class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <svg v-else class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg class="kan-col__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getColumnIconPath()" />
         </svg>
         <h2 class="kan-col__title">{{ column.title }}</h2>
         <span class="kan-col__badge">{{ cards.length }}</span>
@@ -145,6 +139,34 @@ const isDragOver = ref(false)
 const dragOverIndex = ref(null)
 const isDragFromDifferentColumn = ref(false)
 const showOptions = ref(false)
+
+// Icon paths mapping
+const iconPaths = {
+  clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 0 0118 0z',
+  check: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 0 0118 0z',
+  alert: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+}
+
+// Get icon path for current column
+const getColumnIconPath = () => {
+  const icon = props.column.icon || 'clipboard'
+  return iconPaths[icon] || iconPaths.clipboard
+}
+
+// Color mapping
+const colorMap = {
+  blue: { '500': '59 130 246', '400': '96 165 250' },
+  yellow: { '500': '245 158 11', '400': '251 191 36' },
+  green: { '500': '16 185 129', '400': '52 211 153' },
+  red: { '500': '239 68 68', '400': '252 165 165' }
+}
+
+// Get color values for current column
+const columnColor = computed(() => {
+  const color = props.column.color || 'blue'
+  return colorMap[color] || colorMap.blue
+})
 
 // Check if this is a default column (can't be deleted)
 const isDefaultColumn = computed(() => 
