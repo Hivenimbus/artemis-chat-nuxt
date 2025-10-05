@@ -134,7 +134,7 @@
     <!-- Modal de Criar/Editar -->
     <div
       v-if="showModal"
-      class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       @click.self="closeModal"
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
@@ -249,7 +249,7 @@
     <!-- Modal de Confirmação de Exclusão -->
     <div
       v-if="showDeleteModal"
-      class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       @click.self="closeDeleteModal"
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
