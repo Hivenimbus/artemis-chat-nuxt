@@ -68,7 +68,7 @@
                     <div class="flex items-center space-x-2">
                       <h3 class="text-base font-semibold text-gray-900">{{ tag.name }}</h3>
                       <span
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium"
                         :style="{ 
                           backgroundColor: tag.color + '20', 
                           color: tag.color 
@@ -87,7 +87,7 @@
                         </svg>
                         Criada em {{ formatDate(tag.createdAt) }}
                       </span>
-                      <span>{{ tag.usageCount }} uso(s)</span>
+                      <span>{{ tag.usageCount }} usos</span>
                     </div>
                   </div>
                 </div>
