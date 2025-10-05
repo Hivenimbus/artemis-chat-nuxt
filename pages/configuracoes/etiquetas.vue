@@ -190,15 +190,15 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Cor *
             </label>
-            <div class="grid grid-cols-8 gap-2">
+            <div class="flex flex-wrap gap-2">
               <button
                 v-for="color in availableColors"
                 :key="color"
                 type="button"
                 @click="formData.color = color"
-                class="w-10 h-10 rounded-full border-2 transition-all hover:scale-110"
-                :class="formData.color === color ? 'border-gray-900 ring-2 ring-offset-2 ring-indigo-500' : 'border-gray-200'"
-                :style="{ backgroundColor: color }"
+                class="w-10 h-10 rounded-full transition-all hover:scale-110 flex-shrink-0"
+                :class="formData.color === color ? 'ring-2 ring-offset-2 ring-indigo-500' : ''"
+                :style="`background-color: ${color}; border: 2px solid ${formData.color === color ? '#111827' : '#E5E7EB'}`"
                 :title="color"
               ></button>
             </div>
