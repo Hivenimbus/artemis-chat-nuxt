@@ -1,73 +1,5 @@
 <template>
   <div class="h-full bg-gray-50 flex flex-col">
-    <!-- Header principal com navbar de caixas de entrada -->
-    <div class="bg-white border-b border-gray-200 px-6 py-4">
-      <div class="flex items-center">
-        <h1 class="text-xl font-bold text-gray-900">Atendimentos</h1>
-
-        <!-- Dropdown de Caixa de Entrada -->
-        <div class="relative">
-          <button
-            @click="toggleCaixaEntradaDropdown"
-            class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200 ml-4"
-            title="Selecionar caixa de entrada"
-          >
-            <!-- Ícone de caixa de entrada -->
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-            </svg>
-            <span>{{ selectedCaixaEntrada }}</span>
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-
-          <!-- Dropdown Menu -->
-          <div
-            v-if="showCaixaEntradaDropdown"
-            v-click-outside="closeCaixaEntradaDropdown"
-            class="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-          >
-            <div class="p-3">
-              <p class="text-sm font-medium text-gray-900 mb-3">Selecionar Caixa de Entrada</p>
-
-              <!-- Barra de Pesquisa -->
-              <div class="mb-3">
-                <input
-                  v-model="searchCaixaEntrada"
-                  type="text"
-                  placeholder="Pesquisar caixa de entrada..."
-                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              <!-- Lista de Caixas de Entrada -->
-              <div class="max-h-60 overflow-y-auto">
-                <div class="space-y-1">
-                  <button
-                    v-for="caixa in filteredCaixaEntradaOptions"
-                    :key="caixa.value"
-                    @click="selectCaixaEntrada(caixa.value)"
-                    :class="[
-                      'w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 flex items-center justify-between',
-                      selectedCaixaEntrada === caixa.value
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    ]"
-                  >
-                    <span>{{ caixa.label }}</span>
-                    <span v-if="caixa.count > 0" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                      {{ caixa.count }}
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
@@ -76,6 +8,67 @@
         <div class="p-4 border-b border-gray-200">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Conversas</h2>
+            
+            <!-- Dropdown de Caixa de Entrada -->
+            <div class="relative">
+              <button
+                @click="toggleCaixaEntradaDropdown"
+                class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                title="Selecionar caixa de entrada"
+              >
+                <!-- Ícone de caixa de entrada -->
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <span>{{ selectedCaixaEntrada }}</span>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+
+              <!-- Dropdown Menu -->
+              <div
+                v-if="showCaixaEntradaDropdown"
+                v-click-outside="closeCaixaEntradaDropdown"
+                class="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+              >
+                <div class="p-3">
+                  <p class="text-sm font-medium text-gray-900 mb-3">Selecionar Caixa de Entrada</p>
+
+                  <!-- Barra de Pesquisa -->
+                  <div class="mb-3">
+                    <input
+                      v-model="searchCaixaEntrada"
+                      type="text"
+                      placeholder="Pesquisar caixa de entrada..."
+                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <!-- Lista de Caixas de Entrada -->
+                  <div class="max-h-60 overflow-y-auto">
+                    <div class="space-y-1">
+                      <button
+                        v-for="caixa in filteredCaixaEntradaOptions"
+                        :key="caixa.value"
+                        @click="selectCaixaEntrada(caixa.value)"
+                        :class="[
+                          'w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 flex items-center justify-between',
+                          selectedCaixaEntrada === caixa.value
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        ]"
+                      >
+                        <span>{{ caixa.label }}</span>
+                        <span v-if="caixa.count > 0" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                          {{ caixa.count }}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Barra de pesquisa -->
@@ -771,8 +764,7 @@ const statusOptions = computed(() => {
   return [
     { label: 'Todos', value: 'todos', count: statusCounts.todos },
     { label: 'Aguardando', value: 'aguardando', count: statusCounts.aguardando },
-    { label: 'Ativo', value: 'ativo', count: statusCounts.ativo },
-    { label: 'Concluído', value: 'concluido', count: statusCounts.concluido }
+    { label: 'Ativo', value: 'ativo', count: statusCounts.ativo }
   ]
 })
 
