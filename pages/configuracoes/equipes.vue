@@ -247,7 +247,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-3">
               Selecionar Agentes
             </label>
-            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg space-y-1 p-2">
+            <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg space-y-1 p-2 custom-scrollbar-container">
               <div
                 v-for="agent in agents"
                 :key="agent.id"
