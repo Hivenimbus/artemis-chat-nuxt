@@ -38,18 +38,6 @@
               </div>
             </div>
           </div>
-          <div class="flex items-center space-x-3">
-            <select
-              v-model="filterSize"
-              class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="">Todos os tamanhos</option>
-              <option value="empty">Equipes vazias</option>
-              <option value="small">1-3 agentes</option>
-              <option value="medium">4-6 agentes</option>
-              <option value="large">7+ agentes</option>
-            </select>
-          </div>
           <div class="text-sm text-gray-500">
             {{ filteredTeams.length }} {{ filteredTeams.length === 1 ? 'equipe' : 'equipes' }}
           </div>
@@ -59,75 +47,49 @@
       <!-- Lista de equipes -->
       <div class="bg-white shadow rounded-lg flex-1 flex flex-col overflow-hidden">
         <div class="flex-1 overflow-y-auto custom-scrollbar-container">
-          <div class="p-4 space-y-4">
+          <div class="p-4 space-y-3">
             <div
               v-for="team in filteredTeams"
               :key="team.id"
-              class="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow duration-200"
+              class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
             >
               <div class="flex items-start justify-between">
-                <div class="flex items-start space-x-4 flex-1 min-w-0">
+                <div class="flex items-start space-x-3 flex-1 min-w-0">
                   <!-- Ícone da equipe -->
-                  <div class="flex-shrink-0">
-                    <div
-                      class="w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-                      :style="{ backgroundColor: getTeamColor(team.id) }"
-                    >
-                      {{ getInitials(team.name) }}
+                  <div class="flex-shrink-0 mt-1">
+                    <div class="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <svg class="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                      </svg>
                     </div>
                   </div>
 
                   <!-- Informações -->
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center space-x-2 mb-2">
-                      <h3 class="text-lg font-semibold text-gray-900">{{ team.name }}</h3>
+                    <div class="flex items-center space-x-2">
+                      <h3 class="text-base font-semibold text-gray-900">{{ team.name }}</h3>
                       <span
-                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                        :class="getSizeClass(team)"
+                        class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                        :class="getTeamSizeClass(team)"
                       >
                         {{ getTeamSizeText(team) }}
                       </span>
                     </div>
-                    <p v-if="team.description" class="text-sm text-gray-600 mb-3">
+                    <p v-if="team.description" class="mt-1 text-sm text-gray-500">
                       {{ team.description }}
                     </p>
-
-                    <!-- Agentes da equipe -->
-                    <div class="flex items-center space-x-3">
-                      <div class="flex -space-x-2">
-                        <div
-                          v-for="(agent, index) in getTeamAgents(team.id).slice(0, 5)"
-                          :key="agent.id"
-                          class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs border-2 border-white"
-                          :title="agent.name"
-                        >
-                          {{ getInitials(agent.name) }}
-                        </div>
-                        <div
-                          v-if="getTeamAgents(team.id).length > 5"
-                          class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-medium text-xs border-2 border-white"
-                          :title="`+${getTeamAgents(team.id).length - 5} agentes`"
-                        >
-                          +{{ getTeamAgents(team.id).length - 5 }}
-                        </div>
-                      </div>
-                      <span class="text-sm text-gray-500">
+                    <div class="mt-2 flex items-center space-x-4 text-xs text-gray-400">
+                      <span class="flex items-center">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
                         {{ getTeamAgents(team.id).length }} {{ getTeamAgents(team.id).length === 1 ? 'agente' : 'agentes' }}
                       </span>
-                    </div>
-
-                    <div class="mt-3 flex items-center space-x-4 text-xs text-gray-400">
                       <span class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         Criada em {{ formatDate(team.createdAt) }}
-                      </span>
-                      <span v-if="team.updatedAt" class="flex items-center">
-                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                        Atualizada em {{ formatDate(team.updatedAt) }}
                       </span>
                     </div>
                   </div>
@@ -260,14 +222,13 @@
       class="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4"
       @click.self="closeManageAgentsModal"
     >
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <!-- Cabeçalho -->
         <div class="px-6 py-4 border-b border-gray-200">
           <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">Gerenciar Agentes</h3>
-              <p class="text-sm text-gray-500">{{ selectedTeam?.name }}</p>
-            </div>
+            <h3 class="text-lg font-semibold text-gray-900">
+              Gerenciar Agentes - {{ selectedTeam?.name }}
+            </h3>
             <button
               @click="closeManageAgentsModal"
               class="text-gray-400 hover:text-gray-500"
@@ -280,93 +241,46 @@
         </div>
 
         <!-- Corpo -->
-        <div class="flex-1 overflow-y-auto p-6">
-          <div class="space-y-4">
-            <!-- Busca de agentes -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Buscar agentes para adicionar
-              </label>
-              <div class="relative">
-                <input
-                  type="text"
-                  v-model="agentSearchTerm"
-                  placeholder="Digite o nome ou email do agente..."
-                  class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <!-- Lista de agentes disponíveis -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Agentes Disponíveis
-              </label>
-              <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                <div
-                  v-for="agent in getAvailableAgents()"
-                  :key="agent.id"
-                  class="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                >
-                  <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs">
-                      {{ getInitials(agent.name) }}
-                    </div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">{{ agent.name }}</p>
-                      <p class="text-xs text-gray-500">{{ agent.email }}</p>
-                    </div>
+        <div class="px-6 py-4 space-y-4">
+          <!-- Lista de agentes com checkboxes -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">
+              Selecionar Agentes
+            </label>
+            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+              <div
+                v-for="agent in agents"
+                :key="agent.id"
+                class="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              >
+                <div class="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    :checked="isAgentInTeam(agent.id)"
+                    @change="toggleAgentInTeam(agent.id)"
+                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">{{ agent.name }}</p>
+                    <p class="text-xs text-gray-500">{{ agent.email }}</p>
                   </div>
-                  <button
-                    @click="addAgentToTeam(agent)"
-                    class="px-3 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-md transition-colors"
-                  >
-                    Adicionar
-                  </button>
                 </div>
-                <div v-if="getAvailableAgents().length === 0" class="p-4 text-center text-sm text-gray-500">
-                  Nenhum agente disponível encontrado
-                </div>
-              </div>
-            </div>
-
-            <!-- Agentes na equipe -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Agentes na Equipe ({{ getTeamAgents(selectedTeam?.id).length }})
-              </label>
-              <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                <div
-                  v-for="agent in getTeamAgents(selectedTeam?.id)"
-                  :key="agent.id"
-                  class="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                <span
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                  :class="agent.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'"
                 >
-                  <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-xs">
-                      {{ getInitials(agent.name) }}
-                    </div>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">{{ agent.name }}</p>
-                      <p class="text-xs text-gray-500">{{ agent.email }}</p>
-                    </div>
-                  </div>
-                  <button
-                    @click="removeAgentFromTeam(agent.id)"
-                    class="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    Remover
-                  </button>
-                </div>
-                <div v-if="getTeamAgents(selectedTeam?.id).length === 0" class="p-4 text-center text-sm text-gray-500">
-                  Nenhum agente nesta equipe
-                </div>
+                  {{ agent.role === 'admin' ? 'Admin' : 'Agente' }}
+                </span>
               </div>
             </div>
+          </div>
+
+          <!-- Resumo -->
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-sm text-gray-600">
+              <span class="font-medium">{{ getTeamAgents(selectedTeam?.id).length }}</span>
+              {{ getTeamAgents(selectedTeam?.id).length === 1 ? 'agente selecionado' : 'agentes selecionados' }}
+            </p>
           </div>
         </div>
 
@@ -374,7 +288,7 @@
         <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
           <button
             @click="closeManageAgentsModal"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Concluído
           </button>
@@ -427,14 +341,12 @@
 <script setup>
 // Estado
 const searchTerm = ref('')
-const filterSize = ref('')
 const showModal = ref(false)
 const showManageAgentsModal = ref(false)
 const showDeleteModal = ref(false)
 const isEditing = ref(false)
 const selectedTeam = ref(null)
 const teamToDelete = ref(null)
-const agentSearchTerm = ref('')
 
 // Dados do formulário
 const formData = ref({
@@ -446,11 +358,6 @@ const errors = ref({
   name: ''
 })
 
-// Cores para equipes
-const teamColors = [
-  '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981',
-  '#14B8A6', '#3B82F6', '#F97316', '#84CC16', '#06B6D4'
-]
 
 // Dados mockados de agentes (reutilizado da página de agentes)
 const agents = ref([
@@ -529,19 +436,6 @@ const filteredTeams = computed(() => {
     )
   }
 
-  if (filterSize.value) {
-    result = result.filter(team => {
-      const agentCount = getTeamAgents(team.id).length
-      switch (filterSize.value) {
-        case 'empty': return agentCount === 0
-        case 'small': return agentCount >= 1 && agentCount <= 3
-        case 'medium': return agentCount >= 4 && agentCount <= 6
-        case 'large': return agentCount >= 7
-        default: return true
-      }
-    })
-  }
-
   return result
 })
 
@@ -559,10 +453,6 @@ const formatDate = (date) => {
   })
 }
 
-const getTeamColor = (teamId) => {
-  return teamColors[(teamId - 1) % teamColors.length]
-}
-
 const getTeamAgents = (teamId) => {
   if (!teamId) return []
   const agentIds = teamAgents.value
@@ -572,41 +462,18 @@ const getTeamAgents = (teamId) => {
   return agents.value.filter(agent => agentIds.includes(agent.id))
 }
 
-const getAvailableAgents = () => {
-  if (!selectedTeam.value) return []
-
-  const currentTeamAgentIds = getTeamAgents(selectedTeam.value.id).map(a => a.id)
-
-  let availableAgents = agents.value.filter(agent =>
-    !currentTeamAgentIds.includes(agent.id)
-  )
-
-  if (agentSearchTerm.value) {
-    const term = agentSearchTerm.value.toLowerCase()
-    availableAgents = availableAgents.filter(agent =>
-      agent.name.toLowerCase().includes(term) ||
-      agent.email.toLowerCase().includes(term)
-    )
-  }
-
-  return availableAgents
-}
-
 const getTeamSizeText = (team) => {
   const count = getTeamAgents(team.id).length
   if (count === 0) return 'Vazia'
   if (count === 1) return '1 agente'
-  if (count <= 3) return `${count} agentes`
-  if (count <= 6) return `${count} agentes`
-  return `${count}+ agentes`
+  return `${count} agentes`
 }
 
-const getSizeClass = (team) => {
+const getTeamSizeClass = (team) => {
   const count = getTeamAgents(team.id).length
   if (count === 0) return 'bg-gray-100 text-gray-800'
   if (count <= 3) return 'bg-blue-100 text-blue-800'
-  if (count <= 6) return 'bg-green-100 text-green-800'
-  return 'bg-purple-100 text-purple-800'
+  return 'bg-green-100 text-green-800'
 }
 
 const openCreateModal = () => {
@@ -647,14 +514,41 @@ const closeModal = () => {
 
 const openManageAgentsModal = (team) => {
   selectedTeam.value = team
-  agentSearchTerm.value = ''
   showManageAgentsModal.value = true
+}
+
+const isAgentInTeam = (agentId) => {
+  if (!selectedTeam.value) return false
+  return teamAgents.value.some(ta =>
+    ta.teamId === selectedTeam.value.id && ta.agentId === agentId
+  )
+}
+
+const toggleAgentInTeam = (agentId) => {
+  if (!selectedTeam.value) return
+
+  const exists = isAgentInTeam(agentId)
+
+  if (exists) {
+    // Remover agente da equipe
+    const index = teamAgents.value.findIndex(ta =>
+      ta.teamId === selectedTeam.value.id && ta.agentId === agentId
+    )
+    if (index !== -1) {
+      teamAgents.value.splice(index, 1)
+    }
+  } else {
+    // Adicionar agente à equipe
+    teamAgents.value.push({
+      teamId: selectedTeam.value.id,
+      agentId: agentId
+    })
+  }
 }
 
 const closeManageAgentsModal = () => {
   showManageAgentsModal.value = false
   selectedTeam.value = null
-  agentSearchTerm.value = ''
 }
 
 const validateForm = () => {
@@ -700,32 +594,6 @@ const saveTeam = () => {
   }
 }
 
-const addAgentToTeam = (agent) => {
-  if (selectedTeam.value) {
-    const exists = teamAgents.value.some(ta =>
-      ta.teamId === selectedTeam.value.id && ta.agentId === agent.id
-    )
-
-    if (!exists) {
-      teamAgents.value.push({
-        teamId: selectedTeam.value.id,
-        agentId: agent.id
-      })
-    }
-  }
-}
-
-const removeAgentFromTeam = (agentId) => {
-  if (selectedTeam.value) {
-    const index = teamAgents.value.findIndex(ta =>
-      ta.teamId === selectedTeam.value.id && ta.agentId === agentId
-    )
-
-    if (index !== -1) {
-      teamAgents.value.splice(index, 1)
-    }
-  }
-}
 
 const confirmDelete = (team) => {
   teamToDelete.value = team
