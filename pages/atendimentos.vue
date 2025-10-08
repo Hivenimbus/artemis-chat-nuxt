@@ -494,8 +494,8 @@
               class="absolute top-0 right-0 bottom-0 w-80 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col"
             >
               <!-- Header da sidebar -->
-              <div class="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-                <h3 class="text-lg font-semibold text-gray-900">Opções da Conversa</h3>
+              <div class="px-6 py-5.5 border-b border-gray-200 flex items-center justify-between bg-white">
+                <h3 class="text-lg font-medium text-gray-900">Opções da Conversa</h3>
                 <button
                   @click="closeKebabSidebar"
                   class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
