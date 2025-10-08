@@ -247,9 +247,26 @@
             <label class="block text-sm font-medium text-gray-700 mb-3">
               Selecionar Agentes
             </label>
+
+            <!-- Campo de busca -->
+            <div class="mb-3">
+              <div class="relative">
+                <input
+                  type="text"
+                  v-model="agentSearchTerm"
+                  placeholder="Buscar agentes..."
+                  class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
             <div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg space-y-1 p-2 custom-scrollbar-container">
               <div
-                v-for="agent in agents"
+                v-for="agent in filteredAgents"
                 :key="agent.id"
                 class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
               >
@@ -271,6 +288,15 @@
                 >
                   {{ agent.role === 'admin' ? 'Admin' : 'Agente' }}
                 </span>
+              </div>
+
+              <!-- Mensagem quando não há agentes encontrados -->
+              <div v-if="filteredAgents.length === 0" class="text-center py-8">
+                <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">Nenhum agente encontrado</p>
+                <p class="text-xs text-gray-400 mt-1">Tente buscar por outro termo</p>
               </div>
             </div>
           </div>
@@ -347,6 +373,7 @@ const showDeleteModal = ref(false)
 const isEditing = ref(false)
 const selectedTeam = ref(null)
 const teamToDelete = ref(null)
+const agentSearchTerm = ref('')
 
 // Dados do formulário
 const formData = ref({
@@ -439,6 +466,16 @@ const filteredTeams = computed(() => {
   return result
 })
 
+const filteredAgents = computed(() => {
+  if (!agentSearchTerm.value) return agents.value
+
+  const term = agentSearchTerm.value.toLowerCase()
+  return agents.value.filter(agent =>
+    agent.name.toLowerCase().includes(term) ||
+    agent.email.toLowerCase().includes(term)
+  )
+})
+
 // Métodos
 const getInitials = (name) => {
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
@@ -514,6 +551,7 @@ const closeModal = () => {
 
 const openManageAgentsModal = (team) => {
   selectedTeam.value = team
+  agentSearchTerm.value = '' // Limpar busca ao abrir modal
   showManageAgentsModal.value = true
 }
 
