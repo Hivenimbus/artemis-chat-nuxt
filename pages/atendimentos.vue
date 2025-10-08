@@ -3,589 +3,28 @@
     <!-- Conteúdo principal -->
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
-    <div class="w-full md:w-2/6 lg:w-2/6 bg-white border-r border-gray-200 scrollbar-permanent">
-        <!-- Cabeçalho da lista de contatos -->
-        <div class="p-4 border-b border-gray-200">
-          <div class="flex items-center mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Conversas</h2>
-            
-            <!-- Dropdown de Caixa de Entrada -->
-            <div class="relative ml-3">
-              <button
-                @click="toggleCaixaEntradaDropdown"
-                class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                title="Selecionar caixa de entrada"
-              >
-                <!-- Ícone de caixa de entrada -->
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                </svg>
-                <span>{{ selectedCaixaEntrada }}</span>
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-
-              <!-- Dropdown Menu -->
-              <div
-                v-if="showCaixaEntradaDropdown"
-                v-click-outside="closeCaixaEntradaDropdown"
-                class="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-              >
-                <div class="p-3">
-                  <p class="text-sm font-medium text-gray-900 mb-3">Selecionar Caixa de Entrada</p>
-
-                  <!-- Barra de Pesquisa -->
-                  <div class="mb-3">
-                    <input
-                      v-model="searchCaixaEntrada"
-                      type="text"
-                      placeholder="Pesquisar caixa de entrada..."
-                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <!-- Lista de Caixas de Entrada -->
-                  <div class="max-h-60 overflow-y-auto">
-                    <div class="space-y-1">
-                      <button
-                        v-for="caixa in filteredCaixaEntradaOptions"
-                        :key="caixa.value"
-                        @click="selectCaixaEntrada(caixa.value)"
-                        :class="[
-                          'w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 flex items-center justify-between',
-                          selectedCaixaEntrada === caixa.value
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        ]"
-                      >
-                        <span>{{ caixa.label }}</span>
-                        <span v-if="caixa.count > 0" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                          {{ caixa.count }}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Barra de pesquisa -->
-          <div class="flex space-x-2">
-            <div class="relative flex-1">
-              <input
-                type="text"
-                v-model="searchTerm"
-                placeholder="Buscar contatos..."
-                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-              </div>
-            </div>
-            <!-- Botão de filtro com dropdown -->
-            <div class="relative">
-              <button
-                @click="toggleFilterDropdown"
-                :class="[
-                  'px-4 py-2 border rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors duration-200 flex items-center space-x-2',
-                  filterOptions.unreadOnly || filterOptions.selectedTags.length > 0
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 text-gray-600'
-                ]"
-                title="Filtrar contatos"
-              >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                </svg>
-                <span v-if="filterOptions.unreadOnly || filterOptions.selectedTags.length > 0" class="text-xs font-medium">
-                  {{ (filterOptions.unreadOnly ? 1 : 0) + filterOptions.selectedTags.length }}
-                </span>
-              </button>
-
-              <!-- Dropdown de opções de filtro -->
-              <div
-                v-if="showFilterDropdown"
-                v-click-outside="closeFilterDropdown"
-                class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-              >
-                <div class="p-4">
-                  <h3 class="text-sm font-medium text-gray-900 mb-3">Filtrar Contatos</h3>
-
-                  <!-- Filtro de mensagens não lidas -->
-                  <div class="mb-4">
-                    <label class="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        v-model="filterOptions.unreadOnly"
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span class="ml-2 text-sm text-gray-700">Apenas mensagens não lidas</span>
-                    </label>
-                  </div>
-
-                  <!-- Filtro por tags -->
-                  <div class="mb-4">
-                    <p class="text-sm font-medium text-gray-700 mb-2">Filtrar por tags:</p>
-                    <div class="space-y-1 max-h-40 scrollbar-always-visible border border-gray-200 rounded">
-                      <label
-                        v-for="tag in availableTags"
-                        :key="tag"
-                        class="flex items-center cursor-pointer hover:bg-gray-50 p-2"
-                      >
-                        <input
-                          type="checkbox"
-                          :value="tag"
-                          v-model="filterOptions.selectedTags"
-                          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span class="ml-2 text-sm text-gray-700">{{ tag }}</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Botões de ação -->
-                  <div class="flex justify-between pt-3 border-t border-gray-200">
-                    <button
-                      @click="clearFilters"
-                      class="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 hover:bg-gray-100 rounded"
-                    >
-                      Limpar filtros
-                    </button>
-                    <button
-                      @click="applyFilters"
-                      class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                    >
-                      Aplicar filtros
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Navbar de Status -->
-          <div class="mt-3">
-            <div class="bg-gray-100 p-1 rounded-lg">
-              <nav class="flex space-x-1" aria-label="Status dos atendimentos">
-                <button
-                  v-for="status in statusOptions"
-                  :key="status.value"
-                  @click="selectedStatus = status.value"
-                  :class="[
-                    'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
-                    selectedStatus === status.value
-                      ? 'bg-white text-indigo-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
-                  ]"
-                >
-                  <span v-if="status.count !== undefined">
-                    {{ status.label }} ({{ status.count }})
-                  </span>
-                  <span v-else>
-                    {{ status.label }}
-                  </span>
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-
-        <!-- Lista de contatos -->
-        <div class="space-y-3 p-3">
-          <div
-            v-for="contact in filteredContacts"
-            :key="contact.id"
-            :class="[
-              'p-4 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 hover:shadow-md transition-all duration-200',
-              selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-500 shadow-sm' : ''
-            ]"
-          >
-            <div @click="selectContact(contact)" class="cursor-pointer">
-              <div class="flex items-start space-x-3">
-                <!-- Avatar -->
-                <div class="flex-shrink-0 relative">
-                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
-                    {{ getInitials(contact.name) }}
-                  </div>
-
-                  <!-- Indicador de mensagens não lidas -->
-                  <div
-                    v-if="contact.unreadCount > 0"
-                    class="absolute -top-1 -right-1 h-5 w-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white"
-                  >
-                    {{ contact.unreadCount > 9 ? '9+' : contact.unreadCount }}
-                  </div>
-                </div>
-
-                <!-- Informações do contato -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-medium text-gray-900 truncate">
-                      {{ contact.name }}
-                    </h3>
-                    <span class="text-xs text-gray-500">
-                      {{ formatTime(contact.lastMessageTime) }}
-                    </span>
-                  </div>
-
-                  <p class="text-sm text-gray-600 mt-1">
-                    {{ formatPhone(contact.phone) }}
-                  </p>
-
-                  <!-- Última mensagem -->
-                  <p class="text-sm text-gray-500 mt-1 truncate">
-                    {{ contact.lastMessage }}
-                  </p>
-
-                  <!-- Tags e Botão Atribuir -->
-                  <div class="flex items-center justify-between mt-2">
-                    <!-- Tags -->
-                    <div class="flex flex-wrap gap-1">
-                      <span
-                        v-for="tag in contact.tags"
-                        :key="tag"
-                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                        :class="getTagColor(tag)"
-                      >
-                        {{ tag }}
-                      </span>
-                    </div>
-                    
-                    <!-- Botão Atribuir a Mim (apenas na aba aguardando) -->
-                    <button
-                      v-if="selectedStatus === 'aguardando'"
-                      @click.stop="assignToMe(contact)"
-                      class="ml-2 flex-shrink-0 px-2 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200 flex items-center space-x-1"
-                      title="Atribuir este atendimento a mim"
-                    >
-                      <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                      </svg>
-                      <span>Atribuir a mim</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ContactList
+        :contacts="contacts"
+        :selected-contact-id="selectedContact?.id"
+        :available-tags="availableTags"
+        :caixas-entrada-options="caixasEntradaOptions"
+        @select-contact="selectContact"
+        @assign-to-me="assignToMe"
+      />
 
       <!-- Seção direita - Área de chat -->
-      <div class="flex-1 bg-gray-100 flex flex-col relative">
-        <!-- Placeholder quando nenhum contato está selecionado -->
-        <div v-if="!selectedContact" class="flex-1 flex items-center justify-center">
-          <div class="text-center">
-            <div class="mx-auto h-24 w-24 bg-gray-300 rounded-full flex items-center justify-center mb-4">
-              <svg class="h-12 w-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-              </svg>
-            </div>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Selecione um contato</h3>
-            <p class="text-gray-500">Escolha um contato da lista para iniciar a conversa</p>
-          </div>
-        </div>
-
-        <!-- Chat quando um contato está selecionado -->
-        <div v-else class="flex-1 flex flex-col h-full">
-          <!-- Cabeçalho do chat -->
-          <div class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-            <div class="flex items-center">
-              <div class="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                {{ getInitials(selectedContact.name) }}
-              </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-gray-900">{{ selectedContact.name }}</h3>
-                <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
-              </div>
-              <div class="ml-auto flex items-center space-x-2">
-                <!-- Botão de Tag -->
-                <div class="relative">
-                  <button
-                    @click="toggleTagDropdown"
-                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                    title="Adicionar tags"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                    </svg>
-                  </button>
-
-                  <!-- Dropdown de Tags -->
-                  <div
-                    v-if="showTagDropdown"
-                    v-click-outside="closeTagDropdown"
-                    class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-                  >
-                    <div class="p-3">
-                      <p class="text-sm font-medium text-gray-900 mb-3">Gerenciar Tags</p>
-
-                      <!-- Tags do sistema -->
-                      <div class="max-h-40 overflow-y-auto mb-3">
-                        <div class="space-y-2">
-                          <label
-                            v-for="systemTag in systemTags"
-                            :key="systemTag"
-                            class="flex items-center px-2 py-2 hover:bg-gray-50 rounded cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              :checked="selectedContact?.tags?.includes(systemTag) || false"
-                              @change="toggleTag(systemTag)"
-                              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                            />
-                            <span class="ml-2 text-sm text-gray-700">{{ systemTag }}</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <!-- Botão Adicionar Tag -->
-                      <div class="pt-2">
-                        <button
-                          @click="showAddTagInput = !showAddTagInput"
-                          class="w-full px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
-                        >
-                          + Adicionar Tag
-                        </button>
-
-                        <!-- Input para nova tag (aparece quando clicado) -->
-                        <div v-if="showAddTagInput" class="mt-2 flex">
-                          <input
-                            v-model="newTag"
-                            type="text"
-                            placeholder="Nome da tag..."
-                            class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            @keyup.enter="addNewSystemTag"
-                          />
-                          <button
-                            @click="addNewSystemTag"
-                            class="px-2 py-1 bg-indigo-600 text-white text-sm rounded-r-md hover:bg-indigo-700"
-                          >
-                            OK
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Botão de Resolver -->
-                <div class="relative">
-                  <button
-                    @click="handleResolveChat"
-                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                    title="Resolver atendimento"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                  </button>
-                </div>
-
-                <!-- Botão Kebab (Mais opções) -->
-                <div class="relative">
-                  <button
-                    @click="toggleKebabSidebar"
-                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                    title="Mais opções"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Área de mensagens -->
-          <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 280px);" id="chat-messages">
-            <div
-              v-for="message in selectedContact.messages"
-              :key="message.id"
-              :class="[
-                'flex',
-                message.sender === 'user' ? 'justify-end' : 'justify-start'
-              ]"
-            >
-              <div
-                :class="[
-                  'max-w-xs lg:max-w-md px-4 py-2 rounded-lg',
-                  message.sender === 'user'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-900 shadow-sm'
-                ]"
-              >
-                <p class="text-sm">{{ message.text }}</p>
-                <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-indigo-200' : 'text-gray-500'">
-                  {{ formatTime(message.timestamp) }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Input de mensagem -->
-          <div class="bg-white border-t border-gray-200 px-6 py-4">
-            <div class="space-y-3">
-              <!-- Campo de mensagem maior -->
-              <div class="flex items-end space-x-3">
-                <textarea
-                  v-model="newMessage"
-                  @keydown.enter.prevent="handleEnterKey"
-                  placeholder="Digite sua mensagem..."
-                  class="flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
-                  rows="3"
-                ></textarea>
-                <button
-                  @click="sendMessage"
-                  class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Botões de ação abaixo -->
-              <div class="flex justify-start space-x-4">
-                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                  </svg>
-                  <span>Anexar arquivo</span>
-                </button>
-                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-                  </svg>
-                  <span>Áudio</span>
-                </button>
-                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                  </svg>
-                  <span>Inteligência Artificial</span>
-                </button>
-                <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  <span>Emoji</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sidebar lateral de opções -->
-          <transition
-            enter-active-class="transition-transform duration-300 ease-out"
-            leave-active-class="transition-transform duration-300 ease-in"
-            enter-from-class="translate-x-full"
-            enter-to-class="translate-x-0"
-            leave-from-class="translate-x-0"
-            leave-to-class="translate-x-full"
-          >
-            <div
-              v-if="showKebabSidebar"
-              class="absolute top-0 right-0 bottom-0 w-80 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col"
-            >
-              <!-- Header da sidebar -->
-              <div class="px-6 py-5.5 border-b border-gray-200 flex items-center justify-between bg-white">
-                <h3 class="text-lg font-medium text-gray-900">Opções da Conversa</h3>
-                <button
-                  @click="closeKebabSidebar"
-                  class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  title="Fechar"
-                >
-                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Conteúdo da sidebar -->
-              <div class="flex-1 overflow-y-auto p-4">
-                <!-- Informações do contato -->
-                <div class="mb-6">
-                  <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Informações</h4>
-                  <div class="space-y-3">
-                    <div class="flex items-center space-x-3">
-                      <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                        {{ getInitials(selectedContact.name) }}
-                      </div>
-                      <div>
-                        <p class="text-sm font-medium text-gray-900">{{ selectedContact.name }}</p>
-                        <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
-                      </div>
-                    </div>
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                      <p class="text-xs text-gray-500">Status</p>
-                      <p class="text-sm font-medium text-gray-900 mt-1">{{ getStatusLabel(selectedContact.status) }}</p>
-                    </div>
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                      <p class="text-xs text-gray-500">Caixa de Entrada</p>
-                      <p class="text-sm font-medium text-gray-900 mt-1">{{ selectedContact.caixa_entrada }}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Ações -->
-                <div class="mb-6">
-                  <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Ações</h4>
-                  <div class="space-y-2">
-                    <button
-                      @click="handleExportChat"
-                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
-                    >
-                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                      <span>Exportar conversa</span>
-                    </button>
-                    
-                    <button
-                      @click="handleTransferChat"
-                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
-                    >
-                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                      </svg>
-                      <span>Transferir atendimento</span>
-                    </button>
-                    
-                    <button
-                      @click="handleBlockContact"
-                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
-                    >
-                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                      </svg>
-                      <span>Bloquear contato</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Zona de perigo -->
-                <div>
-                  <button
-                    @click="handleDeleteChat"
-                    class="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-red-200"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                    <span>Excluir conversa</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </transition>
-        </div>
-      </div>
+      <ChatArea
+        :selected-contact="selectedContact"
+        :system-tags="systemTags"
+        @send-message="sendMessage"
+        @toggle-tag="toggleTag"
+        @add-tag="addNewSystemTag"
+        @resolve-chat="handleResolveChat"
+        @export-chat="handleExportChat"
+        @transfer-chat="handleTransferChat"
+        @block-contact="handleBlockContact"
+        @delete-chat="handleDeleteChat"
+      />
     </div>
 
     <!-- Modal de Confirmação para Resolver -->
@@ -637,7 +76,7 @@ const contacts = ref([
     name: 'João Silva',
     phone: '11999999999',
     lastMessage: 'Olá, preciso de ajuda com meu pedido',
-    lastMessageTime: new Date(Date.now() - 5 * 60 * 1000), // 5 minutos atrás
+    lastMessageTime: new Date(Date.now() - 5 * 60 * 1000),
     tags: ['Prioridade', 'VIP'],
     unreadCount: 2,
     status: 'ativo',
@@ -793,26 +232,7 @@ const contacts = ref([
 ])
 
 const selectedContact = ref(null)
-const searchTerm = ref('')
-const newMessage = ref('')
-const selectedStatus = ref('todos')
-const selectedCaixaEntrada = ref('Suporte')
-const showTagDropdown = ref(false)
-const showKebabSidebar = ref(false)
-const showAddTagInput = ref(false)
-const newTag = ref('')
 const showResolveModal = ref(false)
-
-// Estado do dropdown de filtro
-const showFilterDropdown = ref(false)
-const filterOptions = ref({
-  unreadOnly: false,
-  selectedTags: []
-})
-
-// Estado do dropdown de caixa de entrada
-const showCaixaEntradaDropdown = ref(false)
-const searchCaixaEntrada = ref('')
 
 // Opções de caixas de entrada
 const caixasEntradaOptions = computed(() => {
@@ -873,18 +293,6 @@ const caixasEntradaOptions = computed(() => {
   ]
 })
 
-// Computed para filtrar caixas de entrada no dropdown
-const filteredCaixaEntradaOptions = computed(() => {
-  if (!searchCaixaEntrada.value) {
-    return caixasEntradaOptions.value
-  }
-
-  const search = searchCaixaEntrada.value.toLowerCase()
-  return caixasEntradaOptions.value.filter(caixa =>
-    caixa.label.toLowerCase().includes(search)
-  )
-})
-
 // Tags do sistema disponíveis
 const systemTags = ref([
   'Prioridade',
@@ -903,128 +311,17 @@ const systemTags = ref([
   'Troca'
 ])
 
-// Opções de status com contagens
-const statusOptions = computed(() => {
-  const statusCounts = {
-    todos: contacts.value.length,
-    aguardando: contacts.value.filter(c => c.status === 'aguardando').length,
-    ativo: contacts.value.filter(c => c.status === 'ativo').length,
-    concluido: contacts.value.filter(c => c.status === 'concluido').length
-  }
-
-  return [
-    { label: 'Todos', value: 'todos', count: statusCounts.todos },
-    { label: 'Aguardando', value: 'aguardando', count: statusCounts.aguardando },
-    { label: 'Ativo', value: 'ativo', count: statusCounts.ativo }
-  ]
-})
-
-// Controle de scrollbars
-onMounted(() => {
-  initScrollbars()
-})
-
-const initScrollbars = () => {
-  const scrollElements = document.querySelectorAll('.scrollbar-permanent')
-
-  scrollElements.forEach(element => {
-    let scrollTimeout
-    let isHoveringScrollbar = false
-
-    const showScrollbar = () => {
-      element.classList.add('scrollbar-visible')
-      clearTimeout(scrollTimeout)
-    }
-
-    const hideScrollbar = () => {
-      scrollTimeout = setTimeout(() => {
-        if (!isHoveringScrollbar) {
-          element.classList.remove('scrollbar-visible')
-        }
-      }, 1000)
-    }
-
-    const checkScrollbarHover = (event) => {
-      const rect = element.getBoundingClientRect()
-      const scrollbarZone = rect.right - 20 // Zona de 20px da direita
-
-      if (event.clientX >= scrollbarZone) {
-        isHoveringScrollbar = true
-        showScrollbar()
-      } else {
-        isHoveringScrollbar = false
-        hideScrollbar()
-      }
-    }
-
-    // Mostrar no hover no elemento inteiro
-    element.addEventListener('mouseenter', showScrollbar)
-    element.addEventListener('mouseleave', hideScrollbar)
-
-    // Detectar hover específico na área da scrollbar
-    element.addEventListener('mousemove', checkScrollbarHover)
-
-    // Mostrar durante o scroll
-    element.addEventListener('scroll', () => {
-      showScrollbar()
-      hideScrollbar()
-    })
-
-    // Esconder quando o mouse sai do elemento
-    element.addEventListener('mouseleave', () => {
-      isHoveringScrollbar = false
-      hideScrollbar()
-    })
-  })
-}
-
-// Filtrar contatos baseado no termo de pesquisa, caixa de entrada e status
-const filteredContacts = computed(() => {
+// Obter tags disponíveis
+const availableTags = computed(() => {
   if (!contacts.value || !Array.isArray(contacts.value)) {
     return []
   }
 
-  let filtered = contacts.value.filter(contact => contact != null)
+  const allTags = contacts.value
+    .filter(contact => contact && contact.tags && Array.isArray(contact.tags))
+    .flatMap(contact => contact.tags)
 
-  // Filtrar por caixa de entrada
-  filtered = filtered.filter(contact =>
-    contact.caixa_entrada === selectedCaixaEntrada.value
-  )
-
-  // Filtrar por status
-  if (selectedStatus.value !== 'todos') {
-    filtered = filtered.filter(contact =>
-      contact.status === selectedStatus.value
-    )
-  }
-
-  // Filtrar por termo de pesquisa
-  if (searchTerm.value) {
-    const search = searchTerm.value.toLowerCase()
-    filtered = filtered.filter(contact =>
-      (contact.name && contact.name.toLowerCase().includes(search)) ||
-      (contact.phone && contact.phone.includes(search)) ||
-      (contact.lastMessage && contact.lastMessage.toLowerCase().includes(search)) ||
-      (contact.tags && Array.isArray(contact.tags) &&
-       contact.tags.some(tag => tag && tag.toLowerCase().includes(search)))
-    )
-  }
-
-  // Aplicar filtros avançados
-  if (filterOptions.unreadOnly) {
-    filtered = filtered.filter(contact =>
-      contact.unreadCount > 0
-    )
-  }
-
-  if (filterOptions.selectedTags && Array.isArray(filterOptions.selectedTags) && filterOptions.selectedTags.length > 0) {
-    filtered = filtered.filter(contact =>
-      contact.tags && Array.isArray(contact.tags) &&
-      filterOptions.selectedTags.some(tag => contact.tags.includes(tag))
-    )
-  }
-
-  return filtered
+  return [...new Set(allTags)].sort()
 })
 
 // Selecionar contato
@@ -1032,52 +329,15 @@ const selectContact = (contact) => {
   selectedContact.value = contact
   // Resetar contador de mensagens não lidas
   contact.unreadCount = 0
-
-  // Rolar automaticamente para a última mensagem
-  nextTick(() => {
-    scrollToBottom()
-  })
-}
-
-// Rolar para a parte inferior do chat
-const scrollToBottom = () => {
-  const chatMessages = document.getElementById('chat-messages')
-  if (chatMessages) {
-    chatMessages.scrollTop = chatMessages.scrollHeight
-  }
-}
-
-// Manipular tecla Enter
-const handleEnterKey = (event) => {
-  if (event.altKey || event.shiftKey) {
-    // Alt+Enter ou Shift+Enter cria uma nova linha
-    const textarea = event.target
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const text = newMessage.value
-
-    newMessage.value = text.substring(0, start) + '\n' + text.substring(end)
-
-    // Move cursor para após a quebra de linha
-    nextTick(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + 1
-    })
-
-    // Previne o comportamento padrão para evitar envio da mensagem
-    event.preventDefault()
-  } else {
-    // Enter normal envia a mensagem
-    sendMessage()
-  }
 }
 
 // Enviar mensagem
-const sendMessage = () => {
-  if (!newMessage.value.trim() || !selectedContact.value) return
+const sendMessage = (messageText) => {
+  if (!messageText.trim() || !selectedContact.value) return
 
   const message = {
     id: Date.now(),
-    text: newMessage.value,
+    text: messageText,
     sender: 'user',
     timestamp: new Date()
   }
@@ -1085,58 +345,6 @@ const sendMessage = () => {
   selectedContact.value.messages.push(message)
   selectedContact.value.lastMessage = message.text
   selectedContact.value.lastMessageTime = message.timestamp
-
-  newMessage.value = ''
-
-  // Rolar para ver a nova mensagem
-  nextTick(() => {
-    scrollToBottom()
-  })
-}
-
-// Obter iniciais do nome
-const getInitials = (name) => {
-  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
-}
-
-// Formatar telefone
-const formatPhone = (phone) => {
-  const cleaned = phone.replace(/\D/g, '')
-  const match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/)
-  if (match) {
-    return `(${match[1]}) ${match[2]}-${match[3]}`
-  }
-  return phone
-}
-
-// Formatar tempo relativo
-const formatTime = (date) => {
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (minutes < 1) return 'agora'
-  if (minutes < 60) return `há ${minutes}m`
-  if (hours < 24) return `há ${hours}h`
-  if (days < 7) return `há ${days}d`
-
-  return date.toLocaleDateString('pt-BR')
-}
-
-// Obter cor da tag
-const getTagColor = (tag) => {
-  const colors = {
-    'Prioridade': 'bg-red-100 text-red-800',
-    'VIP': 'bg-purple-100 text-purple-800',
-    'Resolvido': 'bg-green-100 text-green-800',
-    'Entrega': 'bg-blue-100 text-blue-800',
-    'Urgente': 'bg-orange-100 text-orange-800',
-    'Novo Cliente': 'bg-indigo-100 text-indigo-800'
-  }
-
-  return colors[tag] || 'bg-gray-100 text-gray-800'
 }
 
 // Funções de gerenciamento de tags
@@ -1145,37 +353,31 @@ const toggleTag = (tag) => {
 
   const tagIndex = selectedContact.value.tags.indexOf(tag)
   if (tagIndex > -1) {
-    // Remover tag se já estiver selecionada
     selectedContact.value.tags.splice(tagIndex, 1)
   } else {
-    // Adicionar tag se não estiver selecionada
     selectedContact.value.tags.push(tag)
   }
 }
 
-const addNewSystemTag = () => {
-  if (!newTag.value.trim()) return
+const addNewSystemTag = (tagName) => {
+  if (!tagName.trim()) return
 
-  const tagName = newTag.value.trim()
+  const cleanTagName = tagName.trim()
 
   // Adicionar às tags do sistema se não existir
-  if (!systemTags.value.includes(tagName)) {
-    systemTags.value.push(tagName)
+  if (!systemTags.value.includes(cleanTagName)) {
+    systemTags.value.push(cleanTagName)
   }
 
   // Adicionar ao contato selecionado
-  if (selectedContact.value && !selectedContact.value.tags.includes(tagName)) {
-    selectedContact.value.tags.push(tagName)
+  if (selectedContact.value && !selectedContact.value.tags.includes(cleanTagName)) {
+    selectedContact.value.tags.push(cleanTagName)
   }
-
-  newTag.value = ''
-  showAddTagInput.value = false
 }
 
 // Funções de gerenciamento de status
 const updateStatus = (newStatus) => {
   if (!selectedContact.value) return
-
   selectedContact.value.status = newStatus
 }
 
@@ -1197,179 +399,49 @@ const cancelResolveChat = () => {
   showResolveModal.value = false
 }
 
-// Funções para fechar dropdowns e sidebar
-const closeTagDropdown = () => {
-  showTagDropdown.value = false
-}
-
-const closeKebabSidebar = () => {
-  showKebabSidebar.value = false
-}
-
-const closeCaixaEntradaDropdown = () => {
-  showCaixaEntradaDropdown.value = false
-}
-
-// Funções para toggle dropdowns e sidebar com comportamento mutualmente exclusivo
-const toggleTagDropdown = () => {
-  if (showKebabSidebar.value) {
-    showKebabSidebar.value = false
-  }
-  showTagDropdown.value = !showTagDropdown.value
-}
-
-const toggleKebabSidebar = () => {
-  if (showTagDropdown.value) {
-    showTagDropdown.value = false
-  }
-  showKebabSidebar.value = !showKebabSidebar.value
-}
-
-const toggleCaixaEntradaDropdown = () => {
-  if (showTagDropdown.value) {
-    showTagDropdown.value = false
-  }
-  if (showKebabSidebar.value) {
-    showKebabSidebar.value = false
-  }
-  if (showFilterDropdown.value) {
-    showFilterDropdown.value = false
-  }
-  showCaixaEntradaDropdown.value = !showCaixaEntradaDropdown.value
-}
-
-const selectCaixaEntrada = (value) => {
-  selectedCaixaEntrada.value = value
-  showCaixaEntradaDropdown.value = false
-  searchCaixaEntrada.value = '' // Limpar pesquisa após seleção
-}
-
-// Obter tags disponíveis
-const availableTags = computed(() => {
-  if (!contacts.value || !Array.isArray(contacts.value)) {
-    return []
-  }
-
-  const allTags = contacts.value
-    .filter(contact => contact && contact.tags && Array.isArray(contact.tags))
-    .flatMap(contact => contact.tags)
-
-  return [...new Set(allTags)].sort()
-})
-
-// Funções do dropdown de filtro
-const toggleFilterDropdown = () => {
-  if (showTagDropdown.value) {
-    showTagDropdown.value = false
-  }
-  if (showKebabSidebar.value) {
-    showKebabSidebar.value = false
-  }
-  if (showCaixaEntradaDropdown.value) {
-    showCaixaEntradaDropdown.value = false
-  }
-  showFilterDropdown.value = !showFilterDropdown.value
-}
-
-const closeFilterDropdown = () => {
-  showFilterDropdown.value = false
-}
-
-const clearFilters = () => {
-  filterOptions.value = {
-    unreadOnly: false,
-    selectedTags: []
-  }
-  showFilterDropdown.value = false
-}
-
-const applyFilters = () => {
-  showFilterDropdown.value = false
-  // A filtragem será aplicada automaticamente via reatividade
-}
-
-const getStatusLabel = (status) => {
-  const labels = {
-    'aguardando': 'Aguardando',
-    'ativo': 'Ativo',
-    'concluido': 'Concluído'
-  }
-
-  return labels[status] || status
-}
-
 // Função para atribuir contato a mim
 const assignToMe = (contact) => {
   if (!contact) return
   
-  // Implementar lógica de atribuição
   console.log('Atribuindo contato a mim:', contact.name)
-  
-  // Mudar status de 'aguardando' para 'ativo'
   contact.status = 'ativo'
-  
-  // Feedback visual
   alert(`Atendimento de ${contact.name} atribuído a você!`)
-  
-  // Opcionalmente, selecionar o contato após atribuição
-  // selectContact(contact)
 }
 
 // Funções do menu kebab (sidebar)
 const handleExportChat = () => {
   if (!selectedContact.value) return
-  
-  // Implementar lógica de exportação
   console.log('Exportar conversa:', selectedContact.value.name)
   alert(`Exportando conversa com ${selectedContact.value.name}...`)
-  
-  showKebabSidebar.value = false
 }
 
 const handleBlockContact = () => {
   if (!selectedContact.value) return
-  
-  // Implementar lógica de bloqueio
   const confirmBlock = confirm(`Deseja realmente bloquear ${selectedContact.value.name}?`)
   if (confirmBlock) {
     console.log('Bloquear contato:', selectedContact.value.name)
     alert(`Contato ${selectedContact.value.name} bloqueado.`)
   }
-  
-  showKebabSidebar.value = false
 }
 
 const handleTransferChat = () => {
   if (!selectedContact.value) return
-  
-  // Implementar lógica de transferência
   console.log('Transferir atendimento:', selectedContact.value.name)
   alert(`Transferindo atendimento de ${selectedContact.value.name}...`)
-  
-  showKebabSidebar.value = false
 }
 
 const handleDeleteChat = () => {
   if (!selectedContact.value) return
-  
-  // Implementar lógica de exclusão
   const confirmDelete = confirm(`Deseja realmente excluir a conversa com ${selectedContact.value.name}?`)
   if (confirmDelete) {
     console.log('Excluir conversa:', selectedContact.value.name)
-    
-    // Remover o contato da lista
     const index = contacts.value.findIndex(c => c.id === selectedContact.value.id)
     if (index > -1) {
       contacts.value.splice(index, 1)
     }
-    
-    // Limpar seleção
     selectedContact.value = null
-    
     alert('Conversa excluída com sucesso.')
   }
-  
-  showKebabSidebar.value = false
 }
 
 // Meta tags da página
@@ -1380,115 +452,3 @@ useHead({
   ]
 })
 </script>
-
-<style scoped>
-/* Scrollbar permanente com visibilidade controlada */
-.scrollbar-permanent {
-  scrollbar-gutter: stable;
-  overflow-y: auto;
-  -ms-overflow-style: none;  /* IE e Edge */
-  scrollbar-width: none;     /* Firefox */
-}
-
-.scrollbar-permanent::-webkit-scrollbar {
-  width: 8px;
-  background: transparent;
-}
-
-.scrollbar-permanent::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.scrollbar-permanent::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.scrollbar-permanent.scrollbar-visible::-webkit-scrollbar-thumb {
-  background: #9ca3af;
-  opacity: 1;
-}
-
-.scrollbar-permanent.scrollbar-visible::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Para Firefox */
-.scrollbar-permanent {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.3s ease;
-}
-
-.scrollbar-permanent.scrollbar-visible {
-  scrollbar-color: #9ca3af transparent;
-}
-
-/* Garantir que o container sempre reserve espaço */
-.scrollbar-permanent {
-  overflow-y: scroll !important;
-}
-
-/* Chat messages scrollbar específica */
-#chat-messages {
-  scrollbar-gutter: stable;
-  overflow-y: scroll !important;
-}
-
-#chat-messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-#chat-messages::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
-}
-
-#chat-messages::-webkit-scrollbar-thumb {
-  background: #6b7280;
-  border-radius: 4px;
-}
-
-#chat-messages::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Para Firefox */
-#chat-messages {
-  scrollbar-width: thin;
-  scrollbar-color: #6b7280 #f3f4f6;
-}
-
-/* Scrollbar sempre visível para dropdowns */
-.scrollbar-always-visible {
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar {
-  width: 6px;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 3px;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-thumb {
-  background: #6b7280;
-  border-radius: 3px;
-}
-
-.scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
-}
-
-/* Para Firefox */
-.scrollbar-always-visible {
-  scrollbar-width: thin;
-  scrollbar-color: #6b7280 #f3f4f6;
-}
-</style>
