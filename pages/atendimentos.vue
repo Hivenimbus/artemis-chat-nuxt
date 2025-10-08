@@ -373,51 +373,16 @@
                   </div>
                 </div>
 
-                <!-- Botão de Status -->
-                <div class="relative">
-                  <button
-                    @click="toggleStatusDropdown"
-                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                    title="Alterar status"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                  </button>
-
-                  <!-- Dropdown de Status -->
-                  <div
-                    v-if="showStatusDropdown"
-                    v-click-outside="closeStatusDropdown"
-                    class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-                  >
-                    <div class="p-3">
-                      <p class="text-sm font-medium text-gray-900 mb-3">Alterar Status</p>
-
-                      <!-- Opções de status -->
-                      <div class="space-y-1">
-                        <button
-                          v-for="status in [
-                            { value: 'aguardando', label: 'Aguardando' },
-                            { value: 'ativo', label: 'Ativo' },
-                            { value: 'concluido', label: 'Concluído' }
-                          ]"
-                          :key="status.value"
-                          @click="updateStatus(status.value)"
-                          :disabled="selectedContact?.status === status.value"
-                          :class="[
-                            'w-full px-2 py-1 text-left text-xs rounded transition-colors duration-200',
-                            selectedContact?.status === status.value
-                              ? 'bg-indigo-100 text-indigo-700'
-                              : 'text-gray-700 hover:bg-gray-100'
-                          ]"
-                        >
-                          {{ status.label }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <!-- Botão de Resolver -->
+                <button
+                  @click="handleResolveChat"
+                  class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  title="Resolver atendimento"
+                >
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </button>
 
                 <!-- Botão Kebab (Mais opções) -->
                 <div class="relative">
@@ -551,6 +516,43 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação para Resolver -->
+    <div
+      v-if="showResolveModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="cancelResolveChat"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div class="flex items-start mb-4">
+          <div class="flex-shrink-0">
+            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div class="ml-3 flex-1">
+            <h3 class="text-lg font-medium text-gray-900">Resolver Atendimento</h3>
+            <p class="mt-2 text-sm text-gray-500">
+              Deseja marcar o atendimento de <strong>{{ selectedContact?.name }}</strong> como resolvido?
+            </p>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button
+            @click="cancelResolveChat"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+          >
+            Cancelar
+          </button>
+          <button
+            @click="confirmResolveChat"
+            class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+          >
+            Confirmar
+          </button>
         </div>
       </div>
     </div>
@@ -728,10 +730,10 @@ const newMessage = ref('')
 const selectedStatus = ref('todos')
 const selectedCaixaEntrada = ref('Suporte')
 const showTagDropdown = ref(false)
-const showStatusDropdown = ref(false)
 const showKebabDropdown = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
+const showResolveModal = ref(false)
 
 // Estado do dropdown de filtro
 const showFilterDropdown = ref(false)
@@ -1107,16 +1109,29 @@ const updateStatus = (newStatus) => {
   if (!selectedContact.value) return
 
   selectedContact.value.status = newStatus
-  showStatusDropdown.value = false
+}
+
+// Função para resolver atendimento
+const handleResolveChat = () => {
+  if (!selectedContact.value) return
+  
+  showResolveModal.value = true
+}
+
+const confirmResolveChat = () => {
+  if (!selectedContact.value) return
+  
+  updateStatus('concluido')
+  showResolveModal.value = false
+}
+
+const cancelResolveChat = () => {
+  showResolveModal.value = false
 }
 
 // Funções para fechar dropdowns
 const closeTagDropdown = () => {
   showTagDropdown.value = false
-}
-
-const closeStatusDropdown = () => {
-  showStatusDropdown.value = false
 }
 
 const closeKebabDropdown = () => {
@@ -1129,39 +1144,20 @@ const closeCaixaEntradaDropdown = () => {
 
 // Funções para toggle dropdowns com comportamento mutualmente exclusivo
 const toggleTagDropdown = () => {
-  if (showStatusDropdown.value) {
-    showStatusDropdown.value = false
-  }
   if (showKebabDropdown.value) {
     showKebabDropdown.value = false
   }
   showTagDropdown.value = !showTagDropdown.value
 }
 
-const toggleStatusDropdown = () => {
-  if (showTagDropdown.value) {
-    showTagDropdown.value = false
-  }
-  if (showKebabDropdown.value) {
-    showKebabDropdown.value = false
-  }
-  showStatusDropdown.value = !showStatusDropdown.value
-}
-
 const toggleKebabDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
-  }
-  if (showStatusDropdown.value) {
-    showStatusDropdown.value = false
   }
   showKebabDropdown.value = !showKebabDropdown.value
 }
 
 const toggleCaixaEntradaDropdown = () => {
-  if (showStatusDropdown.value) {
-    showStatusDropdown.value = false
-  }
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
@@ -1197,9 +1193,6 @@ const availableTags = computed(() => {
 const toggleFilterDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
-  }
-  if (showStatusDropdown.value) {
-    showStatusDropdown.value = false
   }
   if (showKebabDropdown.value) {
     showKebabDropdown.value = false
