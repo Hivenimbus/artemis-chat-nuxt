@@ -199,61 +199,77 @@
           <div
             v-for="contact in filteredContacts"
             :key="contact.id"
-            @click="selectContact(contact)"
             :class="[
-              'p-4 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 hover:shadow-md cursor-pointer transition-all duration-200',
+              'p-4 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 hover:shadow-md transition-all duration-200',
               selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-500 shadow-sm' : ''
             ]"
           >
-            <div class="flex items-start space-x-3">
-              <!-- Avatar -->
-              <div class="flex-shrink-0 relative">
-                <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
-                  {{ getInitials(contact.name) }}
+            <div @click="selectContact(contact)" class="cursor-pointer">
+              <div class="flex items-start space-x-3">
+                <!-- Avatar -->
+                <div class="flex-shrink-0 relative">
+                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+                    {{ getInitials(contact.name) }}
+                  </div>
+
+                  <!-- Indicador de mensagens não lidas -->
+                  <div
+                    v-if="contact.unreadCount > 0"
+                    class="absolute -top-1 -right-1 h-5 w-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white"
+                  >
+                    {{ contact.unreadCount > 9 ? '9+' : contact.unreadCount }}
+                  </div>
                 </div>
 
-                <!-- Indicador de mensagens não lidas -->
-                <div
-                  v-if="contact.unreadCount > 0"
-                  class="absolute -top-1 -right-1 h-5 w-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white"
-                >
-                  {{ contact.unreadCount > 9 ? '9+' : contact.unreadCount }}
+                <!-- Informações do contato -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-medium text-gray-900 truncate">
+                      {{ contact.name }}
+                    </h3>
+                    <span class="text-xs text-gray-500">
+                      {{ formatTime(contact.lastMessageTime) }}
+                    </span>
+                  </div>
+
+                  <p class="text-sm text-gray-600 mt-1">
+                    {{ formatPhone(contact.phone) }}
+                  </p>
+
+                  <!-- Última mensagem -->
+                  <p class="text-sm text-gray-500 mt-1 truncate">
+                    {{ contact.lastMessage }}
+                  </p>
+
+                  <!-- Tags e Botão Atribuir -->
+                  <div class="flex items-center justify-between mt-2">
+                    <!-- Tags -->
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="tag in contact.tags"
+                        :key="tag"
+                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                        :class="getTagColor(tag)"
+                      >
+                        {{ tag }}
+                      </span>
+                    </div>
+                    
+                    <!-- Botão Atribuir a Mim (apenas na aba aguardando) -->
+                    <button
+                      v-if="selectedStatus === 'aguardando'"
+                      @click.stop="assignToMe(contact)"
+                      class="ml-2 flex-shrink-0 px-2 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200 flex items-center space-x-1"
+                      title="Atribuir este atendimento a mim"
+                    >
+                      <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      <span>Atribuir a mim</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <!-- Informações do contato -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <h3 class="text-sm font-medium text-gray-900 truncate">
-                    {{ contact.name }}
-                  </h3>
-                  <span class="text-xs text-gray-500">
-                    {{ formatTime(contact.lastMessageTime) }}
-                  </span>
-                </div>
-
-                <p class="text-sm text-gray-600 mt-1">
-                  {{ formatPhone(contact.phone) }}
-                </p>
-
-                <!-- Última mensagem -->
-                <p class="text-sm text-gray-500 mt-1 truncate">
-                  {{ contact.lastMessage }}
-                </p>
-
-                <!-- Tags -->
-                <div class="flex flex-wrap gap-1 mt-2">
-                  <span
-                    v-for="tag in contact.tags"
-                    :key="tag"
-                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                    :class="getTagColor(tag)"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-
-                </div>
             </div>
           </div>
         </div>
@@ -1219,6 +1235,23 @@ const getStatusLabel = (status) => {
   }
 
   return labels[status] || status
+}
+
+// Função para atribuir contato a mim
+const assignToMe = (contact) => {
+  if (!contact) return
+  
+  // Implementar lógica de atribuição
+  console.log('Atribuindo contato a mim:', contact.name)
+  
+  // Mudar status de 'aguardando' para 'ativo'
+  contact.status = 'ativo'
+  
+  // Feedback visual
+  alert(`Atendimento de ${contact.name} atribuído a você!`)
+  
+  // Opcionalmente, selecionar o contato após atribuição
+  // selectContact(contact)
 }
 
 // Funções do menu kebab
