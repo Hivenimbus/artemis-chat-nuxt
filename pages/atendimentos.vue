@@ -525,7 +525,7 @@
     <!-- Modal de Confirmação para Resolver -->
     <div
       v-if="showResolveModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50"
       @click.self="cancelResolveChat"
     >
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
