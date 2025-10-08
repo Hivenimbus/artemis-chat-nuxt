@@ -6,11 +6,11 @@
     <div class="w-full md:w-2/6 lg:w-2/6 bg-white border-r border-gray-200 scrollbar-permanent">
         <!-- Cabeçalho da lista de contatos -->
         <div class="p-4 border-b border-gray-200">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center mb-4">
             <h2 class="text-lg font-semibold text-gray-900">Conversas</h2>
             
             <!-- Dropdown de Caixa de Entrada -->
-            <div class="relative">
+            <div class="relative ml-3">
               <button
                 @click="toggleCaixaEntradaDropdown"
                 class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
