@@ -402,6 +402,70 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Botão Kebab (Mais opções) -->
+                <div class="relative">
+                  <button
+                    @click="toggleKebabDropdown"
+                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    title="Mais opções"
+                  >
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown de Opções -->
+                  <div
+                    v-if="showKebabDropdown"
+                    v-click-outside="closeKebabDropdown"
+                    class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                  >
+                    <div class="py-2">
+                      <button
+                        @click="handleExportChat"
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
+                      >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span>Exportar conversa</span>
+                      </button>
+                      
+                      <button
+                        @click="handleBlockContact"
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
+                      >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                        </svg>
+                        <span>Bloquear contato</span>
+                      </button>
+                      
+                      <button
+                        @click="handleTransferChat"
+                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
+                      >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Transferir atendimento</span>
+                      </button>
+                      
+                      <div class="border-t border-gray-200 my-1"></div>
+                      
+                      <button
+                        @click="handleDeleteChat"
+                        class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors duration-200"
+                      >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        <span>Excluir conversa</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -649,6 +713,7 @@ const selectedStatus = ref('todos')
 const selectedCaixaEntrada = ref('Suporte')
 const showTagDropdown = ref(false)
 const showStatusDropdown = ref(false)
+const showKebabDropdown = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
 
@@ -1038,6 +1103,10 @@ const closeStatusDropdown = () => {
   showStatusDropdown.value = false
 }
 
+const closeKebabDropdown = () => {
+  showKebabDropdown.value = false
+}
+
 const closeCaixaEntradaDropdown = () => {
   showCaixaEntradaDropdown.value = false
 }
@@ -1047,6 +1116,9 @@ const toggleTagDropdown = () => {
   if (showStatusDropdown.value) {
     showStatusDropdown.value = false
   }
+  if (showKebabDropdown.value) {
+    showKebabDropdown.value = false
+  }
   showTagDropdown.value = !showTagDropdown.value
 }
 
@@ -1054,7 +1126,20 @@ const toggleStatusDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
+  if (showKebabDropdown.value) {
+    showKebabDropdown.value = false
+  }
   showStatusDropdown.value = !showStatusDropdown.value
+}
+
+const toggleKebabDropdown = () => {
+  if (showTagDropdown.value) {
+    showTagDropdown.value = false
+  }
+  if (showStatusDropdown.value) {
+    showStatusDropdown.value = false
+  }
+  showKebabDropdown.value = !showKebabDropdown.value
 }
 
 const toggleCaixaEntradaDropdown = () => {
@@ -1063,6 +1148,9 @@ const toggleCaixaEntradaDropdown = () => {
   }
   if (showTagDropdown.value) {
     showTagDropdown.value = false
+  }
+  if (showKebabDropdown.value) {
+    showKebabDropdown.value = false
   }
   if (showFilterDropdown.value) {
     showFilterDropdown.value = false
@@ -1097,6 +1185,9 @@ const toggleFilterDropdown = () => {
   if (showStatusDropdown.value) {
     showStatusDropdown.value = false
   }
+  if (showKebabDropdown.value) {
+    showKebabDropdown.value = false
+  }
   if (showCaixaEntradaDropdown.value) {
     showCaixaEntradaDropdown.value = false
   }
@@ -1128,6 +1219,63 @@ const getStatusLabel = (status) => {
   }
 
   return labels[status] || status
+}
+
+// Funções do menu kebab
+const handleExportChat = () => {
+  if (!selectedContact.value) return
+  
+  // Implementar lógica de exportação
+  console.log('Exportar conversa:', selectedContact.value.name)
+  alert(`Exportando conversa com ${selectedContact.value.name}...`)
+  
+  showKebabDropdown.value = false
+}
+
+const handleBlockContact = () => {
+  if (!selectedContact.value) return
+  
+  // Implementar lógica de bloqueio
+  const confirmBlock = confirm(`Deseja realmente bloquear ${selectedContact.value.name}?`)
+  if (confirmBlock) {
+    console.log('Bloquear contato:', selectedContact.value.name)
+    alert(`Contato ${selectedContact.value.name} bloqueado.`)
+  }
+  
+  showKebabDropdown.value = false
+}
+
+const handleTransferChat = () => {
+  if (!selectedContact.value) return
+  
+  // Implementar lógica de transferência
+  console.log('Transferir atendimento:', selectedContact.value.name)
+  alert(`Transferindo atendimento de ${selectedContact.value.name}...`)
+  
+  showKebabDropdown.value = false
+}
+
+const handleDeleteChat = () => {
+  if (!selectedContact.value) return
+  
+  // Implementar lógica de exclusão
+  const confirmDelete = confirm(`Deseja realmente excluir a conversa com ${selectedContact.value.name}?`)
+  if (confirmDelete) {
+    console.log('Excluir conversa:', selectedContact.value.name)
+    
+    // Remover o contato da lista
+    const index = contacts.value.findIndex(c => c.id === selectedContact.value.id)
+    if (index > -1) {
+      contacts.value.splice(index, 1)
+    }
+    
+    // Limpar seleção
+    selectedContact.value = null
+    
+    alert('Conversa excluída com sucesso.')
+  }
+  
+  showKebabDropdown.value = false
 }
 
 // Meta tags da página
