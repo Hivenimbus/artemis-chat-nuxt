@@ -247,11 +247,11 @@
             <label class="block text-sm font-medium text-gray-700 mb-3">
               Selecionar Agentes
             </label>
-            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg space-y-1 p-2">
               <div
                 v-for="agent in agents"
                 :key="agent.id"
-                class="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
               >
                 <div class="flex items-center space-x-3">
                   <input
