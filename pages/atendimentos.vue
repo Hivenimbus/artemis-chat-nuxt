@@ -569,7 +569,6 @@
 
                 <!-- Zona de perigo -->
                 <div>
-                  <h4 class="text-sm font-medium text-red-600 uppercase mb-3">Zona de Perigo</h4>
                   <button
                     @click="handleDeleteChat"
                     class="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-red-200"
@@ -583,13 +582,6 @@
               </div>
             </div>
           </transition>
-
-          <!-- Overlay para fechar a sidebar ao clicar fora -->
-          <div
-            v-if="showKebabSidebar"
-            @click="closeKebabSidebar"
-            class="absolute inset-0 bg-black bg-opacity-20 z-30"
-          ></div>
         </div>
       </div>
     </div>
