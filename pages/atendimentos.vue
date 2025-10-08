@@ -276,7 +276,7 @@
       </div>
 
       <!-- Seção direita - Área de chat -->
-      <div class="flex-1 bg-gray-100 flex flex-col">
+      <div class="flex-1 bg-gray-100 flex flex-col relative">
         <!-- Placeholder quando nenhum contato está selecionado -->
         <div v-if="!selectedContact" class="flex-1 flex items-center justify-center">
           <div class="text-center">
@@ -387,68 +387,15 @@
                 </div>
 
                 <!-- Botão Kebab (Mais opções) -->
-                <div class="relative">
-                  <button
-                    @click="toggleKebabDropdown"
-                    class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                    title="Mais opções"
-                  >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
-                    </svg>
-                  </button>
-
-                  <!-- Dropdown de Opções -->
-                  <div
-                    v-if="showKebabDropdown"
-                    v-click-outside="closeKebabDropdown"
-                    class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-                  >
-                    <div class="py-2">
-                      <button
-                        @click="handleExportChat"
-                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
-                      >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <span>Exportar conversa</span>
-                      </button>
-                      
-                      <button
-                        @click="handleBlockContact"
-                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
-                      >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                        </svg>
-                        <span>Bloquear contato</span>
-                      </button>
-                      
-                      <button
-                        @click="handleTransferChat"
-                        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 transition-colors duration-200"
-                      >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                        <span>Transferir atendimento</span>
-                      </button>
-                      
-                      <div class="border-t border-gray-200 my-1"></div>
-                      
-                      <button
-                        @click="handleDeleteChat"
-                        class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors duration-200"
-                      >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        <span>Excluir conversa</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <button
+                  @click="toggleKebabSidebar"
+                  class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  title="Mais opções"
+                >
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -530,6 +477,119 @@
               </div>
             </div>
           </div>
+
+          <!-- Sidebar lateral de opções -->
+          <transition
+            enter-active-class="transition-transform duration-300 ease-out"
+            leave-active-class="transition-transform duration-300 ease-in"
+            enter-from-class="translate-x-full"
+            enter-to-class="translate-x-0"
+            leave-from-class="translate-x-0"
+            leave-to-class="translate-x-full"
+          >
+            <div
+              v-if="showKebabSidebar"
+              class="absolute top-0 right-0 bottom-0 w-80 bg-white border-l border-gray-200 shadow-xl z-40 flex flex-col"
+            >
+              <!-- Header da sidebar -->
+              <div class="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900">Opções da Conversa</h3>
+                <button
+                  @click="closeKebabSidebar"
+                  class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  title="Fechar"
+                >
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Conteúdo da sidebar -->
+              <div class="flex-1 overflow-y-auto p-4">
+                <!-- Informações do contato -->
+                <div class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Informações</h4>
+                  <div class="space-y-3">
+                    <div class="flex items-center space-x-3">
+                      <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                        {{ getInitials(selectedContact.name) }}
+                      </div>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900">{{ selectedContact.name }}</p>
+                        <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
+                      </div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                      <p class="text-xs text-gray-500">Status</p>
+                      <p class="text-sm font-medium text-gray-900 mt-1">{{ getStatusLabel(selectedContact.status) }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                      <p class="text-xs text-gray-500">Caixa de Entrada</p>
+                      <p class="text-sm font-medium text-gray-900 mt-1">{{ selectedContact.caixa_entrada }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Ações -->
+                <div class="mb-6">
+                  <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Ações</h4>
+                  <div class="space-y-2">
+                    <button
+                      @click="handleExportChat"
+                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
+                    >
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      <span>Exportar conversa</span>
+                    </button>
+                    
+                    <button
+                      @click="handleTransferChat"
+                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
+                    >
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                      </svg>
+                      <span>Transferir atendimento</span>
+                    </button>
+                    
+                    <button
+                      @click="handleBlockContact"
+                      class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
+                    >
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                      </svg>
+                      <span>Bloquear contato</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Zona de perigo -->
+                <div>
+                  <h4 class="text-sm font-medium text-red-600 uppercase mb-3">Zona de Perigo</h4>
+                  <button
+                    @click="handleDeleteChat"
+                    class="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-red-200"
+                  >
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span>Excluir conversa</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Overlay para fechar a sidebar ao clicar fora -->
+          <div
+            v-if="showKebabSidebar"
+            @click="closeKebabSidebar"
+            class="absolute inset-0 bg-black bg-opacity-20 z-30"
+          ></div>
         </div>
       </div>
     </div>
@@ -744,7 +804,7 @@ const newMessage = ref('')
 const selectedStatus = ref('todos')
 const selectedCaixaEntrada = ref('Suporte')
 const showTagDropdown = ref(false)
-const showKebabDropdown = ref(false)
+const showKebabSidebar = ref(false)
 const showAddTagInput = ref(false)
 const newTag = ref('')
 const showResolveModal = ref(false)
@@ -1143,40 +1203,40 @@ const cancelResolveChat = () => {
   showResolveModal.value = false
 }
 
-// Funções para fechar dropdowns
+// Funções para fechar dropdowns e sidebar
 const closeTagDropdown = () => {
   showTagDropdown.value = false
 }
 
-const closeKebabDropdown = () => {
-  showKebabDropdown.value = false
+const closeKebabSidebar = () => {
+  showKebabSidebar.value = false
 }
 
 const closeCaixaEntradaDropdown = () => {
   showCaixaEntradaDropdown.value = false
 }
 
-// Funções para toggle dropdowns com comportamento mutualmente exclusivo
+// Funções para toggle dropdowns e sidebar com comportamento mutualmente exclusivo
 const toggleTagDropdown = () => {
-  if (showKebabDropdown.value) {
-    showKebabDropdown.value = false
+  if (showKebabSidebar.value) {
+    showKebabSidebar.value = false
   }
   showTagDropdown.value = !showTagDropdown.value
 }
 
-const toggleKebabDropdown = () => {
+const toggleKebabSidebar = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
-  showKebabDropdown.value = !showKebabDropdown.value
+  showKebabSidebar.value = !showKebabSidebar.value
 }
 
 const toggleCaixaEntradaDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
-  if (showKebabDropdown.value) {
-    showKebabDropdown.value = false
+  if (showKebabSidebar.value) {
+    showKebabSidebar.value = false
   }
   if (showFilterDropdown.value) {
     showFilterDropdown.value = false
@@ -1208,8 +1268,8 @@ const toggleFilterDropdown = () => {
   if (showTagDropdown.value) {
     showTagDropdown.value = false
   }
-  if (showKebabDropdown.value) {
-    showKebabDropdown.value = false
+  if (showKebabSidebar.value) {
+    showKebabSidebar.value = false
   }
   if (showCaixaEntradaDropdown.value) {
     showCaixaEntradaDropdown.value = false
@@ -1261,7 +1321,7 @@ const assignToMe = (contact) => {
   // selectContact(contact)
 }
 
-// Funções do menu kebab
+// Funções do menu kebab (sidebar)
 const handleExportChat = () => {
   if (!selectedContact.value) return
   
@@ -1269,7 +1329,7 @@ const handleExportChat = () => {
   console.log('Exportar conversa:', selectedContact.value.name)
   alert(`Exportando conversa com ${selectedContact.value.name}...`)
   
-  showKebabDropdown.value = false
+  showKebabSidebar.value = false
 }
 
 const handleBlockContact = () => {
@@ -1282,7 +1342,7 @@ const handleBlockContact = () => {
     alert(`Contato ${selectedContact.value.name} bloqueado.`)
   }
   
-  showKebabDropdown.value = false
+  showKebabSidebar.value = false
 }
 
 const handleTransferChat = () => {
@@ -1292,7 +1352,7 @@ const handleTransferChat = () => {
   console.log('Transferir atendimento:', selectedContact.value.name)
   alert(`Transferindo atendimento de ${selectedContact.value.name}...`)
   
-  showKebabDropdown.value = false
+  showKebabSidebar.value = false
 }
 
 const handleDeleteChat = () => {
@@ -1315,7 +1375,7 @@ const handleDeleteChat = () => {
     alert('Conversa excluída com sucesso.')
   }
   
-  showKebabDropdown.value = false
+  showKebabSidebar.value = false
 }
 
 // Meta tags da página
