@@ -5,17 +5,33 @@ export const useInboxes = () => {
   const user = useSupabaseUser()
 
   /**
+   * Obtém o ID do usuário atual de forma confiável
+   */
+  const getCurrentUserId = async () => {
+    // Tentar pegar do user.value primeiro
+    if (user.value?.id) {
+      return user.value.id
+    }
+    
+    // Se não estiver disponível, buscar da sessão
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) {
+      return session.user.id
+    }
+    
+    throw new Error('Usuário não autenticado')
+  }
+
+  /**
    * Busca todas as caixas de entrada do usuário atual
    */
   const fetchInboxes = async () => {
-    if (!user.value) {
-      throw new Error('Usuário não autenticado')
-    }
+    const userId = await getCurrentUserId()
 
     const { data, error } = await supabase
       .from('inboxes')
       .select('*')
-      .eq('user_id', user.value.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -30,15 +46,13 @@ export const useInboxes = () => {
    * Busca uma caixa de entrada específica por ID
    */
   const fetchInboxById = async (id: string) => {
-    if (!user.value) {
-      throw new Error('Usuário não autenticado')
-    }
+    const userId = await getCurrentUserId()
 
     const { data, error } = await supabase
       .from('inboxes')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.value.id)
+      .eq('user_id', userId)
       .single()
 
     if (error) {
@@ -53,15 +67,13 @@ export const useInboxes = () => {
    * Cria uma nova caixa de entrada
    */
   const createInbox = async (inboxData: Omit<InboxInsert, 'user_id'>) => {
-    if (!user.value) {
-      throw new Error('Usuário não autenticado')
-    }
+    const userId = await getCurrentUserId()
 
     const { data, error } = await supabase
       .from('inboxes')
       .insert({
         ...inboxData,
-        user_id: user.value.id,
+        user_id: userId,
         status: 'disconnected'
       })
       .select()
@@ -79,15 +91,13 @@ export const useInboxes = () => {
    * Atualiza uma caixa de entrada existente
    */
   const updateInbox = async (id: string, inboxData: InboxUpdate) => {
-    if (!user.value) {
-      throw new Error('Usuário não autenticado')
-    }
+    const userId = await getCurrentUserId()
 
     const { data, error } = await supabase
       .from('inboxes')
       .update(inboxData)
       .eq('id', id)
-      .eq('user_id', user.value.id)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -103,15 +113,13 @@ export const useInboxes = () => {
    * Deleta uma caixa de entrada
    */
   const deleteInbox = async (id: string) => {
-    if (!user.value) {
-      throw new Error('Usuário não autenticado')
-    }
+    const userId = await getCurrentUserId()
 
     const { error } = await supabase
       .from('inboxes')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.value.id)
+      .eq('user_id', userId)
 
     if (error) {
       console.error('Erro ao deletar caixa de entrada:', error)

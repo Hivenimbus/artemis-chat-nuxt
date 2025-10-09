@@ -422,6 +422,11 @@
 <script setup>
 import { useInboxes } from '~/composables/useInboxes'
 
+// Middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 // Composable
 const {
   fetchInboxes,
@@ -679,24 +684,46 @@ const loadInboxes = async () => {
     inboxes.value = await fetchInboxes()
   } catch (error) {
     console.error('Erro ao carregar caixas de entrada:', error)
-    alert('Erro ao carregar caixas de entrada.')
+    // Não mostrar alerta se o erro for de autenticação
+    if (error.message !== 'Usuário não autenticado') {
+      alert('Erro ao carregar caixas de entrada.')
+    }
   } finally {
     loading.value = false
   }
 }
 
-// Carregar ao montar componente
-onMounted(() => {
-  loadInboxes()
+// Carregar ao montar componente usando asyncData
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
+let channel = null
+
+// Usar onMounted para garantir que a sessão esteja carregada
+onMounted(async () => {
+  // Aguardar a sessão estar completamente pronta
+  await nextTick()
   
-  // Subscrever a mudanças em tempo real
-  const channel = subscribeToInboxChanges(() => {
-    loadInboxes()
-  })
+  // Verificar se o usuário está autenticado
+  const { data: { session } } = await supabase.auth.getSession()
   
-  onUnmounted(() => {
+  if (session) {
+    // Carregar caixas de entrada
+    await loadInboxes()
+    
+    // Subscrever a mudanças em tempo real
+    channel = subscribeToInboxChanges(() => {
+      loadInboxes()
+    })
+  } else {
+    // Se não houver sessão, redirecionar para login
+    await navigateTo('/')
+  }
+})
+
+onUnmounted(() => {
+  if (channel) {
     channel.unsubscribe()
-  })
+  }
 })
 </script>
 
