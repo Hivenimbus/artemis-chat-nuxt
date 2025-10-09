@@ -189,24 +189,209 @@ onMounted(() => {
 </script>
 ```
 
-## Próximos Passos
+## Integração com Evolution API v2
 
-### Integração WhatsApp
+### Visão Geral
 
-1. **Escolher biblioteca**: Avaliar opções como:
-   - `whatsapp-web.js`
-   - `baileys`
-   - `venom-bot`
+A integração do WhatsApp foi implementada usando a **Evolution API v2**, uma API REST completa para WhatsApp Web baseada em Baileys.
 
-2. **Implementar conexão real**:
-   - Geração de QR Code real
-   - Gestão de sessões
-   - Armazenamento de `session_data`
+### Arquivos da Integração
 
-3. **Webhook/API**:
-   - Endpoint para receber mensagens
-   - Processamento de eventos do WhatsApp
-   - Sincronização de status
+#### 1. Service Layer (`server/services/evolutionApi.ts`)
+
+Serviço server-side que encapsula todas as interações com a Evolution API:
+
+**Classes e Tipos:**
+- `EvolutionApiClient` - Cliente HTTP para Evolution API
+- `EvolutionInstance` - Configuração de instância
+- `EvolutionInstanceStatus` - Status da instância
+- `EvolutionConnectionState` - Estado da conexão
+- `EvolutionWebhookEvent` - Evento de webhook
+
+**Métodos Principais:**
+- `createInstance(config)` - Cria nova instância do WhatsApp
+- `fetchInstance(instanceName)` - Busca status da conexão
+- `deleteInstance(instanceName)` - Remove instância
+- `logoutInstance(instanceName)` - Desconecta do WhatsApp
+- `setWebhook(instanceName, url, events)` - Configura webhook
+- `sendTextMessage(instanceName, message)` - Envia mensagem de texto
+- `getQRCode(instanceName)` - Obtém QR Code
+
+#### 2. API Endpoints
+
+##### `POST /api/evolution/create-instance`
+Cria uma nova instância do WhatsApp e retorna o QR Code:
+
+```typescript
+// Request
+{
+  inboxId: string,
+  name: string,
+  phone?: string  // Opcional para pairing code
+}
+
+// Response
+{
+  success: true,
+  inbox: Inbox,
+  instance: {
+    name: string,
+    status: string,
+    qrCode: string,  // Base64 do QR Code
+    pairingCode?: string
+  }
+}
+```
+
+##### `GET /api/evolution/status/:inboxId`
+Verifica o status atual de uma instância:
+
+```typescript
+// Response
+{
+  success: true,
+  status: 'open' | 'close' | 'connecting' | 'not_connected',
+  inbox: Inbox
+}
+```
+
+##### `POST /api/evolution/disconnect`
+Desconecta e remove uma instância:
+
+```typescript
+// Request
+{
+  inboxId: string
+}
+
+// Response
+{
+  success: true,
+  inbox: Inbox,
+  message: string
+}
+```
+
+#### 3. Webhook Handler (`server/api/webhooks/evolution.post.ts`)
+
+Endpoint que recebe eventos da Evolution API:
+
+**Eventos Tratados:**
+- `QRCODE_UPDATED` - Atualiza QR Code no banco
+- `CONNECTION_UPDATE` - Atualiza status da conexão
+- `MESSAGES_UPSERT` - Nova mensagem recebida
+- `MESSAGES_UPDATE` - Atualização de mensagem
+- `MESSAGES_DELETE` - Mensagem deletada
+
+**Funções Handler:**
+- `handleQRCodeUpdate()` - Processa atualização de QR Code
+- `handleConnectionUpdate()` - Processa mudança de status
+- `handleNewMessage()` - Processa nova mensagem
+- `handleMessageUpdate()` - Processa atualização de mensagem
+- `handleMessageDelete()` - Processa deleção de mensagem
+
+### Fluxo de Conexão
+
+1. **Usuário solicita conexão**:
+   - Frontend chama `connectInbox(id, name, phone?)`
+   - Composable faz POST para `/api/evolution/create-instance`
+
+2. **Backend cria instância**:
+   - API endpoint chama Evolution API para criar instância
+   - Gera nome único: `inbox_{inboxId}_{timestamp}`
+   - Configura webhook para eventos
+   - Retorna QR Code em base64
+
+3. **Banco é atualizado**:
+   - `session_data` armazena: `{ instanceName, status, pairingCode }`
+   - `qr_code` armazena base64 do QR Code
+   - `status` muda para 'connecting'
+
+4. **Usuário escaneia QR Code**:
+   - Evolution API detecta conexão
+   - Envia webhook `CONNECTION_UPDATE` com `state: 'open'`
+
+5. **Webhook processa evento**:
+   - Atualiza `status` para 'connected'
+   - Limpa `qr_code`
+   - Atualiza `session_data` com novo estado
+
+### Configuração
+
+#### Variáveis de Ambiente (`.env`)
+
+```bash
+# Evolution API
+EVOLUTION_API_URL=https://your-evolution-api.com
+EVOLUTION_API_KEY=your-api-key
+
+# Site URL (para webhooks)
+SITE_URL=https://your-site.com
+
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+#### Runtime Config (`nuxt.config.ts`)
+
+```typescript
+runtimeConfig: {
+  // Server-only
+  evolutionApiKey: process.env.EVOLUTION_API_KEY,
+  
+  // Public
+  public: {
+    evolutionApiUrl: process.env.EVOLUTION_API_URL,
+    siteUrl: process.env.SITE_URL
+  }
+}
+```
+
+### Segurança
+
+1. **API Key**: Mantida apenas no server (nunca exposta ao client)
+2. **Autenticação**: Endpoints verificam sessão do usuário
+3. **RLS**: Garante acesso apenas às próprias inboxes
+4. **Webhook**: Usa Supabase Service Role para evitar RLS
+
+### Uso Atualizado do Composable
+
+```vue
+<script setup>
+const { connectInbox, disconnectInbox, checkInboxStatus } = useInboxes()
+
+// Conectar caixa
+const handleConnect = async (inboxId: string) => {
+  try {
+    const inbox = await connectInbox(
+      inboxId,
+      'Minha Caixa',
+      '5511999999999'  // Opcional
+    )
+    
+    // QR Code disponível em: inbox.qr_code
+    // Exibir para o usuário escanear
+  } catch (error) {
+    console.error('Erro:', error)
+  }
+}
+
+// Verificar status
+const checkStatus = async (inboxId: string) => {
+  const inbox = await checkInboxStatus(inboxId)
+  // inbox.status: 'connected' | 'disconnected' | 'connecting'
+}
+
+// Desconectar
+const handleDisconnect = async (inboxId: string) => {
+  await disconnectInbox(inboxId)
+}
+</script>
+```
+
+### Próximos Passos
 
 ### Features Adicionais
 
@@ -260,7 +445,9 @@ supabase db diff -f create_inboxes_table
 
 ## Status da Implementação
 
-✅ **IMPLEMENTADO COM SUCESSO** - 09/10/2025
+✅ **IMPLEMENTADO COM SUCESSO**
+
+**Última Atualização**: 09/10/2025 - Integração com Evolution API v2
 
 ### Verificação da Implementação
 

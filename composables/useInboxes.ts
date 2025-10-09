@@ -122,95 +122,73 @@ export const useInboxes = () => {
   }
 
   /**
-   * Conecta uma caixa de entrada ao WhatsApp
-   * Esta função será expandida quando integrar com a biblioteca do WhatsApp
+   * Conecta uma caixa de entrada ao WhatsApp usando Evolution API
+   * Cria uma instância do WhatsApp e retorna o QR Code para escaneamento
    */
-  const connectInbox = async (id: string, phoneNumber: string) => {
+  const connectInbox = async (id: string, name: string, phoneNumber?: string) => {
     if (!user.value) {
       throw new Error('Usuário não autenticado')
     }
 
-    // Por enquanto, apenas atualiza o status
-    // TODO: Implementar lógica de conexão real com WhatsApp
-    const { data, error } = await supabase
-      .from('inboxes')
-      .update({
-        status: 'connected',
-        phone_number: phoneNumber,
-        connected_at: new Date().toISOString()
+    try {
+      // Call our Nuxt API endpoint to create Evolution instance
+      const response = await $fetch('/api/evolution/create-instance', {
+        method: 'POST',
+        body: {
+          inboxId: id,
+          name,
+          phone: phoneNumber
+        }
       })
-      .eq('id', id)
-      .eq('user_id', user.value.id)
-      .select()
-      .single()
 
-    if (error) {
+      return response.inbox as Inbox
+    } catch (error: any) {
       console.error('Erro ao conectar caixa de entrada:', error)
-      throw error
+      throw new Error(error.data?.message || error.message || 'Falha ao conectar ao WhatsApp')
     }
-
-    return data as Inbox
   }
 
   /**
-   * Desconecta uma caixa de entrada do WhatsApp
+   * Desconecta uma caixa de entrada do WhatsApp usando Evolution API
    */
   const disconnectInbox = async (id: string) => {
     if (!user.value) {
       throw new Error('Usuário não autenticado')
     }
 
-    // TODO: Implementar lógica de desconexão real com WhatsApp
-    const { data, error } = await supabase
-      .from('inboxes')
-      .update({
-        status: 'disconnected',
-        phone_number: null,
-        qr_code: null,
-        session_data: null
+    try {
+      // Call our Nuxt API endpoint to disconnect Evolution instance
+      const response = await $fetch('/api/evolution/disconnect', {
+        method: 'POST',
+        body: { inboxId: id }
       })
-      .eq('id', id)
-      .eq('user_id', user.value.id)
-      .select()
-      .single()
 
-    if (error) {
+      return response.inbox as Inbox
+    } catch (error: any) {
       console.error('Erro ao desconectar caixa de entrada:', error)
-      throw error
+      throw new Error(error.data?.message || error.message || 'Falha ao desconectar do WhatsApp')
     }
-
-    return data as Inbox
   }
 
   /**
-   * Gera um QR Code para conexão do WhatsApp
-   * Esta função será expandida quando integrar com a biblioteca do WhatsApp
+   * Verifica o status de conexão de uma caixa de entrada
+   * Obtém o status atualizado da Evolution API
    */
-  const generateQRCode = async (id: string) => {
+  const checkInboxStatus = async (id: string) => {
     if (!user.value) {
       throw new Error('Usuário não autenticado')
     }
 
-    // TODO: Implementar lógica de geração de QR Code real
-    // Por enquanto, retorna um placeholder
-    const qrCode = 'QR_CODE_PLACEHOLDER_' + Date.now()
-
-    const { data, error } = await supabase
-      .from('inboxes')
-      .update({
-        qr_code: qrCode
+    try {
+      const response = await $fetch(`/api/evolution/status/${id}`, {
+        method: 'GET'
       })
-      .eq('id', id)
-      .eq('user_id', user.value.id)
-      .select()
-      .single()
 
-    if (error) {
-      console.error('Erro ao gerar QR Code:', error)
-      throw error
+      return response.inbox as Inbox
+    } catch (error: any) {
+      console.error('Erro ao verificar status da caixa de entrada:', error)
+      throw new Error(error.data?.message || error.message || 'Falha ao verificar status')
     }
-
-    return data as Inbox
   }
 
   /**
@@ -246,7 +224,7 @@ export const useInboxes = () => {
     deleteInbox,
     connectInbox,
     disconnectInbox,
-    generateQRCode,
+    checkInboxStatus,
     subscribeToInboxChanges
   }
 }

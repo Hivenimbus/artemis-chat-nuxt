@@ -46,7 +46,19 @@
 
       <!-- Lista de caixas de entrada -->
       <div class="bg-white shadow rounded-lg flex-1 flex flex-col overflow-hidden">
-        <div class="flex-1 overflow-y-auto custom-scrollbar-container">
+        <!-- Loading State -->
+        <div v-if="loading && inboxes.length === 0" class="flex-1 flex items-center justify-center p-12">
+          <div class="text-center">
+            <svg class="animate-spin mx-auto h-12 w-12 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-sm text-gray-500">Carregando caixas de entrada...</p>
+          </div>
+        </div>
+        
+        <!-- Content -->
+        <div v-else class="flex-1 overflow-y-auto custom-scrollbar-container">
           <div class="p-4 space-y-3">
             <div
               v-for="inbox in filteredInboxes"
@@ -79,17 +91,17 @@
                       {{ inbox.description }}
                     </p>
                     <div class="mt-2 flex items-center space-x-4 text-xs text-gray-400">
-                      <span v-if="inbox.phoneNumber" class="flex items-center">
+                      <span v-if="inbox.whatsapp_phone" class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                         </svg>
-                        {{ formatPhone(inbox.phoneNumber) }}
+                        {{ formatPhone(inbox.whatsapp_phone) }}
                       </span>
                       <span class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        Criada em {{ formatDate(inbox.createdAt) }}
+                        Criada em {{ formatDate(inbox.created_at) }}
                       </span>
                     </div>
                   </div>
@@ -100,11 +112,16 @@
                   <button
                     v-if="inbox.status === 'disconnected'"
                     @click="showQRCode(inbox)"
-                    class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    :disabled="loading"
+                    class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Conectar WhatsApp"
                   >
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg v-if="!loading" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
+                    <svg v-else class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   </button>
                   <button
@@ -150,6 +167,7 @@
               </p>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -219,9 +237,19 @@
           </button>
           <button
             @click="saveInbox"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            :disabled="loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ isEditing ? 'Salvar Alterações' : 'Criar' }}
+            <span v-if="loading" class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Salvando...
+            </span>
+            <span v-else>
+              {{ isEditing ? 'Salvar Alterações' : 'Criar' }}
+            </span>
           </button>
         </div>
       </div>
@@ -264,81 +292,19 @@
             <!-- QR Code -->
             <div class="flex justify-center mb-6">
               <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
-                <div class="w-64 h-64 bg-gray-50 flex items-center justify-center">
-                  <!-- QR Code SVG Placeholder -->
-                  <svg class="w-full h-full" viewBox="0 0 100 100">
-                    <!-- Cantos do QR Code -->
-                    <rect x="0" y="0" width="30" height="30" fill="black"/>
-                    <rect x="5" y="5" width="20" height="20" fill="white"/>
-                    <rect x="10" y="10" width="10" height="10" fill="black"/>
-                    
-                    <rect x="70" y="0" width="30" height="30" fill="black"/>
-                    <rect x="75" y="5" width="20" height="20" fill="white"/>
-                    <rect x="80" y="10" width="10" height="10" fill="black"/>
-                    
-                    <rect x="0" y="70" width="30" height="30" fill="black"/>
-                    <rect x="5" y="75" width="20" height="20" fill="white"/>
-                    <rect x="10" y="80" width="10" height="10" fill="black"/>
-                    
-                    <!-- Padrão aleatório do QR Code -->
-                    <rect x="35" y="5" width="5" height="5" fill="black"/>
-                    <rect x="45" y="5" width="5" height="5" fill="black"/>
-                    <rect x="55" y="5" width="5" height="5" fill="black"/>
-                    <rect x="40" y="15" width="5" height="5" fill="black"/>
-                    <rect x="50" y="15" width="5" height="5" fill="black"/>
-                    <rect x="35" y="25" width="5" height="5" fill="black"/>
-                    <rect x="45" y="25" width="5" height="5" fill="black"/>
-                    <rect x="55" y="25" width="5" height="5" fill="black"/>
-                    
-                    <rect x="5" y="35" width="5" height="5" fill="black"/>
-                    <rect x="15" y="35" width="5" height="5" fill="black"/>
-                    <rect x="25" y="35" width="5" height="5" fill="black"/>
-                    <rect x="35" y="35" width="5" height="5" fill="black"/>
-                    <rect x="45" y="35" width="5" height="5" fill="black"/>
-                    <rect x="55" y="35" width="5" height="5" fill="black"/>
-                    <rect x="65" y="35" width="5" height="5" fill="black"/>
-                    <rect x="75" y="35" width="5" height="5" fill="black"/>
-                    <rect x="85" y="35" width="5" height="5" fill="black"/>
-                    <rect x="95" y="35" width="5" height="5" fill="black"/>
-                    
-                    <rect x="10" y="45" width="5" height="5" fill="black"/>
-                    <rect x="20" y="45" width="5" height="5" fill="black"/>
-                    <rect x="40" y="45" width="5" height="5" fill="black"/>
-                    <rect x="60" y="45" width="5" height="5" fill="black"/>
-                    <rect x="80" y="45" width="5" height="5" fill="black"/>
-                    <rect x="90" y="45" width="5" height="5" fill="black"/>
-                    
-                    <rect x="5" y="55" width="5" height="5" fill="black"/>
-                    <rect x="25" y="55" width="5" height="5" fill="black"/>
-                    <rect x="35" y="55" width="5" height="5" fill="black"/>
-                    <rect x="55" y="55" width="5" height="5" fill="black"/>
-                    <rect x="65" y="55" width="5" height="5" fill="black"/>
-                    <rect x="85" y="55" width="5" height="5" fill="black"/>
-                    <rect x="95" y="55" width="5" height="5" fill="black"/>
-                    
-                    <rect x="35" y="65" width="5" height="5" fill="black"/>
-                    <rect x="45" y="65" width="5" height="5" fill="black"/>
-                    <rect x="55" y="65" width="5" height="5" fill="black"/>
-                    <rect x="65" y="65" width="5" height="5" fill="black"/>
-                    <rect x="75" y="65" width="5" height="5" fill="black"/>
-                    <rect x="85" y="65" width="5" height="5" fill="black"/>
-                    
-                    <rect x="40" y="75" width="5" height="5" fill="black"/>
-                    <rect x="50" y="75" width="5" height="5" fill="black"/>
-                    <rect x="60" y="75" width="5" height="5" fill="black"/>
-                    <rect x="80" y="75" width="5" height="5" fill="black"/>
-                    <rect x="90" y="75" width="5" height="5" fill="black"/>
-                    
-                    <rect x="35" y="85" width="5" height="5" fill="black"/>
-                    <rect x="55" y="85" width="5" height="5" fill="black"/>
-                    <rect x="65" y="85" width="5" height="5" fill="black"/>
-                    <rect x="75" y="85" width="5" height="5" fill="black"/>
-                    <rect x="95" y="85" width="5" height="5" fill="black"/>
-                    
-                    <rect x="40" y="95" width="5" height="5" fill="black"/>
-                    <rect x="60" y="95" width="5" height="5" fill="black"/>
-                    <rect x="70" y="95" width="5" height="5" fill="black"/>
-                    <rect x="90" y="95" width="5" height="5" fill="black"/>
+                <div v-if="qrCodeData" class="w-64 h-64">
+                  <!-- QR Code Real em Base64 -->
+                  <img 
+                    :src="`data:image/png;base64,${qrCodeData}`" 
+                    alt="WhatsApp QR Code"
+                    class="w-full h-full"
+                  />
+                </div>
+                <div v-else class="w-64 h-64 bg-gray-50 flex items-center justify-center">
+                  <!-- Loading spinner -->
+                  <svg class="animate-spin h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </div>
               </div>
@@ -429,8 +395,8 @@
               <p class="mt-2 text-sm text-gray-500">
                 Tem certeza que deseja desconectar o WhatsApp da caixa de entrada <strong>"{{ inboxToDisconnect?.name }}"</strong>?
               </p>
-              <p class="mt-2 text-sm text-gray-500">
-                O número <strong>{{ formatPhone(inboxToDisconnect?.phoneNumber) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
+              <p v-if="inboxToDisconnect?.whatsapp_phone" class="mt-2 text-sm text-gray-500">
+                O número <strong>{{ formatPhone(inboxToDisconnect?.whatsapp_phone) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
               </p>
             </div>
           </div>
@@ -455,6 +421,20 @@
 </template>
 
 <script setup>
+import { useInboxes } from '~/composables/useInboxes'
+
+// Composable
+const {
+  fetchInboxes,
+  createInbox,
+  updateInbox,
+  deleteInbox: deleteInboxFromDB,
+  connectInbox: connectInboxToWhatsApp,
+  disconnectInbox: disconnectInboxFromWhatsApp,
+  checkInboxStatus,
+  subscribeToInboxChanges
+} = useInboxes()
+
 // Estado
 const searchTerm = ref('')
 const showModal = ref(false)
@@ -465,6 +445,8 @@ const isEditing = ref(false)
 const selectedInbox = ref(null)
 const inboxToDelete = ref(null)
 const inboxToDisconnect = ref(null)
+const loading = ref(false)
+const qrCodeData = ref(null)
 
 // Dados do formulário
 const formData = ref({
@@ -476,45 +458,8 @@ const errors = ref({
   name: ''
 })
 
-// Dados mockados de caixas de entrada
-const inboxes = ref([
-  {
-    id: 1,
-    name: 'Atendimento Principal',
-    description: 'Caixa de entrada principal para atendimento ao cliente',
-    status: 'connected',
-    phoneNumber: '5511999999999',
-    createdAt: new Date('2024-01-15'),
-    connectedAt: new Date('2024-01-15')
-  },
-  {
-    id: 2,
-    name: 'Vendas',
-    description: 'Dedicada ao time de vendas',
-    status: 'connected',
-    phoneNumber: '5511988888888',
-    createdAt: new Date('2024-02-10'),
-    connectedAt: new Date('2024-02-10')
-  },
-  {
-    id: 3,
-    name: 'Suporte Técnico',
-    description: 'Para questões técnicas e suporte avançado',
-    status: 'disconnected',
-    phoneNumber: null,
-    createdAt: new Date('2024-03-05'),
-    connectedAt: null
-  },
-  {
-    id: 4,
-    name: 'Financeiro',
-    description: 'Atendimento do setor financeiro',
-    status: 'connected',
-    phoneNumber: '5511977777777',
-    createdAt: new Date('2024-03-20'),
-    connectedAt: new Date('2024-03-20')
-  }
-])
+// Dados das caixas de entrada (carregados do Supabase)
+const inboxes = ref([])
 
 // Computed
 const filteredInboxes = computed(() => {
@@ -603,49 +548,73 @@ const validateForm = () => {
   return isValid
 }
 
-const saveInbox = () => {
+const saveInbox = async () => {
   if (!validateForm()) return
 
-  if (isEditing.value) {
-    // Editar caixa de entrada existente
-    const index = inboxes.value.findIndex(i => i.id === formData.value.id)
-    if (index !== -1) {
-      inboxes.value[index] = {
-        ...inboxes.value[index],
+  loading.value = true
+  try {
+    if (isEditing.value) {
+      // Editar caixa de entrada existente
+      await updateInbox(formData.value.id, {
         name: formData.value.name,
         description: formData.value.description
-      }
+      })
+      
+      // Recarregar lista
+      await loadInboxes()
+      closeModal()
+    } else {
+      // Criar nova caixa de entrada
+      const newInbox = await createInbox({
+        name: formData.value.name,
+        description: formData.value.description
+      })
+      
+      // Recarregar lista
+      await loadInboxes()
+      closeModal()
+      
+      // Mostrar QR Code automaticamente após criar
+      setTimeout(() => {
+        showQRCode(newInbox)
+      }, 300)
     }
-    closeModal()
-  } else {
-    // Criar nova caixa de entrada
-    const newInbox = {
-      id: Math.max(...inboxes.value.map(i => i.id)) + 1,
-      name: formData.value.name,
-      description: formData.value.description,
-      status: 'disconnected',
-      phoneNumber: null,
-      createdAt: new Date(),
-      connectedAt: null
-    }
-    inboxes.value.push(newInbox)
-    closeModal()
-    
-    // Mostrar QR Code automaticamente após criar
-    setTimeout(() => {
-      showQRCode(newInbox)
-    }, 300)
+  } catch (error) {
+    console.error('Erro ao salvar caixa de entrada:', error)
+    alert('Erro ao salvar caixa de entrada. Tente novamente.')
+  } finally {
+    loading.value = false
   }
 }
 
-const showQRCode = (inbox) => {
-  selectedInbox.value = inbox
-  showQRModal.value = true
+const showQRCode = async (inbox) => {
+  loading.value = true
+  try {
+    // Conectar ao WhatsApp e obter QR Code
+    const result = await connectInboxToWhatsApp(
+      inbox.id,
+      inbox.name,
+      inbox.whatsapp_phone
+    )
+    
+    selectedInbox.value = result
+    qrCodeData.value = result.qr_code
+    showQRModal.value = true
+    
+    // Recarregar lista para atualizar status
+    await loadInboxes()
+  } catch (error) {
+    console.error('Erro ao conectar WhatsApp:', error)
+    alert('Erro ao gerar QR Code. Verifique sua conexão e tente novamente.')
+  } finally {
+    loading.value = false
+  }
 }
 
 const closeQRModal = () => {
   showQRModal.value = false
   selectedInbox.value = null
+  qrCodeData.value = null
 }
 
 const confirmDelete = (inbox) => {
@@ -658,14 +627,22 @@ const closeDeleteModal = () => {
   inboxToDelete.value = null
 }
 
-const deleteInbox = () => {
-  if (inboxToDelete.value) {
-    const index = inboxes.value.findIndex(i => i.id === inboxToDelete.value.id)
-    if (index !== -1) {
-      inboxes.value.splice(index, 1)
-    }
+const deleteInbox = async () => {
+  if (!inboxToDelete.value) return
+  
+  loading.value = true
+  try {
+    await deleteInboxFromDB(inboxToDelete.value.id)
+    
+    // Recarregar lista
+    await loadInboxes()
+    closeDeleteModal()
+  } catch (error) {
+    console.error('Erro ao excluir caixa de entrada:', error)
+    alert('Erro ao excluir caixa de entrada. Tente novamente.')
+  } finally {
+    loading.value = false
   }
-  closeDeleteModal()
 }
 
 const confirmDisconnect = (inbox) => {
@@ -678,20 +655,50 @@ const closeDisconnectModal = () => {
   inboxToDisconnect.value = null
 }
 
-const disconnectInbox = () => {
-  if (inboxToDisconnect.value) {
-    const index = inboxes.value.findIndex(i => i.id === inboxToDisconnect.value.id)
-    if (index !== -1) {
-      inboxes.value[index] = {
-        ...inboxes.value[index],
-        status: 'disconnected',
-        phoneNumber: null,
-        connectedAt: null
-      }
-    }
+const disconnectInbox = async () => {
+  if (!inboxToDisconnect.value) return
+  
+  loading.value = true
+  try {
+    await disconnectInboxFromWhatsApp(inboxToDisconnect.value.id)
+    
+    // Recarregar lista
+    await loadInboxes()
+    closeDisconnectModal()
+  } catch (error) {
+    console.error('Erro ao desconectar WhatsApp:', error)
+    alert('Erro ao desconectar WhatsApp. Tente novamente.')
+  } finally {
+    loading.value = false
   }
-  closeDisconnectModal()
 }
+
+// Carregar caixas de entrada
+const loadInboxes = async () => {
+  loading.value = true
+  try {
+    inboxes.value = await fetchInboxes()
+  } catch (error) {
+    console.error('Erro ao carregar caixas de entrada:', error)
+    alert('Erro ao carregar caixas de entrada.')
+  } finally {
+    loading.value = false
+  }
+}
+
+// Carregar ao montar componente
+onMounted(() => {
+  loadInboxes()
+  
+  // Subscrever a mudanças em tempo real
+  const channel = subscribeToInboxChanges(() => {
+    loadInboxes()
+  })
+  
+  onUnmounted(() => {
+    channel.unsubscribe()
+  })
+})
 </script>
 
 <style scoped>
