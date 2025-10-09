@@ -10,12 +10,16 @@ import { useEvolutionApi } from '~/server/services/evolutionApi'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get authenticated user
-    const user = await getServerUser(event)
-    if (!user) {
+    // Get Supabase client to retrieve user from session
+    const supabase = await useSupabaseServer(event)
+    
+    // Get user from Supabase session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (!user || !user.id) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized - User not authenticated',
+        statusMessage: 'Unauthorized - User not authenticated or missing user ID',
       })
     }
 
@@ -31,7 +35,6 @@ export default defineEventHandler(async (event) => {
     }
 
     // Fetch inbox from Supabase
-    const supabase = await useSupabaseServer(event)
     const { data: inbox, error } = await supabase
       .from('inboxes')
       .select('*')

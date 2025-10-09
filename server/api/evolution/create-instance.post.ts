@@ -11,12 +11,19 @@ import { useEvolutionApi, getDefaultWebhookEvents } from '~/server/services/evol
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get authenticated user from session
-    const user = await getServerUser(event)
-    if (!user) {
+    // Get Supabase client to retrieve user from session
+    const supabase = await useSupabaseServer(event)
+    
+    // Get user from Supabase session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    console.log('User from Supabase session:', user ? { id: user.id, email: user.email } : 'null')
+    console.log('Auth error:', authError)
+    
+    if (!user || !user.id) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized - User not authenticated',
+        statusMessage: 'Unauthorized - User not authenticated or missing user ID',
       })
     }
 
@@ -68,8 +75,6 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update inbox in Supabase with instance details
-    const supabase = await useSupabaseServer(event)
-    
     console.log('Updating inbox in Supabase:', { inboxId, hasQrCode: !!instanceData.qrcode?.base64 })
     
     const { data: updatedInbox, error } = await supabase
