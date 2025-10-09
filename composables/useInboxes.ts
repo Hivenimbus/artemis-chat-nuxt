@@ -149,6 +149,10 @@ export const useInboxes = () => {
         }
       })
 
+      console.log('API Response:', response)
+      console.log('Inbox data:', response.inbox)
+      console.log('QR Code in inbox:', response.inbox?.qr_code)
+
       return response.inbox as Inbox
     } catch (error: any) {
       console.error('Erro ao conectar caixa de entrada:', error)

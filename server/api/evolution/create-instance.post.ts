@@ -58,6 +58,8 @@ export default defineEventHandler(async (event) => {
       integration: 'WHATSAPP-BAILEYS', // Use Baileys (WhatsApp Web)
     })
 
+    console.log('Instance created:', JSON.stringify(instanceData, null, 2))
+    console.log('QR Code base64 present:', !!instanceData.qrcode?.base64)
     console.log('Instance created, configuring webhook events...')
 
     // Configure webhook events after instance creation
@@ -75,7 +77,12 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update inbox in Supabase with instance details
-    console.log('Updating inbox in Supabase:', { inboxId, hasQrCode: !!instanceData.qrcode?.base64 })
+    const qrCodeLength = instanceData.qrcode?.base64?.length || 0
+    console.log('Updating inbox in Supabase:', { 
+      inboxId, 
+      hasQrCode: !!instanceData.qrcode?.base64,
+      qrCodeLength 
+    })
     
     const { data: updatedInbox, error } = await supabase
       .from('inboxes')

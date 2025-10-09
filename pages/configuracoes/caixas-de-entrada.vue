@@ -294,7 +294,7 @@
                 <div v-if="qrCodeData" class="w-64 h-64">
                   <!-- QR Code Real em Base64 -->
                   <img 
-                    :src="`data:image/png;base64,${qrCodeData}`" 
+                    :src="qrCodeSrc" 
                     alt="WhatsApp QR Code"
                     class="w-full h-full"
                   />
@@ -477,6 +477,20 @@ const filteredInboxes = computed(() => {
   )
 })
 
+// Computed property para o src do QR Code
+// Verifica se o qrCodeData já contém o prefixo data URI
+const qrCodeSrc = computed(() => {
+  if (!qrCodeData.value) return ''
+  
+  // Se já começa com 'data:', retorna como está
+  if (qrCodeData.value.startsWith('data:')) {
+    return qrCodeData.value
+  }
+  
+  // Caso contrário, adiciona o prefixo
+  return `data:image/png;base64,${qrCodeData.value}`
+})
+
 // Métodos
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('pt-BR', {
@@ -600,6 +614,9 @@ const showQRCode = async (inbox) => {
       inbox.name,
       inbox.phone_number
     )
+    
+    console.log('Connect result:', result)
+    console.log('QR Code data:', result.qr_code)
     
     selectedInbox.value = result
     qrCodeData.value = result.qr_code
