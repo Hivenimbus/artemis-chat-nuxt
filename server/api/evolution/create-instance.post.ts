@@ -41,29 +41,41 @@ export default defineEventHandler(async (event) => {
     // Initialize Evolution API client
     const evolutionApi = useEvolutionApi(event)
 
-    // Create instance with Evolution API
+    console.log('Creating instance:', { instanceName, phone })
+
+    // Create instance with Evolution API - using minimal required fields
+    // Webhook will be configured separately after instance creation
     const instanceData = await evolutionApi.createInstance({
       instanceName,
-      number: phone, // Optional - for pairing code generation
       qrcode: true,  // Request QR code
       integration: 'WHATSAPP-BAILEYS', // Use Baileys (WhatsApp Web)
     })
 
-    // Configure webhook for the instance
-    await evolutionApi.setWebhook(
-      instanceName,
-      webhookUrl,
-      getDefaultWebhookEvents(),
-      false // Don't split by events
-    )
+    console.log('Instance created, configuring webhook events...')
+
+    // Configure webhook events after instance creation
+    try {
+      await evolutionApi.setWebhook(
+        instanceName,
+        webhookUrl,
+        getDefaultWebhookEvents(),
+        false // Don't split by events
+      )
+      console.log('Webhook events configured successfully')
+    } catch (webhookError) {
+      console.warn('Failed to configure webhook events:', webhookError)
+      // Continue anyway, as the webhook URL is already set
+    }
 
     // Update inbox in Supabase with instance details
     const supabase = await useSupabaseServer(event)
     
+    console.log('Updating inbox in Supabase:', { inboxId, hasQrCode: !!instanceData.qrcode?.base64 })
+    
     const { data: updatedInbox, error } = await supabase
       .from('inboxes')
       .update({
-        whatsapp_phone: phone || null,
+        // phone_number will be updated later via webhook when connection is established
         qr_code: instanceData.qrcode?.base64 || null,
         session_data: {
           instanceName,

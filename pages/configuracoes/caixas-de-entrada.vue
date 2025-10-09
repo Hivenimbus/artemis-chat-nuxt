@@ -91,11 +91,11 @@
                       {{ inbox.description }}
                     </p>
                     <div class="mt-2 flex items-center space-x-4 text-xs text-gray-400">
-                      <span v-if="inbox.whatsapp_phone" class="flex items-center">
+                      <span v-if="inbox.phone_number" class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                         </svg>
-                        {{ formatPhone(inbox.whatsapp_phone) }}
+                        {{ formatPhone(inbox.phone_number) }}
                       </span>
                       <span class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,8 +394,8 @@
               <p class="mt-2 text-sm text-gray-500">
                 Tem certeza que deseja desconectar o WhatsApp da caixa de entrada <strong>"{{ inboxToDisconnect?.name }}"</strong>?
               </p>
-              <p v-if="inboxToDisconnect?.whatsapp_phone" class="mt-2 text-sm text-gray-500">
-                O número <strong>{{ formatPhone(inboxToDisconnect?.whatsapp_phone) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
+              <p v-if="inboxToDisconnect?.phone_number" class="mt-2 text-sm text-gray-500">
+                O número <strong>{{ formatPhone(inboxToDisconnect?.phone_number) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
               </p>
             </div>
           </div>
@@ -473,7 +473,7 @@ const filteredInboxes = computed(() => {
   return inboxes.value.filter(inbox => 
     inbox.name.toLowerCase().includes(term) ||
     (inbox.description && inbox.description.toLowerCase().includes(term)) ||
-    (inbox.phoneNumber && inbox.phoneNumber.includes(term))
+    (inbox.phone_number && inbox.phone_number.includes(term))
   )
 })
 
@@ -598,7 +598,7 @@ const showQRCode = async (inbox) => {
     const result = await connectInboxToWhatsApp(
       inbox.id,
       inbox.name,
-      inbox.whatsapp_phone
+      inbox.phone_number
     )
     
     selectedInbox.value = result

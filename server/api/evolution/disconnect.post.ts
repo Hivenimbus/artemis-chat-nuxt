@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
       .from('inboxes')
       .update({
         status: 'disconnected',
-        whatsapp_phone: null,
+        phone_number: null,
         qr_code: null,
         session_data: null,
         updated_at: new Date().toISOString(),
