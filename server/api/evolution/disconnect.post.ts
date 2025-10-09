@@ -11,11 +11,11 @@ import { useEvolutionApi } from '~/server/services/evolutionApi'
 export default defineEventHandler(async (event) => {
   try {
     // Get authenticated user
-    const user = event.context.user
+    const user = await getServerUser(event)
     if (!user) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Unauthorized',
+        statusMessage: 'Unauthorized - User not authenticated',
       })
     }
 
