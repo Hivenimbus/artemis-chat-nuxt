@@ -43,8 +43,8 @@
           <!-- Dropdown Menu -->
           <div
             v-if="showUserMenu"
-            v-click-outside="closeUserMenu"
-            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200"
+            ref="userMenuRef"
+            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-[9999] border border-gray-200 pointer-events-auto"
           >
             <NuxtLink
               to="/profile"
@@ -106,9 +106,12 @@ const notificationCount = ref(3)
 
 // Estados
 const showUserMenu = ref(false)
+const userMenuRef = ref(null)
 
 // Métodos
-const toggleUserMenu = () => {
+const toggleUserMenu = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
   showUserMenu.value = !showUserMenu.value
 }
 
@@ -118,24 +121,24 @@ const closeUserMenu = () => {
 
 const handleLogout = () => {
   // Lógica de logout aqui
-  console.log('Logout clicked')
   router.push('/login')
 }
 
-// Directive para fechar o menu ao clicar fora
-const vClickOutside = {
-  mounted(el, binding) {
-    el.clickOutsideEvent = function(event) {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event)
-      }
-    }
-    document.addEventListener('click', el.clickOutsideEvent)
-  },
-  unmounted(el) {
-    document.removeEventListener('click', el.clickOutsideEvent)
+// Fechar o menu ao clicar fora
+const handleClickOutside = (event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
+    closeUserMenu()
   }
 }
+
+// Lifecycle hooks
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 // Fechar o menu quando a rota mudar
 watch(() => route.path, () => {

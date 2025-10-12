@@ -18,7 +18,7 @@
     />
 
     <!-- Conteúdo Principal -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col overflow-hidden relative">
       <!-- Header -->
       <AppHeader @toggle-sidebar="toggleSidebar" />
 
