@@ -47,7 +47,14 @@
       <!-- Lista de caixas de entrada -->
       <div class="bg-white shadow rounded-lg flex-1 flex flex-col overflow-hidden">
         <div class="flex-1 overflow-y-auto custom-scrollbar-container">
-          <div class="p-4 space-y-3">
+          <!-- Loading indicator -->
+          <div v-if="loading" class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <span class="ml-3 text-gray-500">Carregando...</span>
+          </div>
+
+          <!-- Lista de inboxes -->
+          <div v-else class="p-4 space-y-3">
             <div
               v-for="inbox in filteredInboxes"
               :key="inbox.id"
@@ -79,11 +86,11 @@
                       {{ inbox.description }}
                     </p>
                     <div class="mt-2 flex items-center space-x-4 text-xs text-gray-400">
-                      <span v-if="inbox.phoneNumber" class="flex items-center">
+                      <span v-if="inbox.phone_number" class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                         </svg>
-                        {{ formatPhone(inbox.phoneNumber) }}
+                        {{ formatPhone(inbox.phone_number) }}
                       </span>
                       <span class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,8 +226,13 @@
           </button>
           <button
             @click="saveInbox"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            :disabled="loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
+            <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
             {{ isEditing ? 'Salvar Alterações' : 'Criar' }}
           </button>
         </div>
@@ -430,7 +442,7 @@
                 Tem certeza que deseja desconectar o WhatsApp da caixa de entrada <strong>"{{ inboxToDisconnect?.name }}"</strong>?
               </p>
               <p class="mt-2 text-sm text-gray-500">
-                O número <strong>{{ formatPhone(inboxToDisconnect?.phoneNumber) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
+                O número <strong>{{ formatPhone(inboxToDisconnect?.phone_number) }}</strong> será desvinculado e você precisará escanear o QR Code novamente para reconectar.
               </p>
             </div>
           </div>
@@ -476,56 +488,39 @@ const errors = ref({
   name: ''
 })
 
-// Dados mockados de caixas de entrada
-const inboxes = ref([
-  {
-    id: 1,
-    name: 'Atendimento Principal',
-    description: 'Caixa de entrada principal para atendimento ao cliente',
-    status: 'connected',
-    phoneNumber: '5511999999999',
-    createdAt: new Date('2024-01-15'),
-    connectedAt: new Date('2024-01-15')
-  },
-  {
-    id: 2,
-    name: 'Vendas',
-    description: 'Dedicada ao time de vendas',
-    status: 'connected',
-    phoneNumber: '5511988888888',
-    createdAt: new Date('2024-02-10'),
-    connectedAt: new Date('2024-02-10')
-  },
-  {
-    id: 3,
-    name: 'Suporte Técnico',
-    description: 'Para questões técnicas e suporte avançado',
-    status: 'disconnected',
-    phoneNumber: null,
-    createdAt: new Date('2024-03-05'),
-    connectedAt: null
-  },
-  {
-    id: 4,
-    name: 'Financeiro',
-    description: 'Atendimento do setor financeiro',
-    status: 'connected',
-    phoneNumber: '5511977777777',
-    createdAt: new Date('2024-03-20'),
-    connectedAt: new Date('2024-03-20')
-  }
-])
+// Usar composable de inboxes
+const { loading, error, createInbox, getInboxes, deleteInbox: deleteInboxApi } = useInboxes()
+
+// Estado reativo para as inboxes
+const inboxes = ref([])
 
 // Computed
 const filteredInboxes = computed(() => {
   if (!searchTerm.value) return inboxes.value
-  
+
   const term = searchTerm.value.toLowerCase()
-  return inboxes.value.filter(inbox => 
+  return inboxes.value.filter(inbox =>
     inbox.name.toLowerCase().includes(term) ||
     (inbox.description && inbox.description.toLowerCase().includes(term)) ||
-    (inbox.phoneNumber && inbox.phoneNumber.includes(term))
+    (inbox.phone_number && inbox.phone_number.includes(term))
   )
+})
+
+// Carregar inboxes ao montar o componente
+const loadInboxes = async () => {
+  try {
+    const response = await getInboxes()
+    if (response.success) {
+      inboxes.value = response.data
+    }
+  } catch (err) {
+    console.error('Erro ao carregar inboxes:', err)
+  }
+}
+
+// Carregar dados ao montar o componente
+onMounted(() => {
+  loadInboxes()
 })
 
 // Métodos
@@ -540,7 +535,10 @@ const formatDate = (date) => {
 const formatPhone = (phone) => {
   if (!phone) return ''
   const cleaned = phone.replace(/\D/g, '')
-  return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`
+  if (cleaned.length >= 10) {
+    return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`
+  }
+  return phone
 }
 
 const getStatusClass = (status) => {
@@ -566,6 +564,10 @@ const openCreateModal = () => {
 }
 
 const openEditModal = (inbox) => {
+  // Desabilitar edição por enquanto
+  console.log('Edição ainda não implementada')
+  return
+
   isEditing.value = true
   formData.value = {
     id: inbox.id,
@@ -603,38 +605,35 @@ const validateForm = () => {
   return isValid
 }
 
-const saveInbox = () => {
+const saveInbox = async () => {
   if (!validateForm()) return
 
-  if (isEditing.value) {
-    // Editar caixa de entrada existente
-    const index = inboxes.value.findIndex(i => i.id === formData.value.id)
-    if (index !== -1) {
-      inboxes.value[index] = {
-        ...inboxes.value[index],
+  try {
+    if (isEditing.value) {
+      // TODO: Implementar edição futuramente
+      console.log('Edição ainda não implementada')
+      closeModal()
+    } else {
+      // Criar nova caixa de entrada
+      const response = await createInbox({
         name: formData.value.name,
         description: formData.value.description
+      })
+
+      if (response.success) {
+        const newInbox = response.data
+        inboxes.value.unshift(newInbox)
+        closeModal()
+
+        // Mostrar QR Code automaticamente após criar
+        setTimeout(() => {
+          showQRCode(newInbox)
+        }, 300)
       }
     }
-    closeModal()
-  } else {
-    // Criar nova caixa de entrada
-    const newInbox = {
-      id: Math.max(...inboxes.value.map(i => i.id)) + 1,
-      name: formData.value.name,
-      description: formData.value.description,
-      status: 'disconnected',
-      phoneNumber: null,
-      createdAt: new Date(),
-      connectedAt: null
-    }
-    inboxes.value.push(newInbox)
-    closeModal()
-    
-    // Mostrar QR Code automaticamente após criar
-    setTimeout(() => {
-      showQRCode(newInbox)
-    }, 300)
+  } catch (err) {
+    console.error('Erro ao salvar inbox:', err)
+    // Mostrar erro para o usuário (poderia usar um toast)
   }
 }
 
@@ -658,11 +657,20 @@ const closeDeleteModal = () => {
   inboxToDelete.value = null
 }
 
-const deleteInbox = () => {
+const deleteInbox = async () => {
   if (inboxToDelete.value) {
-    const index = inboxes.value.findIndex(i => i.id === inboxToDelete.value.id)
-    if (index !== -1) {
-      inboxes.value.splice(index, 1)
+    try {
+      const response = await deleteInboxApi(inboxToDelete.value.id)
+
+      if (response.success) {
+        const index = inboxes.value.findIndex(i => i.id === inboxToDelete.value.id)
+        if (index !== -1) {
+          inboxes.value.splice(index, 1)
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao deletar inbox:', err)
+      // Mostrar erro para o usuário
     }
   }
   closeDeleteModal()
@@ -679,17 +687,8 @@ const closeDisconnectModal = () => {
 }
 
 const disconnectInbox = () => {
-  if (inboxToDisconnect.value) {
-    const index = inboxes.value.findIndex(i => i.id === inboxToDisconnect.value.id)
-    if (index !== -1) {
-      inboxes.value[index] = {
-        ...inboxes.value[index],
-        status: 'disconnected',
-        phoneNumber: null,
-        connectedAt: null
-      }
-    }
-  }
+  // TODO: Implementar desconexão futuramente (deletar instância na Evolution API)
+  console.log('Desconexão ainda não implementada')
   closeDisconnectModal()
 }
 </script>
