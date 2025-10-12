@@ -401,17 +401,11 @@ const props = defineProps({
 
 const route = useRoute()
 
-// Dados do usuário (mockados)
-const userName = ref('Administrador')
-const userEmail = ref('admin@artemis.com')
+// Dados do usuário usando Supabase Auth
+const { userName, userEmail, userInitials } = useAuth()
 
 // Estado do menu de configurações
 const settingsExpanded = ref(false)
-
-// Computados
-const userInitials = computed(() => {
-  return userName.value.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
-})
 
 const isSettingsActive = computed(() => {
   return route.path.startsWith('/configuracoes')
