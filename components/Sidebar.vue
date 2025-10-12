@@ -366,7 +366,7 @@
       </div>
 
       <!-- Painel Superadmin (apenas para usuários com role superadmin) -->
-      <div v-if="isSuperAdmin" class="pt-4 border-t border-gray-200">
+      <div v-if="isSuperAdmin">
         <NuxtLink
           to="/superadmin"
           class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
@@ -439,7 +439,7 @@ const props = defineProps({
 
 const route = useRoute()
 
-// Composables
+// Usar composable de superadmin
 const { isSuperAdmin } = useSuperAdmin()
 
 // Dados do usuário (mockados)
