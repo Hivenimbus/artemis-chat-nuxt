@@ -87,6 +87,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
+const supabase = useSupabaseClient()
 
 // Props
 const props = defineProps({
@@ -119,9 +120,14 @@ const closeUserMenu = () => {
   showUserMenu.value = false
 }
 
-const handleLogout = () => {
-  // Lógica de logout aqui
-  router.push('/login')
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut()
+    closeUserMenu()
+    router.push('/')
+  } catch (error) {
+    console.error('Erro ao fazer logout:', error)
+  }
 }
 
 // Fechar o menu ao clicar fora
