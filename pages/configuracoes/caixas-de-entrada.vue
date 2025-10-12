@@ -273,8 +273,33 @@
               Escaneie o QR Code com seu WhatsApp para conectar
             </p>
 
+            <!-- Status da Conexão -->
+            <div v-if="connectionStatus !== 'unknown'" class="mb-4">
+              <!-- Conectando -->
+              <div v-if="connectionStatus === 'connecting'" class="flex items-center justify-center space-x-2 text-blue-600">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span class="text-sm">Verificando conexão...</span>
+              </div>
+
+              <!-- Conectado com Sucesso -->
+              <div v-else-if="connectionSuccess" class="flex items-center justify-center space-x-2 text-green-600 animate-pulse">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="text-sm font-medium">Conectado com sucesso!</span>
+              </div>
+
+              <!-- Desconectado -->
+              <div v-else-if="connectionStatus === 'disconnected'" class="flex items-center justify-center space-x-2 text-gray-500">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="text-sm">Aguardando conexão...</span>
+              </div>
+            </div>
+
             <!-- QR Code -->
-            <div class="flex justify-center mb-6">
+            <div v-if="!connectionSuccess" class="flex justify-center mb-6">
               <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
                 <div class="w-64 h-64 bg-gray-50 flex items-center justify-center">
                   <!-- Loading -->
@@ -316,8 +341,23 @@
               </div>
             </div>
 
+            <!-- Sucesso - Ícone Grande -->
+            <div v-else class="flex justify-center mb-6">
+              <div class="bg-green-50 p-8 rounded-lg border-2 border-green-200 inline-block">
+                <div class="flex flex-col items-center">
+                  <div class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center animate-bounce">
+                    <svg class="h-16 w-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <p class="mt-4 text-lg font-medium text-green-800">WhatsApp Conectado!</p>
+                  <p class="text-sm text-green-600">{{ selectedInbox?.name }} está pronto para uso</p>
+                </div>
+              </div>
+            </div>
+
             <!-- Instruções -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+            <div v-if="!connectionSuccess" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
               <h5 class="text-sm font-medium text-blue-900 mb-2">Como conectar:</h5>
               <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Abra o WhatsApp no seu celular</li>
@@ -440,6 +480,9 @@ const inboxToDisconnect = ref(null)
 const qrCodeBase64 = ref('')
 const qrCodeLoading = ref(false)
 const qrCodeError = ref('')
+const connectionStatus = ref('unknown')
+const connectionPolling = ref(null)
+const connectionSuccess = ref(false)
 
 // Dados do formulário
 const formData = ref({
@@ -501,6 +544,58 @@ const fetchQRCode = async (inboxId) => {
   } finally {
     qrCodeLoading.value = false
   }
+}
+
+// Função para verificar status da conexão
+const checkConnectionStatus = async (inboxId) => {
+  try {
+    const response = await $fetch(`/api/inboxes/${inboxId}/connection-status`)
+
+    if (response.success) {
+      connectionStatus.value = response.data.connected ? 'connected' : 'disconnected'
+
+      // Se conectou, mostrar sucesso e atualizar UI
+      if (response.data.connected && !connectionSuccess.value) {
+        connectionSuccess.value = true
+
+        // Atualizar inbox na lista local
+        const inboxIndex = inboxes.value.findIndex(i => i.id === inboxId)
+        if (inboxIndex !== -1) {
+          inboxes.value[inboxIndex].status = 'connected'
+        }
+
+        // Fechar modal após 2 segundos
+        setTimeout(() => {
+          closeQRModal()
+        }, 2000)
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao verificar status da conexão:', err)
+  }
+}
+
+// Iniciar polling para verificar conexão
+const startConnectionPolling = (inboxId) => {
+  connectionStatus.value = 'connecting'
+
+  // Verificar imediatamente
+  checkConnectionStatus(inboxId)
+
+  // Configurar polling a cada 3 segundos
+  connectionPolling.value = setInterval(() => {
+    checkConnectionStatus(inboxId)
+  }, 3000)
+}
+
+// Parar polling
+const stopConnectionPolling = () => {
+  if (connectionPolling.value) {
+    clearInterval(connectionPolling.value)
+    connectionPolling.value = null
+  }
+  connectionStatus.value = 'unknown'
+  connectionSuccess.value = false
 }
 
 // Carregar dados ao montar o componente
@@ -628,6 +723,9 @@ const showQRCode = (inbox) => {
 
   // Buscar QR Code real
   fetchQRCode(inbox.id)
+
+  // Iniciar polling para verificar conexão
+  startConnectionPolling(inbox.id)
 }
 
 const closeQRModal = () => {
@@ -635,6 +733,9 @@ const closeQRModal = () => {
   selectedInbox.value = null
   qrCodeBase64.value = ''
   qrCodeError.value = ''
+
+  // Parar polling de conexão
+  stopConnectionPolling()
 }
 
 const confirmDelete = (inbox) => {
