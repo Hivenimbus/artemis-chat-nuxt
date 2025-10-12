@@ -771,9 +771,29 @@ const closeDisconnectModal = () => {
   inboxToDisconnect.value = null
 }
 
-const disconnectInbox = () => {
-  // TODO: Implementar desconexão futuramente (deletar instância na Evolution API)
-  console.log('Desconexão ainda não implementada')
+const disconnectInbox = async () => {
+  if (inboxToDisconnect.value) {
+    try {
+      const response = await $fetch(`/api/inboxes/${inboxToDisconnect.value.id}/disconnect`, {
+        method: 'DELETE'
+      })
+
+      if (response.success) {
+        // Atualizar inbox na lista local
+        const inboxIndex = inboxes.value.findIndex(i => i.id === inboxToDisconnect.value.id)
+        if (inboxIndex !== -1) {
+          inboxes.value[inboxIndex] = {
+            ...inboxes.value[inboxIndex],
+            status: 'disconnected',
+            phone_number: null
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao desconectar inbox:', err)
+      // Mostrar erro para o usuário (poderia usar um toast)
+    }
+  }
   closeDisconnectModal()
 }
 </script>
