@@ -440,17 +440,18 @@ const props = defineProps({
 const route = useRoute()
 
 // Composables
-const { user, isSuperAdmin } = useSuperAdmin()
+const { isSuperAdmin } = useSuperAdmin()
+
+// Dados do usuário (mockados)
+const userName = ref('Administrador')
+const userEmail = ref('admin@artemis.com')
 
 // Estado do menu de configurações
 const settingsExpanded = ref(false)
 
 // Computados
-const userName = computed(() => user.value?.user_metadata?.name || user.value?.name || user.value?.email?.split('@')[0] || 'Usuário')
-const userEmail = computed(() => user.value?.email || '')
 const userInitials = computed(() => {
-  const name = userName.value
-  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+  return userName.value.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 })
 
 const isSettingsActive = computed(() => {
