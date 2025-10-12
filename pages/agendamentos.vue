@@ -395,4 +395,9 @@ const getStatusText = (status) => {
   }
   return texts[status] || status
 }
+
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
 </script>

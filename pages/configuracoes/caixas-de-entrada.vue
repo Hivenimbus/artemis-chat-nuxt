@@ -461,6 +461,11 @@
 </template>
 
 <script setup>
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 // Estado
 const searchTerm = ref('')
 const showModal = ref(false)

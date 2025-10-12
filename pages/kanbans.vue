@@ -1077,6 +1077,11 @@ onMounted(() => {
   )
 })
 
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 // Meta tags
 useHead({
   title: 'Meu Kanban - Artemis',

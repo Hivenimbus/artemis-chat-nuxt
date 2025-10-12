@@ -537,6 +537,11 @@ watch([searchTerm, statusFilter], () => {
   currentPage.value = 1
 })
 
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 // Meta tags da página
 useHead({
   title: 'Contatos - Artemis',

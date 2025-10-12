@@ -444,6 +444,11 @@ const handleDeleteChat = () => {
   }
 }
 
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 // Meta tags da página
 useHead({
   title: 'Atendimentos - Artemis',

@@ -199,6 +199,11 @@
 </template>
 
 <script setup>
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
+
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 const route = useRoute()
