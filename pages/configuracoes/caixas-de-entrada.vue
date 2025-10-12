@@ -277,81 +277,41 @@
             <div class="flex justify-center mb-6">
               <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
                 <div class="w-64 h-64 bg-gray-50 flex items-center justify-center">
-                  <!-- QR Code SVG Placeholder -->
-                  <svg class="w-full h-full" viewBox="0 0 100 100">
-                    <!-- Cantos do QR Code -->
-                    <rect x="0" y="0" width="30" height="30" fill="black"/>
-                    <rect x="5" y="5" width="20" height="20" fill="white"/>
-                    <rect x="10" y="10" width="10" height="10" fill="black"/>
-                    
-                    <rect x="70" y="0" width="30" height="30" fill="black"/>
-                    <rect x="75" y="5" width="20" height="20" fill="white"/>
-                    <rect x="80" y="10" width="10" height="10" fill="black"/>
-                    
-                    <rect x="0" y="70" width="30" height="30" fill="black"/>
-                    <rect x="5" y="75" width="20" height="20" fill="white"/>
-                    <rect x="10" y="80" width="10" height="10" fill="black"/>
-                    
-                    <!-- Padrão aleatório do QR Code -->
-                    <rect x="35" y="5" width="5" height="5" fill="black"/>
-                    <rect x="45" y="5" width="5" height="5" fill="black"/>
-                    <rect x="55" y="5" width="5" height="5" fill="black"/>
-                    <rect x="40" y="15" width="5" height="5" fill="black"/>
-                    <rect x="50" y="15" width="5" height="5" fill="black"/>
-                    <rect x="35" y="25" width="5" height="5" fill="black"/>
-                    <rect x="45" y="25" width="5" height="5" fill="black"/>
-                    <rect x="55" y="25" width="5" height="5" fill="black"/>
-                    
-                    <rect x="5" y="35" width="5" height="5" fill="black"/>
-                    <rect x="15" y="35" width="5" height="5" fill="black"/>
-                    <rect x="25" y="35" width="5" height="5" fill="black"/>
-                    <rect x="35" y="35" width="5" height="5" fill="black"/>
-                    <rect x="45" y="35" width="5" height="5" fill="black"/>
-                    <rect x="55" y="35" width="5" height="5" fill="black"/>
-                    <rect x="65" y="35" width="5" height="5" fill="black"/>
-                    <rect x="75" y="35" width="5" height="5" fill="black"/>
-                    <rect x="85" y="35" width="5" height="5" fill="black"/>
-                    <rect x="95" y="35" width="5" height="5" fill="black"/>
-                    
-                    <rect x="10" y="45" width="5" height="5" fill="black"/>
-                    <rect x="20" y="45" width="5" height="5" fill="black"/>
-                    <rect x="40" y="45" width="5" height="5" fill="black"/>
-                    <rect x="60" y="45" width="5" height="5" fill="black"/>
-                    <rect x="80" y="45" width="5" height="5" fill="black"/>
-                    <rect x="90" y="45" width="5" height="5" fill="black"/>
-                    
-                    <rect x="5" y="55" width="5" height="5" fill="black"/>
-                    <rect x="25" y="55" width="5" height="5" fill="black"/>
-                    <rect x="35" y="55" width="5" height="5" fill="black"/>
-                    <rect x="55" y="55" width="5" height="5" fill="black"/>
-                    <rect x="65" y="55" width="5" height="5" fill="black"/>
-                    <rect x="85" y="55" width="5" height="5" fill="black"/>
-                    <rect x="95" y="55" width="5" height="5" fill="black"/>
-                    
-                    <rect x="35" y="65" width="5" height="5" fill="black"/>
-                    <rect x="45" y="65" width="5" height="5" fill="black"/>
-                    <rect x="55" y="65" width="5" height="5" fill="black"/>
-                    <rect x="65" y="65" width="5" height="5" fill="black"/>
-                    <rect x="75" y="65" width="5" height="5" fill="black"/>
-                    <rect x="85" y="65" width="5" height="5" fill="black"/>
-                    
-                    <rect x="40" y="75" width="5" height="5" fill="black"/>
-                    <rect x="50" y="75" width="5" height="5" fill="black"/>
-                    <rect x="60" y="75" width="5" height="5" fill="black"/>
-                    <rect x="80" y="75" width="5" height="5" fill="black"/>
-                    <rect x="90" y="75" width="5" height="5" fill="black"/>
-                    
-                    <rect x="35" y="85" width="5" height="5" fill="black"/>
-                    <rect x="55" y="85" width="5" height="5" fill="black"/>
-                    <rect x="65" y="85" width="5" height="5" fill="black"/>
-                    <rect x="75" y="85" width="5" height="5" fill="black"/>
-                    <rect x="95" y="85" width="5" height="5" fill="black"/>
-                    
-                    <rect x="40" y="95" width="5" height="5" fill="black"/>
-                    <rect x="60" y="95" width="5" height="5" fill="black"/>
-                    <rect x="70" y="95" width="5" height="5" fill="black"/>
-                    <rect x="90" y="95" width="5" height="5" fill="black"/>
-                  </svg>
+                  <!-- Loading -->
+                  <div v-if="qrCodeLoading" class="flex flex-col items-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    <span class="mt-3 text-sm text-gray-500">Gerando QR Code...</span>
+                  </div>
+
+                  <!-- QR Code Real -->
+                  <img
+                    v-else-if="qrCodeBase64"
+                    :src="qrCodeBase64"
+                    alt="QR Code WhatsApp"
+                    class="w-full h-full object-contain"
+                  />
+
+                  <!-- Erro -->
+                  <div v-else-if="qrCodeError" class="flex flex-col items-center text-center px-4">
+                    <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="mt-2 text-sm text-red-600">{{ qrCodeError }}</span>
+                    <button
+                      @click="fetchQRCode(selectedInbox.id)"
+                      class="mt-3 px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+
+                  <!-- Placeholder (enquanto carrega) -->
+                  <div v-else class="flex flex-col items-center text-center px-4">
+                    <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
+                    <span class="mt-2 text-sm text-gray-500">Aguardando QR Code...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -477,6 +437,9 @@ const isEditing = ref(false)
 const selectedInbox = ref(null)
 const inboxToDelete = ref(null)
 const inboxToDisconnect = ref(null)
+const qrCodeBase64 = ref('')
+const qrCodeLoading = ref(false)
+const qrCodeError = ref('')
 
 // Dados do formulário
 const formData = ref({
@@ -515,6 +478,28 @@ const loadInboxes = async () => {
     }
   } catch (err) {
     console.error('Erro ao carregar inboxes:', err)
+  }
+}
+
+// Função para buscar QR Code
+const fetchQRCode = async (inboxId) => {
+  qrCodeLoading.value = true
+  qrCodeError.value = ''
+  qrCodeBase64.value = ''
+
+  try {
+    const response = await $fetch(`/api/inboxes/${inboxId}/qrcode`)
+
+    if (response.success && response.data.base64) {
+      qrCodeBase64.value = response.data.base64
+    } else {
+      qrCodeError.value = 'QR Code não disponível. Tente novamente.'
+    }
+  } catch (err) {
+    console.error('Erro ao buscar QR Code:', err)
+    qrCodeError.value = err.data?.statusMessage || 'Erro ao carregar QR Code'
+  } finally {
+    qrCodeLoading.value = false
   }
 }
 
@@ -640,11 +625,16 @@ const saveInbox = async () => {
 const showQRCode = (inbox) => {
   selectedInbox.value = inbox
   showQRModal.value = true
+
+  // Buscar QR Code real
+  fetchQRCode(inbox.id)
 }
 
 const closeQRModal = () => {
   showQRModal.value = false
   selectedInbox.value = null
+  qrCodeBase64.value = ''
+  qrCodeError.value = ''
 }
 
 const confirmDelete = (inbox) => {
