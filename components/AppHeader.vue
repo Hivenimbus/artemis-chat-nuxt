@@ -105,7 +105,7 @@ const route = useRoute()
 const router = useRouter()
 
 // Composables
-const { isSuperAdmin } = useSuperAdmin()
+const { user, isSuperAdmin } = useSuperAdmin()
 
 // Props
 const props = defineProps({
@@ -119,17 +119,17 @@ const props = defineProps({
   }
 })
 
-// Dados do usuário (mockados)
-const userName = ref('Administrador')
-const userEmail = ref('admin@artemis.com')
 const notificationCount = ref(3)
 
 // Estados
 const showUserMenu = ref(false)
 
 // Computados
+const userName = computed(() => user.value?.user_metadata?.name || user.value?.name || user.value?.email?.split('@')[0] || 'Usuário')
+const userEmail = computed(() => user.value?.email || '')
 const userInitials = computed(() => {
-  return userName.value.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+  const name = userName.value
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 })
 
 // Métodos
