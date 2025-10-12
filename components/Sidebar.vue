@@ -364,44 +364,6 @@
           </NuxtLink>
         </div>
       </div>
-
-      <!-- Painel Superadmin (apenas para usuários com role superadmin) -->
-      <div v-if="isSuperAdmin">
-        <NuxtLink
-          to="/superadmin"
-          class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
-          :class="[
-            isActive('/superadmin')
-              ? 'bg-red-50 text-red-700'
-              : 'text-red-700 hover:bg-red-50 hover:text-red-900'
-          ]"
-        >
-          <svg
-            class="h-5 w-5 flex-shrink-0"
-            :class="[
-              isActive('/superadmin') ? 'text-red-600' : 'text-red-500 group-hover:text-red-600'
-            ]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            />
-          </svg>
-          <span
-            class="ml-3 transition-opacity duration-300 delay-100"
-            :class="[
-              isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
-            ]"
-          >
-            Painel Superadmin
-          </span>
-        </NuxtLink>
-      </div>
     </nav>
 
     <!-- Seção inferior -->
@@ -438,9 +400,6 @@ const props = defineProps({
 })
 
 const route = useRoute()
-
-// Usar composable de superadmin
-const { isSuperAdmin } = useSuperAdmin()
 
 // Dados do usuário (mockados)
 const userName = ref('Administrador')
