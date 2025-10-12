@@ -64,9 +64,10 @@ export default defineEventHandler(async (event) => {
       return null
     })
 
-    // Se a instância foi criada com sucesso, configurar webhook
+    // Se a instância foi criada com sucesso, configurar webhook e configurações padrão
     if (evolutionResponse) {
       try {
+        // Configurar webhook
         await $fetch(`${config.evolutionApiUrl}/webhook/set/${inboxData.id}`, {
           method: 'POST',
           headers: {
@@ -91,8 +92,27 @@ export default defineEventHandler(async (event) => {
             }
           }
         })
+
+        // Configurar configurações padrão da instância
+        await $fetch(`${config.evolutionApiUrl}/settings/set/${inboxData.id}`, {
+          method: 'POST',
+          headers: {
+            'apikey': config.evolutionApiKey,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            rejectCall: false,
+            msgCall: "",
+            groupsIgnore: true,
+            alwaysOnline: false,
+            readMessages: false,
+            syncFullHistory: false,
+            readStatus: false
+          }
+        })
+
       } catch (webhookError) {
-        console.error('Erro ao configurar webhook:', webhookError)
+        console.error('Erro ao configurar webhook/settings:', webhookError)
         // Não falhar completamente se o webhook não for configurado
       }
     }
