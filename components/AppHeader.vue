@@ -101,10 +101,18 @@ const props = defineProps({
   }
 })
 
-// Dados do usuário (mockados)
-const userName = ref('Administrador')
-const userEmail = ref('admin@artemis.com')
+// Dados do usuário do Supabase
+const user = useSupabaseUser()
 const notificationCount = ref(3)
+
+// Computados para dados do usuário
+const userName = computed(() => {
+  return user.value?.user_metadata?.display_name || user.value?.user_metadata?.full_name || user.value?.email?.split('@')[0] || 'Usuário'
+})
+
+const userEmail = computed(() => {
+  return user.value?.email || 'usuario@artemis.com'
+})
 
 // Estados
 const showUserMenu = ref(false)
@@ -112,7 +120,9 @@ const userMenuRef = ref(null)
 
 // Computados
 const userInitials = computed(() => {
-  return userName.value.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+  const name = userName.value
+  if (name === 'Usuário') return 'U'
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 })
 
 // Métodos
