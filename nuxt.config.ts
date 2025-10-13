@@ -13,6 +13,19 @@ export default defineNuxtConfig({
       login: '/',
       callback: '/atendimentos',
       exclude: ['/']
+    },
+    clientOptions: {
+      auth: {
+        flowType: 'pkce',
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
+    },
+    cookieOptions: {
+      maxAge: 60 * 60 * 8, // 8 horas
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
     }
   },
   runtimeConfig: {

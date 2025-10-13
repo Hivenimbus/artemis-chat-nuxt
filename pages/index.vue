@@ -259,7 +259,7 @@ watch(user, (newUser) => {
   if (newUser) {
     navigateTo('/atendimentos')
   }
-})
+}, { immediate: true })
 
 // Computed para texto do botão
 const getButtonText = () => {
