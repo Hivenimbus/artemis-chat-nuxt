@@ -26,7 +26,7 @@ export const useUser = () => {
   const userName = computed(() => userData.value?.name || 'Usuário')
   const userEmail = computed(() => userData.value?.email || '')
 
-  // Auto-carregar dados quando o composable for usado
+  // Auto-carregar dados quando o composable for usado no cliente
   onMounted(async () => {
     if (!userData.value) {
       try {
