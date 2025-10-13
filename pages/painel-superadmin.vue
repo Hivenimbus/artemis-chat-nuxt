@@ -27,6 +27,18 @@
             </div>
 
             <div class="flex items-center space-x-4">
+              <!-- Botão Criar Empresa -->
+              <button
+                @click="openCreateModal"
+                :disabled="loading"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 disabled:opacity-50"
+              >
+                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Criar Empresa
+              </button>
+
               <!-- Botão de atualização -->
               <button
                 @click="refreshEmpresas"
@@ -180,6 +192,13 @@
       </div>
     </div>
 
+    <!-- Create Modal -->
+    <EmpresaCreateModal
+      v-if="showCreateModal"
+      @save="handleCreateEmpresa"
+      @close="closeCreateModal"
+    />
+
     <!-- Edit Modal -->
     <EmpresaEditModal
       v-if="showEditModal"
@@ -199,7 +218,8 @@ const {
   loading,
   error,
   empresas,
-  getEmpresas
+  getEmpresas,
+  createEmpresa
 } = useEmpresas()
 
 // Computar estatísticas por status
@@ -219,6 +239,7 @@ const empresasPorStatus = computed(() => {
 })
 
 // Estado do modal
+const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const selectedEmpresa = ref(null)
 
@@ -231,7 +252,29 @@ const refreshEmpresas = async () => {
   }
 }
 
-// Métodos do modal
+// Métodos do modal de criação
+const openCreateModal = () => {
+  showCreateModal.value = true
+}
+
+const closeCreateModal = () => {
+  showCreateModal.value = false
+}
+
+const handleCreateEmpresa = async (empresaData) => {
+  try {
+    await createEmpresa(empresaData)
+    // Fechar modal
+    closeCreateModal()
+    // Mostrar mensagem de sucesso (opcional)
+    console.log('Empresa criada com sucesso!')
+  } catch (err) {
+    console.error('Erro ao criar empresa:', err)
+    // Aqui você pode mostrar uma notificação de erro
+  }
+}
+
+// Métodos do modal de edição
 const openEditModal = (empresa) => {
   selectedEmpresa.value = empresa
   showEditModal.value = true

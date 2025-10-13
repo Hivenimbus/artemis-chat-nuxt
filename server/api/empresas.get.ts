@@ -60,7 +60,9 @@ export default defineEventHandler(async (event) => {
 
       // Calcular dias até o vencimento
       const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0) // Zerar horas para comparação correta
       const dataVencimento = new Date(empresa.vencimento)
+      dataVencimento.setHours(0, 0, 0, 0) // Zerar horas para comparação correta
       const diffDias = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
       // Determinar status do vencimento

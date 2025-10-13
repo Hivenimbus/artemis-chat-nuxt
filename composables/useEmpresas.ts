@@ -19,6 +19,28 @@ export const useEmpresas = () => {
     }
   }
 
+  const createEmpresa = async (empresaData: { nome: string; vencimento: string }) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await $fetch('/api/empresas', {
+        method: 'POST',
+        body: empresaData
+      })
+
+      // Adicionar a nova empresa à lista local
+      empresas.value.unshift(response.data)
+
+      return response
+    } catch (err: any) {
+      error.value = err.data?.statusMessage || err.message || 'Erro ao criar empresa'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Formatar data para exibição
   const formatarData = (data: string) => {
     return new Date(data).toLocaleDateString('pt-BR', {
@@ -92,6 +114,7 @@ export const useEmpresas = () => {
     error: readonly(error),
     empresas: readonly(empresas),
     getEmpresas,
+    createEmpresa,
     formatarData,
     getCorStatusVencimento,
     getTextoStatusVencimento
