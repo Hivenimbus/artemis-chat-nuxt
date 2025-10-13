@@ -168,16 +168,25 @@
           <p class="text-gray-600">Não há empresas cadastradas no sistema.</p>
         </div>
 
-        <!-- Empresas Grid -->
-        <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <EmpresaCard
+        <!-- Empresas List -->
+        <div v-else class="empresas-list">
+          <EmpresaListItem
             v-for="empresa in empresas"
             :key="empresa.id"
             :empresa="empresa"
+            @edit="openEditModal"
           />
         </div>
       </div>
     </div>
+
+    <!-- Edit Modal -->
+    <EmpresaEditModal
+      v-if="showEditModal"
+      :empresa="selectedEmpresa"
+      @save="handleSaveEmpresa"
+      @close="closeEditModal"
+    />
   </div>
 </template>
 
@@ -209,12 +218,53 @@ const empresasPorStatus = computed(() => {
   return stats
 })
 
+// Estado do modal
+const showEditModal = ref(false)
+const selectedEmpresa = ref(null)
+
 // Método para atualizar empresas
 const refreshEmpresas = async () => {
   try {
     await getEmpresas()
   } catch (err) {
     console.error('Erro ao atualizar empresas:', err)
+  }
+}
+
+// Métodos do modal
+const openEditModal = (empresa) => {
+  selectedEmpresa.value = empresa
+  showEditModal.value = true
+}
+
+const closeEditModal = () => {
+  showEditModal.value = false
+  selectedEmpresa.value = null
+}
+
+const handleSaveEmpresa = async (empresaData) => {
+  try {
+    loading.value = true
+
+    const response = await $fetch(`/api/empresas/${empresaData.id}`, {
+      method: 'PUT',
+      body: empresaData
+    })
+
+    if (response.success) {
+      // Atualizar a lista de empresas
+      await refreshEmpresas()
+      // Fechar modal
+      closeEditModal()
+
+      // Mostrar mensagem de sucesso (opcional)
+      console.log('Empresa atualizada com sucesso!')
+    }
+  } catch (err) {
+    console.error('Erro ao salvar empresa:', err)
+    // Aqui você pode mostrar uma notificação de erro
+  } finally {
+    loading.value = false
   }
 }
 
@@ -260,5 +310,12 @@ useHead({
 
 .animation-delay-4000 {
   animation-delay: 4s;
+}
+
+/* Empresas List Styles */
+.empresas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 </style>

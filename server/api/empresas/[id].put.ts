@@ -1,0 +1,117 @@
+import { serverSupabaseClient } from '#supabase/server'
+
+export default defineEventHandler(async (event) => {
+  try {
+    // Obter usuário autenticado
+    const client = await serverSupabaseClient(event)
+    const { data: { user }, error: userError } = await client.auth.getUser()
+
+    if (userError || !user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Usuário não autenticado'
+      })
+    }
+
+    // Verificar se o usuário é superadmin
+    const { data: userData, error: roleError } = await client
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (roleError || userData?.role !== 'superadmin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Acesso negado. Apenas superadmins podem editar empresas.'
+      })
+    }
+
+    // Obter ID da empresa dos parâmetros da rota
+    const empresaId = getRouterParam(event, 'id')
+    if (!empresaId) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'ID da empresa não fornecido'
+      })
+    }
+
+    // Obter corpo da requisição
+    const body = await readBody(event)
+
+    // Validar dados obrigatórios
+    if (!body.nome || !body.vencimento) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Nome e data de vencimento são obrigatórios'
+      })
+    }
+
+    // Validar formato da data
+    const dataVencimento = new Date(body.vencimento)
+    if (isNaN(dataVencimento.getTime())) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Data de vencimento inválida'
+      })
+    }
+
+    // Verificar se empresa existe
+    const { data: empresaExistente, error: checkError } = await client
+      .from('empresas')
+      .select('id')
+      .eq('id', empresaId)
+      .single()
+
+    if (checkError || !empresaExistente) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Empresa não encontrada'
+      })
+    }
+
+    // Atualizar empresa
+    const { data: empresaAtualizada, error: updateError } = await client
+      .from('empresas')
+      .update({
+        nome: body.nome.trim(),
+        vencimento: dataVencimento.toISOString().split('T')[0], // Formato YYYY-MM-DD
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', empresaId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Erro ao atualizar empresa:', updateError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao atualizar empresa'
+      })
+    }
+
+    return {
+      success: true,
+      data: {
+        id: empresaAtualizada.id,
+        nome: empresaAtualizada.nome,
+        vencimento: empresaAtualizada.vencimento,
+        updated_at: empresaAtualizada.updated_at
+      }
+    }
+
+  } catch (error) {
+    console.error('Erro no handler de atualização de empresa:', error)
+
+    // Se já for um erro criado, retornar como está
+    if (error.statusCode) {
+      throw error
+    }
+
+    // Erro genérico
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Erro interno do servidor'
+    })
+  }
+})
