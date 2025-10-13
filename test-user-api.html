@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste API User</title>
+</head>
+<body>
+    <h1>Teste de API /api/user</h1>
+    <button onclick="testUserAPI()">Testar API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testUserAPI() {
+            const resultDiv = document.getElementById('result');
+
+            try {
+                const response = await fetch('/api/user', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <h3>✅ Sucesso!</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <p><strong>Role:</strong> ${data.data.role}</p>
+                        <p><strong>É Superadmin:</strong> ${data.data.role === 'superadmin' ? 'SIM' : 'NÃO'}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>❌ Erro ${response.status}</h3>
+                        <p>${response.statusText}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>❌ Erro de Conexão</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
