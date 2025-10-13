@@ -101,13 +101,19 @@ const props = defineProps({
   }
 })
 
-// Dados do usuário usando Supabase Auth
-const { userName, userEmail, userInitials } = useAuth()
+// Dados do usuário (mockados)
+const userName = ref('Administrador')
+const userEmail = ref('admin@artemis.com')
 const notificationCount = ref(3)
 
 // Estados
 const showUserMenu = ref(false)
 const userMenuRef = ref(null)
+
+// Computados
+const userInitials = computed(() => {
+  return userName.value.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+})
 
 // Métodos
 const toggleUserMenu = (event) => {
