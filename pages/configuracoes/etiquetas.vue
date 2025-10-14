@@ -46,7 +46,35 @@
 
       <!-- Lista de etiquetas -->
       <div class="bg-white shadow rounded-lg flex-1 flex flex-col overflow-hidden">
-        <div class="flex-1 overflow-y-auto custom-scrollbar-container">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="mt-4 text-sm text-gray-500">Carregando etiquetas...</p>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">Erro ao carregar etiquetas</h3>
+            <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
+            <div class="mt-6">
+              <button
+                @click="loadTags"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de etiquetas -->
+        <div v-else class="flex-1 overflow-y-auto custom-scrollbar-container">
           <div class="p-4 space-y-3">
             <div
               v-for="tag in filteredTags"
@@ -297,12 +325,17 @@ definePageMeta({
   middleware: 'admin'
 })
 
+// Cliente Supabase
+const user = useSupabaseUser()
+
 // Estado
 const searchTerm = ref('')
 const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEditing = ref(false)
 const tagToDelete = ref(null)
+const loading = ref(true)
+const error = ref('')
 
 // Cores disponíveis para as etiquetas
 const availableColors = [
@@ -336,57 +369,34 @@ const errors = ref({
   color: ''
 })
 
-// Dados mockados de etiquetas
-const tags = ref([
-  {
-    id: 1,
-    name: 'VIP',
-    description: 'Clientes prioritários e de alto valor',
-    color: '#EF4444',
-    createdAt: new Date('2024-01-15'),
-    usageCount: 23
-  },
-  {
-    id: 2,
-    name: 'Urgente',
-    description: 'Requer atenção imediata',
-    color: '#F97316',
-    createdAt: new Date('2024-02-10'),
-    usageCount: 15
-  },
-  {
-    id: 3,
-    name: 'Follow-up',
-    description: 'Necessita acompanhamento',
-    color: '#3B82F6',
-    createdAt: new Date('2024-03-05'),
-    usageCount: 42
-  },
-  {
-    id: 4,
-    name: 'Novo Cliente',
-    description: 'Clientes que entraram recentemente',
-    color: '#22C55E',
-    createdAt: new Date('2024-03-20'),
-    usageCount: 8
-  },
-  {
-    id: 5,
-    name: 'Suporte Técnico',
-    description: 'Questões técnicas e bugs',
-    color: '#8B5CF6',
-    createdAt: new Date('2024-04-01'),
-    usageCount: 31
-  },
-  {
-    id: 6,
-    name: 'Vendas',
-    description: 'Oportunidades de vendas',
-    color: '#10B981',
-    createdAt: new Date('2024-04-15'),
-    usageCount: 19
+// Dados das etiquetas (carregados da API)
+const tags = ref([])
+
+// Função para carregar etiquetas da API
+const loadTags = async () => {
+  try {
+    loading.value = true
+    error.value = ''
+
+    const { data } = await $fetch('/api/etiquetas')
+
+    // Formatar dados para compatibilidade com a interface existente
+    tags.value = data.map(tag => ({
+      id: tag.id,
+      name: tag.nome,
+      description: tag.descricao,
+      color: tag.cor,
+      createdAt: tag.createdAt,
+      usageCount: tag.usageCount || 0
+    }))
+
+  } catch (err) {
+    console.error('Erro ao carregar etiquetas:', err)
+    error.value = 'Erro ao carregar etiquetas: ' + (err.message || 'Tente novamente.')
+  } finally {
+    loading.value = false
   }
-])
+}
 
 // Computed
 const filteredTags = computed(() => {
@@ -470,34 +480,60 @@ const validateForm = () => {
   return isValid
 }
 
-const saveTag = () => {
+const saveTag = async () => {
   if (!validateForm()) return
 
-  if (isEditing.value) {
-    // Editar etiqueta existente
-    const index = tags.value.findIndex(t => t.id === formData.value.id)
-    if (index !== -1) {
-      tags.value[index] = {
-        ...tags.value[index],
-        name: formData.value.name,
-        description: formData.value.description,
-        color: formData.value.color
-      }
-    }
-  } else {
-    // Criar nova etiqueta
-    const newTag = {
-      id: Math.max(...tags.value.map(t => t.id)) + 1,
-      name: formData.value.name,
-      description: formData.value.description,
-      color: formData.value.color,
-      createdAt: new Date(),
-      usageCount: 0
-    }
-    tags.value.push(newTag)
-  }
+  try {
+    if (isEditing.value) {
+      // Editar etiqueta existente via API
+      const { data } = await $fetch(`/api/etiquetas/${formData.value.id}`, {
+        method: 'PUT',
+        body: {
+          nome: formData.value.name,
+          descricao: formData.value.description,
+          cor: formData.value.color
+        }
+      })
 
-  closeModal()
+      // Atualizar etiqueta localmente
+      const index = tags.value.findIndex(t => t.id === formData.value.id)
+      if (index !== -1) {
+        tags.value[index] = {
+          ...tags.value[index],
+          name: data.nome,
+          description: data.descricao,
+          color: data.cor,
+          updatedAt: data.updatedAt
+        }
+      }
+    } else {
+      // Criar nova etiqueta via API
+      const { data } = await $fetch('/api/etiquetas', {
+        method: 'POST',
+        body: {
+          nome: formData.value.name,
+          descricao: formData.value.description,
+          cor: formData.value.color
+        }
+      })
+
+      // Adicionar nova etiqueta localmente
+      const newTag = {
+        id: data.id,
+        name: data.nome,
+        description: data.descricao,
+        color: data.cor,
+        createdAt: data.createdAt,
+        usageCount: data.usageCount || 0
+      }
+      tags.value.unshift(newTag)
+    }
+
+    closeModal()
+  } catch (error) {
+    console.error('Erro ao salvar etiqueta:', error)
+    alert('Erro ao salvar etiqueta: ' + (error.message || 'Tente novamente.'))
+  }
 }
 
 const confirmDelete = (tag) => {
@@ -510,15 +546,31 @@ const closeDeleteModal = () => {
   tagToDelete.value = null
 }
 
-const deleteTag = () => {
-  if (tagToDelete.value) {
+const deleteTag = async () => {
+  if (!tagToDelete.value) return
+
+  try {
+    await $fetch(`/api/etiquetas/${tagToDelete.value.id}`, {
+      method: 'DELETE'
+    })
+
+    // Remover etiqueta localmente
     const index = tags.value.findIndex(t => t.id === tagToDelete.value.id)
     if (index !== -1) {
       tags.value.splice(index, 1)
     }
+
+    closeDeleteModal()
+  } catch (error) {
+    console.error('Erro ao excluir etiqueta:', error)
+    alert('Erro ao excluir etiqueta: ' + (error.message || 'Tente novamente.'))
   }
-  closeDeleteModal()
 }
+
+// Carregar dados quando o componente for montado
+onMounted(() => {
+  loadTags()
+})
 </script>
 
 <style scoped>
