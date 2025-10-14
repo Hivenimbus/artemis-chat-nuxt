@@ -5,8 +5,8 @@
       <div class="mb-4 sm:mb-6 flex-shrink-0">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Agentes</h1>
-            <p class="mt-1 text-sm text-gray-500">Gerencie os agentes de atendimento da plataforma</p>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Usuários</h1>
+            <p class="mt-1 text-sm text-gray-500">Gerencie agentes e administradores da plataforma</p>
           </div>
           <button
             @click="openCreateModal"
@@ -15,7 +15,7 @@
             <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
             </svg>
-            Novo Agente
+            Novo Usuário
           </button>
         </div>
       </div>
@@ -28,7 +28,7 @@
               <input
                 type="text"
                 v-model="searchTerm"
-                placeholder="Buscar agentes..."
+                placeholder="Buscar usuários..."
                 class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -44,7 +44,7 @@
               class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="">Todas as funções</option>
-              <option value="agent">Agentes</option>
+              <option value="user">Agentes</option>
               <option value="admin">Administradores</option>
             </select>
             <select
@@ -57,14 +57,42 @@
             </select>
           </div>
           <div class="text-sm text-gray-500">
-            {{ filteredAgents.length }} {{ filteredAgents.length === 1 ? 'agente' : 'agentes' }}
+            {{ filteredAgents.length }} {{ filteredAgents.length === 1 ? 'usuário' : 'usuários' }} (agentes e administradores)
           </div>
         </div>
       </div>
 
       <!-- Lista de agentes -->
       <div class="bg-white shadow rounded-lg flex-1 flex flex-col overflow-hidden">
-        <div class="flex-1 overflow-y-auto custom-scrollbar-container">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="mt-4 text-sm text-gray-500">Carregando agentes...</p>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">Erro ao carregar agentes</h3>
+            <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
+            <div class="mt-6">
+              <button
+                @click="loadAgents"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de agentes -->
+        <div v-else class="flex-1 overflow-y-auto custom-scrollbar-container">
           <div class="p-4 space-y-3">
             <div
               v-for="agent in filteredAgents"
@@ -101,6 +129,12 @@
                       {{ agent.email }}
                     </p>
                     <div class="mt-2 flex items-center space-x-4 text-xs text-gray-400">
+                      <span class="flex items-center">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        {{ agent.empresa_nome }}
+                      </span>
                       <span class="flex items-center">
                         <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -164,9 +198,9 @@
               <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
               </svg>
-              <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum agente encontrado</h3>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
               <p class="mt-1 text-sm text-gray-500">
-                {{ searchTerm || filterRole || filterStatus ? 'Tente ajustar os filtros' : 'Comece criando um novo agente' }}
+                {{ searchTerm || filterRole || filterStatus ? 'Tente ajustar os filtros' : 'Comece criando um novo usuário' }}
               </p>
             </div>
           </div>
@@ -185,7 +219,7 @@
         <div class="px-6 py-4 border-b border-gray-200">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900">
-              {{ isEditing ? 'Editar Agente' : 'Novo Agente' }}
+              {{ isEditing ? 'Editar Usuário' : 'Novo Usuário' }}
             </h3>
             <button
               @click="closeModal"
@@ -241,7 +275,7 @@
               :class="{ 'border-red-500': errors.role }"
             >
               <option value="">Selecione uma função</option>
-              <option value="agent">Agente</option>
+              <option value="user">Agente</option>
               <option value="admin">Administrador</option>
             </select>
             <p v-if="errors.role" class="mt-1 text-sm text-red-600">{{ errors.role }}</p>
@@ -260,7 +294,7 @@
             @click="saveAgent"
             class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            {{ isEditing ? 'Salvar Alterações' : 'Criar Agente' }}
+            {{ isEditing ? 'Salvar Alterações' : 'Criar Usuário' }}
           </button>
         </div>
       </div>
@@ -281,9 +315,9 @@
               </svg>
             </div>
             <div class="ml-3 flex-1">
-              <h3 class="text-lg font-medium text-gray-900">Excluir Agente</h3>
+              <h3 class="text-lg font-medium text-gray-900">Excluir Usuário</h3>
               <p class="mt-2 text-sm text-gray-500">
-                Tem certeza que deseja excluir o agente <strong>"{{ agentToDelete?.name }}"</strong>?
+                Tem certeza que deseja excluir o usuário <strong>"{{ agentToDelete?.name }}"</strong>?
                 Esta ação não pode ser desfeita.
               </p>
             </div>
@@ -314,6 +348,10 @@ definePageMeta({
   middleware: 'admin'
 })
 
+// Cliente Supabase
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
+
 // Estado
 const searchTerm = ref('')
 const filterRole = ref('')
@@ -322,6 +360,8 @@ const showModal = ref(false)
 const showDeleteModal = ref(false)
 const isEditing = ref(false)
 const agentToDelete = ref(null)
+const loading = ref(true)
+const error = ref('')
 
 // Dados do formulário
 const formData = ref({
@@ -336,54 +376,55 @@ const errors = ref({
   role: ''
 })
 
-// Dados mockados de agentes
-const agents = ref([
-  {
-    id: 1,
-    name: 'Ana Carolina Santos',
-    email: 'ana.santos@artemis.com',
-    role: 'admin',
-    status: 'active',
-    createdAt: new Date('2024-01-15'),
-    lastLogin: new Date('2024-10-06T14:30:00')
-  },
-  {
-    id: 2,
-    name: 'Carlos Eduardo Pereira',
-    email: 'carlos.pereira@artemis.com',
-    role: 'agent',
-    status: 'active',
-    createdAt: new Date('2024-02-10'),
-    lastLogin: new Date('2024-10-07T09:15:00')
-  },
-  {
-    id: 3,
-    name: 'Mariana Silva Oliveira',
-    email: 'mariana.oliveira@artemis.com',
-    role: 'agent',
-    status: 'inactive',
-    createdAt: new Date('2024-03-05'),
-    lastLogin: new Date('2024-09-28T16:45:00')
-  },
-  {
-    id: 4,
-    name: 'Roberto Ferreira Lima',
-    email: 'roberto.lima@artemis.com',
-    role: 'admin',
-    status: 'active',
-    createdAt: new Date('2024-03-20'),
-    lastLogin: new Date('2024-10-07T08:00:00')
-  },
-  {
-    id: 5,
-    name: 'Juliana Mendes Costa',
-    email: 'juliana.costa@artemis.com',
-    role: 'agent',
-    status: 'active',
-    createdAt: new Date('2024-04-12'),
-    lastLogin: new Date('2024-10-06T11:20:00')
+// Dados dos agentes (carregados do Supabase)
+const agents = ref([])
+
+// Função para carregar agentes do Supabase
+const loadAgents = async () => {
+  try {
+    loading.value = true
+    error.value = ''
+
+    const { data, error: fetchError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        name,
+        role,
+        created_at,
+        empresas (
+          id,
+          nome
+        )
+      `)
+      .in('role', ['user', 'admin'])
+      .order('created_at', { ascending: false })
+
+    if (fetchError) {
+      throw fetchError
+    }
+
+    // Formatar dados para compatibilidade com a interface existente
+    agents.value = (data || []).map(user => ({
+      id: user.id,
+      name: user.name || 'Sem nome',
+      email: user.email,
+      role: user.role,
+      empresa_id: user.empresas?.id,
+      empresa_nome: user.empresas?.nome || 'Sem empresa',
+      status: 'active', // Por padrão, todos os usuários são considerados ativos
+      createdAt: user.created_at,
+      lastLogin: null // Esta informação não está disponível na tabela users
+    }))
+
+  } catch (err) {
+    console.error('Erro ao carregar agentes:', err)
+    error.value = 'Erro ao carregar agentes. Tente novamente.'
+  } finally {
+    loading.value = false
   }
-])
+}
 
 // Computed
 const filteredAgents = computed(() => {
@@ -393,7 +434,8 @@ const filteredAgents = computed(() => {
     const term = searchTerm.value.toLowerCase()
     result = result.filter(agent =>
       agent.name.toLowerCase().includes(term) ||
-      agent.email.toLowerCase().includes(term)
+      agent.email.toLowerCase().includes(term) ||
+      agent.empresa_nome.toLowerCase().includes(term)
     )
   }
 
@@ -432,13 +474,25 @@ const formatDateTime = (date) => {
 }
 
 const getRoleClass = (role) => {
-  return role === 'admin'
-    ? 'bg-purple-100 text-purple-800'
-    : 'bg-blue-100 text-blue-800'
+  switch (role) {
+    case 'admin':
+      return 'bg-purple-100 text-purple-800'
+    case 'user':
+      return 'bg-blue-100 text-blue-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
 }
 
 const getRoleText = (role) => {
-  return role === 'admin' ? 'Administrador' : 'Agente'
+  switch (role) {
+    case 'admin':
+      return 'Administrador'
+    case 'user':
+      return 'Agente'
+    default:
+      return role
+  }
 }
 
 const getStatusClass = (status) => {
@@ -525,34 +579,45 @@ const validateForm = () => {
   return isValid
 }
 
-const saveAgent = () => {
+const saveAgent = async () => {
   if (!validateForm()) return
 
-  if (isEditing.value) {
-    // Editar agente existente
-    const index = agents.value.findIndex(a => a.id === formData.value.id)
-    if (index !== -1) {
-      agents.value[index] = {
-        ...agents.value[index],
-        name: formData.value.name,
-        email: formData.value.email,
-        role: formData.value.role
-      }
+  try {
+    if (isEditing.value) {
+      // Editar agente existente no Supabase
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: formData.value.name,
+          email: formData.value.email,
+          role: formData.value.role
+        })
+        .eq('id', formData.value.id)
+
+      if (error) throw error
+
+      // Recarregar dados para atualizar a lista
+      await loadAgents()
+      closeModal()
+    } else {
+      // Criar novo agente no Supabase
+      const { error } = await supabase
+        .from('users')
+        .insert({
+          name: formData.value.name,
+          email: formData.value.email,
+          role: formData.value.role
+        })
+
+      if (error) throw error
+
+      // Recarregar dados para atualizar a lista
+      await loadAgents()
+      closeModal()
     }
-    closeModal()
-  } else {
-    // Criar novo agente
-    const newAgent = {
-      id: Math.max(...agents.value.map(a => a.id)) + 1,
-      name: formData.value.name,
-      email: formData.value.email,
-      role: formData.value.role,
-      status: 'active',
-      createdAt: new Date(),
-      lastLogin: null
-    }
-    agents.value.push(newAgent)
-    closeModal()
+  } catch (error) {
+    console.error('Erro ao salvar agente:', error)
+    alert('Erro ao salvar agente. Tente novamente.')
   }
 }
 
@@ -576,15 +641,30 @@ const closeDeleteModal = () => {
   agentToDelete.value = null
 }
 
-const deleteAgent = () => {
-  if (agentToDelete.value) {
-    const index = agents.value.findIndex(a => a.id === agentToDelete.value.id)
-    if (index !== -1) {
-      agents.value.splice(index, 1)
-    }
+const deleteAgent = async () => {
+  if (!agentToDelete.value) return
+
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', agentToDelete.value.id)
+
+    if (error) throw error
+
+    // Recarregar dados para atualizar a lista
+    await loadAgents()
+    closeDeleteModal()
+  } catch (error) {
+    console.error('Erro ao excluir agente:', error)
+    alert('Erro ao excluir agente. Tente novamente.')
   }
-  closeDeleteModal()
 }
+
+// Carregar dados quando o componente for montado
+onMounted(() => {
+  loadAgents()
+})
 </script>
 
 <style scoped>
