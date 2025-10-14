@@ -162,8 +162,8 @@
         </span>
       </NuxtLink>
 
-      <!-- Configurações com submenu -->
-      <div>
+      <!-- Configurações com submenu - apenas para admin e superadmin -->
+      <div v-if="isAdmin">
         <button
           @click="toggleSettings"
           class="w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
@@ -470,7 +470,7 @@ const route = useRoute()
 const user = useSupabaseUser()
 
 // Dados completos do usuário com role
-const { isSuperAdmin } = useUser()
+const { isSuperAdmin, isAdmin } = useUser()
 
 // Computados para dados do usuário
 const userName = computed(() => {

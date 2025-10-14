@@ -294,7 +294,7 @@
 <script setup>
 // Definir middleware de autenticação
 definePageMeta({
-  middleware: 'auth'
+  middleware: 'admin'
 })
 
 // Estado
