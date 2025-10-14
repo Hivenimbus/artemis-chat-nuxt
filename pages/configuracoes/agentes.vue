@@ -385,6 +385,22 @@ const loadAgents = async () => {
     loading.value = true
     error.value = ''
 
+    // Primeiro, obter o empresa_id do usuário atual
+    const { data: currentUserData, error: userError } = await supabase
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.value.id)
+      .single()
+
+    if (userError) {
+      throw userError
+    }
+
+    if (!currentUserData?.empresa_id) {
+      throw new Error('Usuário não está associado a nenhuma empresa')
+    }
+
+    // Carregar apenas os usuários da mesma empresa
     const { data, error: fetchError } = await supabase
       .from('users')
       .select(`
@@ -399,6 +415,7 @@ const loadAgents = async () => {
         )
       `)
       .in('role', ['user', 'admin'])
+      .eq('empresa_id', currentUserData.empresa_id)
       .order('created_at', { ascending: false })
 
     if (fetchError) {
@@ -420,7 +437,7 @@ const loadAgents = async () => {
 
   } catch (err) {
     console.error('Erro ao carregar agentes:', err)
-    error.value = 'Erro ao carregar agentes. Tente novamente.'
+    error.value = 'Erro ao carregar agentes: ' + (err.message || 'Tente novamente.')
   } finally {
     loading.value = false
   }
@@ -583,6 +600,21 @@ const saveAgent = async () => {
   if (!validateForm()) return
 
   try {
+    // Obter o empresa_id do usuário atual
+    const { data: currentUserData, error: userError } = await supabase
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.value.id)
+      .single()
+
+    if (userError) {
+      throw userError
+    }
+
+    if (!currentUserData?.empresa_id) {
+      throw new Error('Usuário não está associado a nenhuma empresa')
+    }
+
     if (isEditing.value) {
       // Editar agente existente no Supabase
       const { error } = await supabase
@@ -600,13 +632,14 @@ const saveAgent = async () => {
       await loadAgents()
       closeModal()
     } else {
-      // Criar novo agente no Supabase
+      // Criar novo agente no Supabase com o empresa_id do usuário atual
       const { error } = await supabase
         .from('users')
         .insert({
           name: formData.value.name,
           email: formData.value.email,
-          role: formData.value.role
+          role: formData.value.role,
+          empresa_id: currentUserData.empresa_id
         })
 
       if (error) throw error
@@ -617,7 +650,7 @@ const saveAgent = async () => {
     }
   } catch (error) {
     console.error('Erro ao salvar agente:', error)
-    alert('Erro ao salvar agente. Tente novamente.')
+    alert('Erro ao salvar agente: ' + (error.message || 'Tente novamente.'))
   }
 }
 
@@ -645,6 +678,37 @@ const deleteAgent = async () => {
   if (!agentToDelete.value) return
 
   try {
+    // Verificar se o usuário tem permissão para excluir (mesma empresa)
+    const { data: currentUserData, error: userError } = await supabase
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.value.id)
+      .single()
+
+    if (userError) {
+      throw userError
+    }
+
+    if (!currentUserData?.empresa_id) {
+      throw new Error('Usuário não está associado a nenhuma empresa')
+    }
+
+    // Verificar se o agente a ser excluído pertence à mesma empresa
+    const { data: agentData, error: agentError } = await supabase
+      .from('users')
+      .select('empresa_id')
+      .eq('id', agentToDelete.value.id)
+      .single()
+
+    if (agentError) {
+      throw agentError
+    }
+
+    if (agentData?.empresa_id !== currentUserData.empresa_id) {
+      throw new Error('Sem permissão para excluir este usuário')
+    }
+
+    // Excluir o agente
     const { error } = await supabase
       .from('users')
       .delete()
@@ -657,7 +721,7 @@ const deleteAgent = async () => {
     closeDeleteModal()
   } catch (error) {
     console.error('Erro ao excluir agente:', error)
-    alert('Erro ao excluir agente. Tente novamente.')
+    alert('Erro ao excluir agente: ' + (error.message || 'Tente novamente.'))
   }
 }
 
