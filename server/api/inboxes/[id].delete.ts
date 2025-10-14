@@ -24,18 +24,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o inbox pertence ao usuário
+    // Verificar se o inbox existe e pertence à empresa do usuário (RLS já faz essa verificação)
     const { data: inbox, error: fetchError } = await client
       .from('inboxes')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !inbox) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'Caixa de entrada não encontrada'
+        statusMessage: 'Caixa de entrada não encontrada ou sem permissão'
       })
     }
 
@@ -52,12 +51,11 @@ export default defineEventHandler(async (event) => {
       // Continuar mesmo se der erro na Evolution
     }
 
-    // Deletar inbox do Supabase
+    // Deletar inbox do Supabase (RLS já garante que só pode deletar da própria empresa)
     const { error: deleteError } = await client
       .from('inboxes')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
 
     if (deleteError) {
       console.error('Erro ao deletar inbox:', deleteError)

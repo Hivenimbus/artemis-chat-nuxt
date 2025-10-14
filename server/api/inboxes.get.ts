@@ -13,11 +13,25 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Buscar inboxes do usuário
+    // Buscar empresa do usuário
+    const { data: userData, error: userDataError } = await client
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userDataError || !userData?.empresa_id) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Usuário não possui empresa vinculada'
+      })
+    }
+
+    // Buscar inboxes da empresa do usuário
     const { data: inboxes, error } = await client
       .from('inboxes')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('empresa_id', userData.empresa_id)
       .order('created_at', { ascending: false })
 
     if (error) {

@@ -24,18 +24,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o inbox pertence ao usuário
+    // Verificar se o inbox existe e pertence à empresa do usuário (RLS já faz essa verificação)
     const { data: inbox, error: fetchError } = await client
       .from('inboxes')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !inbox) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'Caixa de entrada não encontrada'
+        statusMessage: 'Caixa de entrada não encontrada ou sem permissão'
       })
     }
 
@@ -59,7 +58,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Atualizar status no Supabase
+    // Atualizar status no Supabase (RLS já garante que só pode atualizar da própria empresa)
     const { error: updateError } = await client
       .from('inboxes')
       .update({
@@ -68,7 +67,6 @@ export default defineEventHandler(async (event) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('user_id', user.id)
 
     if (updateError) {
       console.error('Erro ao atualizar status no Supabase:', updateError)

@@ -26,13 +26,28 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Criar inbox no Supabase
+    // Buscar empresa do usuário
+    const { data: userData, error: userDataError } = await client
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userDataError || !userData?.empresa_id) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Usuário não possui empresa vinculada'
+      })
+    }
+
+    // Criar inbox no Supabase vinculando à empresa
     const { data: inboxData, error: inboxError } = await client
       .from('inboxes')
       .insert({
         name: name.trim(),
         description: description?.trim() || null,
         user_id: user.id,
+        empresa_id: userData.empresa_id,
         status: 'disconnected'
       })
       .select()
