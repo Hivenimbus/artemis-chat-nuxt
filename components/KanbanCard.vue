@@ -1,13 +1,17 @@
 <template>
   <div
-    draggable="true"
+    :draggable="!isPreview"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     class="kan-card"
     :class="{
       'kan-card--dragging': isDragging,
-      'kan-card--urgent': card.isUrgent
+      'kan-card--urgent': card.isUrgent,
+      'kan-card--rollback-error': false,
+      'kan-card--preview': isPreview
     }"
+    :data-card-id="card.id"
+    :data-column-id="card.column_id || currentColumnId"
   >
     <!-- Card Content -->
     <div class="kan-card__content">
@@ -109,11 +113,19 @@ const props = defineProps({
   currentColumnId: {
     type: [String, Number],
     required: true
+  },
+  isPreview: {
+    type: Boolean,
+    default: false
+  },
+  globalDragState: {
+    type: Object,
+    default: () => ({})
   }
 })
 
 // Emits
-const emit = defineEmits(['edit-card', 'delete-card', 'move-card'])
+const emit = defineEmits(['edit-card', 'delete-card', 'move-card', 'card-drag-start', 'card-drag-end'])
 
 // State
 const isDragging = ref(false)
@@ -125,21 +137,65 @@ const availableColumns = computed(() => {
   return (props.columns || []).filter(col => col.id !== props.currentColumnId)
 })
 
-// Handle drag start
+// Handle drag start com MOVIMENTO INSTANTÂNEO
 const handleDragStart = (event) => {
+  // Não fazer nada se for preview
+  if (props.isPreview) {
+    event.preventDefault()
+    return
+  }
+
   isDragging.value = true
   event.dataTransfer.effectAllowed = 'move'
   event.dataTransfer.setData('cardId', props.card.id)
-  event.dataTransfer.setData('sourceColumnId', props.card.columnId)
+  event.dataTransfer.setData('sourceColumnId', props.card.columnId || props.currentColumnId)
 
-  // Add a custom data attribute for better drag detection
+  // Emitir evento para movimento instantâneo no pai
+  emit('card-drag-start', props.card.id)
+
+  // Criar imagem de drag customizada para feedback visual
+  try {
+    const dragImage = event.target.cloneNode(true)
+    dragImage.style.transform = 'rotate(3deg) scale(0.9)'
+    dragImage.style.opacity = '0.85'
+    dragImage.style.position = 'absolute'
+    dragImage.style.top = '-1000px'
+    dragImage.style.pointerEvents = 'none'
+    dragImage.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)'
+    dragImage.style.borderRadius = '12px'
+    dragImage.style.maxWidth = '280px'
+    document.body.appendChild(dragImage)
+
+    event.dataTransfer.setDragImage(dragImage, 50, 50)
+
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage)
+      }
+    }, 100)
+  } catch (error) {
+    console.warn('Não foi possível criar imagem de drag customizada:', error)
+  }
+
+  // Adicionar classe CSS para feedback visual
   event.target.classList.add('dragging')
 }
 
-// Handle drag end
+// Handle drag end com limpeza otimizada
 const handleDragEnd = (event) => {
   isDragging.value = false
   event.target.classList.remove('dragging')
+
+  // Limpar elementos de drag residuais
+  const dragImages = document.querySelectorAll('[style*="position: absolute"][style*="top: -1000px"]')
+  dragImages.forEach(img => {
+    if (document.body.contains(img)) {
+      document.body.removeChild(img)
+    }
+  })
+
+  // Emitir evento para finalizar dragging global
+  emit('card-drag-end')
 }
 
 // Toggle move menu
@@ -199,15 +255,16 @@ onBeforeUnmount(() => {
   padding: 1.25rem;
   box-shadow: var(--shadow-1);
   cursor: move;
-  transition: all var(--dur-fast) var(--ease-out);
+  /* REMOVIDAS TRANSIÇÕES CONCORRENTES - MANTIDA APENAS TRANSFORM ESSENCIAL */
+  transition: transform 50ms linear;
   user-select: none;
   z-index: 1;
+  will-change: transform;
 }
 
 .kan-card:hover {
-  transform: translateY(-2px) scale(1.01);
-  box-shadow: var(--shadow-2);
-  border-color: rgb(var(--ring));
+  /* SIMPLIFICADO - APENAS TRANSFORM ESSENCIAL PARA PERFORMANCE */
+  transform: translateY(-1px);
   z-index: 2;
 }
 
@@ -223,12 +280,50 @@ onBeforeUnmount(() => {
 
 /* Urgent Card Variant - removed border, keeping only badge */
 
-/* Dragging State */
+/* Dragging State - ULTRA SIMPLIFICADO */
 .kan-card--dragging {
-  opacity: 0.6;
-  transform: rotate(2deg) scale(1.03);
-  box-shadow: var(--shadow-3);
+  opacity: 0.8;
+  transform: rotate(2deg) scale(1.01);
   cursor: grabbing;
+  /* REMOVIDAS TRANSIÇÕES - RESPOSTA INSTANTÂNEA */
+}
+
+/* Rollback Error State */
+.kan-card--rollback-error {
+  animation: shake 0.5s ease-in-out;
+  border: 2px solid rgb(var(--danger-500));
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+/* Preview State - Card fantasma durante drag */
+.kan-card--preview {
+  opacity: 0.6;
+  transform: scale(0.98);
+  border: 2px dashed rgb(var(--ring));
+  background: rgba(var(--ring), 0.05);
+  animation: preview-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes preview-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.96);
+  }
+}
+
+/* Card Drop Zone Preview */
+.card-drop-zone--preview {
+  background: rgba(var(--col-500), 0.05);
+  border-radius: 8px;
 }
 
 /* Card Content */
@@ -308,11 +403,13 @@ onBeforeUnmount(() => {
   background: transparent;
   color: rgb(var(--txt-3));
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  /* SIMPLIFICADO - APENAS TRANSFORM ESSENCIAL */
+  transition: transform 50ms linear;
+  will-change: transform;
 }
 
 .kan-card__action-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .kan-card__action-btn:focus {
@@ -321,7 +418,7 @@ onBeforeUnmount(() => {
 }
 
 .kan-card__action-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.98);
 }
 
 .kan-card__action-btn--edit:hover {

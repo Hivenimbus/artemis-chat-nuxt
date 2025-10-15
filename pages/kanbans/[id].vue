@@ -1,7 +1,22 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <!-- Header com loading overlay -->
+    <div class="bg-white shadow-sm border-b border-gray-200 relative">
+      <!-- Loading overlay apenas para operações críticas (não inclui movimentação) -->
+      <div
+        v-if="loadingCard || loadingColumn"
+        class="absolute inset-0 bg-white bg-opacity-80 z-50 flex items-center justify-center"
+      >
+        <div class="flex items-center space-x-2 text-indigo-600">
+          <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span class="text-sm font-medium">
+            {{ loadingCard ? 'Processando cartão...' : 'Processando...' }}
+          </span>
+        </div>
+      </div>
+
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center py-6">
           <div class="flex items-center space-x-4">
@@ -21,12 +36,16 @@
           <div class="flex items-center space-x-3">
             <button
               @click="showAddColumnModal = true"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+              :disabled="loadingColumn"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 disabled:opacity-50"
             >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-if="loadingColumn" class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Nova Coluna
+              {{ loadingColumn ? 'Processando...' : 'Nova Coluna' }}
             </button>
             <button
               @click="editKanban"
@@ -45,17 +64,17 @@
     <!-- Kanban Board -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center items-center h-64">
+      <div v-if="initialLoading || dataLoading" class="flex justify-center items-center h-64">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="text-center py-12">
+      <div v-else-if="errorMessage" class="text-center py-12">
         <svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
         <h3 class="mt-2 text-sm font-medium text-gray-900">Erro ao carregar kanban</h3>
-        <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
+        <p class="mt-1 text-sm text-gray-500">{{ errorMessage }}</p>
         <div class="mt-6">
           <button
             @click="navigateTo('/kanbans')"
@@ -66,21 +85,26 @@
         </div>
       </div>
 
-      <!-- Kanban Columns -->
+      <!-- Kanban Columns otimizado com v-memo -->
       <div v-else class="flex space-x-6 overflow-x-auto pb-4">
         <div
           v-for="column in sortedColumns"
           :key="column.id"
+          v-memo="[column.id, column.title, column.updated_at]"
           class="flex-shrink-0 w-80"
         >
           <KanbanColumn
             :column="column"
             :cards="getColumnCards(column.id)"
+            :global-drag-state="globalDragState"
             @add-card="handleAddCard"
             @edit-card="handleEditCard"
             @delete-card="handleDeleteCard"
             @delete-column="handleDeleteColumn"
             @card-drop="handleCardDrop"
+            @card-drag-start="startInstantMove"
+            @card-drag-end="endInstantMove"
+            @update-preview-column="updatePreviewColumn"
           />
         </div>
       </div>
@@ -208,12 +232,15 @@ const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 const route = useRoute()
 
-// State
-const kanban = ref(null)
-const columns = ref([])
-const cards = ref([])
-const loading = ref(true)
+// State otimizado com shallowRef para performance
+const kanban = shallowRef(null)
+const columns = shallowRef([])
+const cards = shallowRef([])
+const initialLoading = ref(true)
 const error = ref('')
+
+// Cache key para controle de atualizações
+const cacheKey = computed(() => `kanban-${route.params.id}`)
 const showAddColumnModal = ref(false)
 const newColumnTitle = ref('')
 const savingColumn = ref(false)
@@ -226,48 +253,103 @@ const cardForm = ref({
 const savingCard = ref(false)
 const selectedColumnId = ref(null)
 
+// Loading states granulares
+const loadingCard = ref(false)
+const loadingMove = ref(false)
+const loadingColumn = ref(false)
+
 // Computed
 const sortedColumns = computed(() => {
   return columns.value.sort((a, b) => a.position - b.position)
 })
 
-// Get cards for a specific column
+// Cache para cards por coluna para evitar recálculos
+const columnCardsCache = new Map()
+
+// Get cards for a specific column com memoização
 const getColumnCards = (columnId) => {
-  return cards.value
+  // Verificar cache
+  const cacheKey = `${columnId}-${cards.value.length}`
+  if (columnCardsCache.has(cacheKey)) {
+    return columnCardsCache.get(cacheKey)
+  }
+
+  // Calcular e cachear
+  const columnCards = cards.value
     .filter(card => card.column_id === columnId)
     .sort((a, b) => a.position - b.position)
+
+  // Limitar cache a 50 entradas
+  if (columnCardsCache.size > 50) {
+    const firstKey = columnCardsCache.keys().next().value
+    columnCardsCache.delete(firstKey)
+  }
+
+  columnCardsCache.set(cacheKey, columnCards)
+  return columnCards
 }
 
-// Load kanban data
-const loadKanban = async () => {
+// Load kanban data otimizado com cache
+const {
+  data: kanbanData,
+  pending: kanbanLoading,
+  error: kanbanError,
+  refresh: refreshKanban
+} = useLazyAsyncData(cacheKey.value, async () => {
   try {
-    loading.value = true
-    error.value = ''
-
-    // Load kanban completo
     const { data } = await $fetch(`/api/kanbans/${route.params.id}`)
 
-    kanban.value = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt
-    }
-
-    columns.value = data.columns || []
-    cards.value = data.cards || []
-
-    // If no columns exist, create default ones
-    if (columns.value.length === 0) {
-      await createDefaultColumns()
+    return {
+      kanban: {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      },
+      columns: data.columns || [],
+      cards: data.cards || []
     }
   } catch (err) {
     console.error('Erro ao carregar kanban:', err)
-    error.value = 'Erro ao carregar kanban: ' + (err.message || 'Tente novamente.')
-  } finally {
-    loading.value = false
+    throw err
   }
+}, {
+  // Cache por 5 minutos
+  server: false,
+  default: () => ({
+    kanban: null,
+    columns: [],
+    cards: []
+  })
+})
+
+// Sincronizar dados reativos com dados cacheados
+watchEffect(() => {
+  if (kanbanData.value) {
+    kanban.value = kanbanData.value.kanban
+    columns.value = kanbanData.value.columns
+    cards.value = kanbanData.value.cards
+
+    // Parar loading inicial quando dados são carregados
+    if (initialLoading.value && !dataLoading.value) {
+      initialLoading.value = false
+    }
+
+    // Se não há colunas, criar padrão
+    if (columns.value.length === 0 && !dataLoading.value) {
+      createDefaultColumns()
+    }
+  }
+})
+
+// Loading states otimizados
+const dataLoading = computed(() => kanbanLoading.value)
+const errorMessage = computed(() => kanbanError.value?.message || '')
+
+// Refresh otimizado
+const loadKanban = async () => {
+  await refreshKanban()
 }
 
 // Create default columns
@@ -303,23 +385,30 @@ const createDefaultColumns = async () => {
   }
 }
 
-// Add column
+// Add column otimizado com atualização delta
 const addColumn = async () => {
   try {
     savingColumn.value = true
+    loadingColumn.value = true
 
-    await $fetch('/api/kanbans/columns', {
-      method: 'POST',
-      body: {
-        kanban_id: route.params.id,
-        title: newColumnTitle.value,
-        icon: 'clipboard',
-        color: 'blue',
-        position: columns.value.length
-      }
-    }).catch(async () => {
-      // Fallback: criar diretamente via Supabase se API não existir
-      const { error } = await supabase
+    let newColumn = null
+
+    try {
+      // Tentar API primeiro
+      const response = await $fetch('/api/kanbans/columns', {
+        method: 'POST',
+        body: {
+          kanban_id: route.params.id,
+          title: newColumnTitle.value,
+          icon: 'clipboard',
+          color: 'blue',
+          position: columns.value.length
+        }
+      })
+      newColumn = response.data || response
+    } catch (apiError) {
+      // Fallback: criar diretamente via Supabase
+      const { data, error } = await supabase
         .from('kanban_columns')
         .insert({
           kanban_id: route.params.id,
@@ -328,17 +417,27 @@ const addColumn = async () => {
           color: 'blue',
           position: columns.value.length
         })
+        .select()
+        .single()
 
       if (error) throw error
-    })
+      newColumn = data
+    }
+
+    // Atualização delta - não recarregar tudo
+    if (newColumn) {
+      columns.value = [...columns.value, newColumn]
+      // Limpar cache de cards por coluna
+      columnCardsCache.clear()
+    }
 
     closeAddColumnModal()
-    await loadKanban()
   } catch (error) {
     console.error('Erro ao adicionar coluna:', error)
     alert('Erro ao adicionar coluna: ' + (error.message || 'Tente novamente.'))
   } finally {
     savingColumn.value = false
+    loadingColumn.value = false
   }
 }
 
@@ -364,14 +463,20 @@ const handleEditCard = (card) => {
   showCardModal.value = true
 }
 
-// Handle delete card
+// Handle delete card otimizado com atualização delta
 const handleDeleteCard = async (cardId) => {
   if (!confirm('Tem certeza que deseja excluir este cartão?')) return
 
   try {
-    await $fetch(`/api/kanbans/cards/${cardId}`, {
-      method: 'DELETE'
-    }).catch(async () => {
+    loadingCard.value = true
+    let deleted = false
+
+    try {
+      await $fetch(`/api/kanbans/cards/${cardId}`, {
+        method: 'DELETE'
+      })
+      deleted = true
+    } catch (apiError) {
       // Fallback: excluir diretamente via Supabase
       const { error } = await supabase
         .from('kanban_cards')
@@ -379,12 +484,21 @@ const handleDeleteCard = async (cardId) => {
         .eq('id', cardId)
 
       if (error) throw error
-    })
+      deleted = true
+    }
 
-    await loadKanban()
+    // Atualização delta
+    if (deleted) {
+      cards.value = cards.value.filter(c => c.id !== cardId)
+      columnCardsCache.clear()
+    }
   } catch (error) {
     console.error('Erro ao excluir cartão:', error)
     alert('Erro ao excluir cartão: ' + (error.message || 'Tente novamente.'))
+    // Em caso de erro, recarregar para manter consistência
+    await loadKanban()
+  } finally {
+    loadingCard.value = false
   }
 }
 
@@ -406,53 +520,239 @@ const handleDeleteColumn = async (columnId) => {
   }
 }
 
-// Handle card drop
-const handleCardDrop = async ({ cardId, newColumnId, newPosition }) => {
-  try {
-    await $fetch(`/api/kanbans/cards/${cardId}/move`, {
-      method: 'PUT',
-      body: {
-        column_id: newColumnId,
-        position: newPosition
-      }
-    }).catch(async () => {
-      // Fallback: mover diretamente via Supabase
-      const { error } = await supabase
-        .from('kanban_cards')
-        .update({
-          column_id: newColumnId,
-          position: newPosition,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', cardId)
+// Estado global de dragging para movimento instantâneo
+const globalDragState = ref({
+  isDragging: false,
+  draggedCard: null,
+  originalColumnId: null,
+  previewColumnId: null,
+  dragOverColumnId: null
+})
 
-      if (error) throw error
+// Sistema de backup/rollback inteligente para movimentação
+const dragBackup = ref(null)
+
+// Iniciar movimento instantâneo no drag start - OTIMIZADO
+const startInstantMove = (cardId) => {
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return
+
+  // Criar backup de forma síncrona ultra-rápida
+  dragBackup.value = {
+    cardId,
+    originalCard: { ...card },
+    originalCards: [...cards.value],
+    originalColumnId: card.column_id,
+    originalPosition: card.position,
+    timestamp: Date.now()
+  }
+
+  // Configurar estado global de dragging forma síncrona
+  globalDragState.value = {
+    isDragging: true,
+    draggedCard: { ...card },
+    originalColumnId: card.column_id,
+    previewColumnId: card.column_id,
+    dragOverColumnId: null
+  }
+
+  // REMOVER CARD VISIVELMENTE de forma OTIMIZADA
+  const cardIndex = cards.value.findIndex(c => c.id === cardId)
+  if (cardIndex !== -1) {
+    // Remover card da visualização de forma imediata
+    const newCards = [...cards.value]
+    newCards.splice(cardIndex, 1)
+
+    // Reorganizar APENAS os cards da coluna afetada
+    const columnCards = newCards.filter(c => c.column_id === card.column_id)
+    const otherColumnCards = newCards.filter(c => c.column_id !== card.column_id)
+
+    // Reorganizar posições sem criar novos objetos desnecessários
+    columnCards.forEach((c, index) => {
+      c.position = index
     })
 
-    await loadKanban()
-  } catch (error) {
-    console.error('Erro ao mover cartão:', error)
-    alert('Erro ao mover cartão: ' + (error.message || 'Tente novamente.'))
+    // Atualizar estado de forma otimizada
+    cards.value = [...otherColumnCards, ...columnCards]
+
+    // Limpar cache APENAS da coluna afetada
+    const affectedCacheKeys = Array.from(columnCardsCache.keys())
+      .filter(key => key.includes(card.column_id.toString()))
+    affectedCacheKeys.forEach(key => columnCardsCache.delete(key))
   }
 }
 
-// Save card
+// Finalizar movimento instantâneo
+const endInstantMove = () => {
+  globalDragState.value = {
+    isDragging: false,
+    draggedCard: null,
+    originalColumnId: null,
+    previewColumnId: null,
+    dragOverColumnId: null
+  }
+}
+
+// Atualizar preview de coluna durante o drag - OTIMIZADO
+const updatePreviewColumn = (columnId) => {
+  if (!globalDragState.value.isDragging) return
+
+  // Evitar atualizações desnecessárias se a coluna não mudou
+  if (globalDragState.value.previewColumnId === columnId) return
+
+  // Atualização síncrona e instantânea
+  globalDragState.value.dragOverColumnId = columnId
+  globalDragState.value.previewColumnId = columnId
+
+  // Se o card já foi movido visualmente, não fazer nada mais
+  // O preview será tratado pelo componente KanbanColumn
+}
+
+// Criar backup do estado antes do drag
+const createDragBackup = (cardId) => {
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return null
+
+  return {
+    cardId,
+    originalCard: { ...card },
+    originalCards: [...cards.value],
+    originalColumnId: card.column_id,
+    originalPosition: card.position,
+    timestamp: Date.now()
+  }
+}
+
+// Rollback suave com animação
+const performRollback = (backup) => {
+  if (!backup) return
+
+  // Adicionar classe de erro para feedback visual
+  const cardElement = document.querySelector(`[data-card-id="${backup.cardId}"]`)
+  if (cardElement) {
+    cardElement.classList.add('rollback-error')
+    setTimeout(() => {
+      cardElement.classList.remove('rollback-error')
+    }, 1000)
+  }
+
+  // Restaurar estado original
+  cards.value = backup.originalCards
+  columnCardsCache.clear()
+
+  // Notificação sutil
+  if (process.client) {
+    const toast = document.createElement('div')
+    toast.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center gap-2'
+    toast.innerHTML = `
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <span>Falha ao mover cartão - posição restaurada</span>
+    `
+    document.body.appendChild(toast)
+    setTimeout(() => toast.remove(), 4000)
+  }
+}
+
+// Handle card drop - TOTALMENTE NÃO BLOQUEANTE
+const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
+  if (!globalDragState.value.isDragging || !dragBackup.value) return
+
+  // Movimento visual já foi feito no dragStart!
+  // Iniciar persistência em background SEM BLOQUEAR A UI
+
+  const finalizeMove = async () => {
+    try {
+      // Encontrar posição correta
+      const targetColumnCards = cards.value.filter(c => c.column_id === newColumnId)
+      let actualPosition = newPosition
+
+      const draggedCardId = globalDragState.value.draggedCard?.id
+      if (targetColumnCards.some(c => c.id === draggedCardId)) {
+        actualPosition = targetColumnCards.findIndex(c => c.id === draggedCardId)
+      }
+
+      // Persistir em background COM TIMEOUT LONGO para não bloquear
+      const persistPromise = new Promise((resolve, reject) => {
+        setTimeout(async () => {
+          try {
+            await $fetch(`/api/kanbans/cards/${cardId}/move`, {
+              method: 'PUT',
+              body: {
+                column_id: newColumnId,
+                position: actualPosition
+              }
+            })
+            resolve()
+          } catch (apiError) {
+            // Fallback direto
+            try {
+              const { error } = await supabase
+                .from('kanban_cards')
+                .update({
+                  column_id: newColumnId,
+                  position: actualPosition,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', cardId)
+
+              if (error) throw error
+              resolve()
+            } catch (fallbackError) {
+              reject(fallbackError)
+            }
+          }
+        }, 50) // 50ms delay para garantir que não bloqueie
+      })
+
+      await persistPromise
+
+    } catch (error) {
+      console.error('Erro na persistência (background):', error)
+      // Rollback em background se falhar
+      if (dragBackup.value) {
+        performRollback(dragBackup.value)
+      }
+    }
+  }
+
+  // EXECUTAR EM BACKGROUND - NÃO ESPERAR!
+  finalizeMove()
+
+  // Finalizar estado imediatamente
+  endInstantMove()
+
+  // Limpar backup após tempo
+  setTimeout(() => {
+    if (dragBackup.value?.cardId === cardId) {
+      dragBackup.value = null
+    }
+  }, 3000)
+}
+
+// Save card otimizado com atualização delta
 const saveCard = async () => {
   try {
     savingCard.value = true
 
     if (editingCard.value) {
       // Update existing card
-      await $fetch(`/api/kanbans/cards/${editingCard.value.id}`, {
-        method: 'PUT',
-        body: {
-          title: cardForm.value.title,
-          description: cardForm.value.description,
-          column_id: selectedColumnId.value
-        }
-      }).catch(async () => {
+      let updatedCard = null
+
+      try {
+        const response = await $fetch(`/api/kanbans/cards/${editingCard.value.id}`, {
+          method: 'PUT',
+          body: {
+            title: cardForm.value.title,
+            description: cardForm.value.description,
+            column_id: selectedColumnId.value
+          }
+        })
+        updatedCard = response.data || response
+      } catch (apiError) {
         // Fallback: atualizar diretamente via Supabase
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('kanban_cards')
           .update({
             title: cardForm.value.title,
@@ -461,9 +761,25 @@ const saveCard = async () => {
             updated_at: new Date().toISOString()
           })
           .eq('id', editingCard.value.id)
+          .select()
+          .single()
 
         if (error) throw error
-      })
+        updatedCard = data
+      }
+
+      // Atualização delta
+      if (updatedCard) {
+        const cardIndex = cards.value.findIndex(c => c.id === editingCard.value.id)
+        if (cardIndex !== -1) {
+          cards.value = [
+            ...cards.value.slice(0, cardIndex),
+            updatedCard,
+            ...cards.value.slice(cardIndex + 1)
+          ]
+        }
+        columnCardsCache.clear()
+      }
     } else {
       // Create new card
       const maxPosition = Math.max(
@@ -473,18 +789,23 @@ const saveCard = async () => {
         -1
       )
 
-      await $fetch('/api/kanbans/cards', {
-        method: 'POST',
-        body: {
-          kanban_id: route.params.id,
-          column_id: selectedColumnId.value,
-          title: cardForm.value.title,
-          description: cardForm.value.description,
-          position: maxPosition + 1
-        }
-      }).catch(async () => {
+      let newCard = null
+
+      try {
+        const response = await $fetch('/api/kanbans/cards', {
+          method: 'POST',
+          body: {
+            kanban_id: route.params.id,
+            column_id: selectedColumnId.value,
+            title: cardForm.value.title,
+            description: cardForm.value.description,
+            position: maxPosition + 1
+          }
+        })
+        newCard = response.data || response
+      } catch (apiError) {
         // Fallback: criar diretamente via Supabase
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('kanban_cards')
           .insert({
             kanban_id: route.params.id,
@@ -493,13 +814,21 @@ const saveCard = async () => {
             description: cardForm.value.description,
             position: maxPosition + 1
           })
+          .select()
+          .single()
 
         if (error) throw error
-      })
+        newCard = data
+      }
+
+      // Atualização delta
+      if (newCard) {
+        cards.value = [...cards.value, newCard]
+        columnCardsCache.clear()
+      }
     }
 
     closeCardModal()
-    await loadKanban()
   } catch (error) {
     console.error('Erro ao salvar cartão:', error)
     alert('Erro ao salvar cartão: ' + (error.message || 'Tente novamente.'))

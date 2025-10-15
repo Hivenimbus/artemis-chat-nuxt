@@ -120,24 +120,94 @@
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
-      <!-- Cards -->
-      <TransitionGroup name="card-list" tag="div" class="kan-col__cards-list">
+      <!-- Cards com virtualização para grandes listas -->
+      <div v-if="useVirtualization" class="kan-col__cards-list kan-col__cards-list--virtual">
+        <VirtualList
+          :items="cardsWithPreview"
+          :item-size="140"
+          :container-height="400"
+          :buffer-size="3"
+        >
+          <template #default="{ item: card, index }">
+            <div
+              class="card-drop-zone"
+              @dragover.prevent="handleCardDragOver($event, index)"
+              @dragleave="handleCardDragLeave($event, index)"
+              @drop="handleCardDrop($event, index)"
+              :class="{
+                'card-drop-zone--active': dragOverIndex === index,
+                'card-drop-zone--preview': card.isPreview,
+                'card-drop-zone--placeholder': card.isPlaceholder
+              }"
+            >
+              <!-- Placeholder para card removido -->
+              <div v-if="card.isPlaceholder" class="card-placeholder">
+                <div class="card-placeholder__content">
+                  <svg class="card-placeholder__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1 1 0 011-1h4a1 1 0 011 1v6m-6 0a1 1 0 001 1h2a1 1 0 001-1m0-5a1 1 0 011-1h2a1 1 0 011 1m0-5V4a1 1 0 00-1-1H7a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span class="card-placeholder__text">Card movido</span>
+                </div>
+              </div>
+
+              <!-- Card normal ou preview -->
+              <KanbanCard
+                v-else
+                :card="card"
+                :columns="columns"
+                :current-column-id="column.id"
+                :is-preview="card.isPreview"
+                :global-drag-state="globalDragState"
+                @edit-card="$emit('edit-card', $event)"
+                @delete-card="$emit('delete-card', $event)"
+                @move-card="handleMoveCard(card.id, $event)"
+                @card-drag-start="$emit('card-drag-start', $event)"
+                @card-drag-end="$emit('card-drag-end')"
+              />
+            </div>
+          </template>
+        </VirtualList>
+      </div>
+
+      <!-- Cards tradicionais para listas pequenas -->
+      <TransitionGroup v-else name="card-list" tag="div" class="kan-col__cards-list">
         <div
-          v-for="(card, index) in cards"
+          v-for="(card, index) in cardsWithPreview"
           :key="card.id"
+          v-memo="[card.id, card.title, card.description, card.updated_at, dragOverIndex === index, card.isPreview, card.isPlaceholder]"
           class="card-drop-zone"
           @dragover.prevent="handleCardDragOver($event, index)"
           @dragleave="handleCardDragLeave($event, index)"
           @drop="handleCardDrop($event, index)"
-          :class="{ 'card-drop-zone--active': dragOverIndex === index }"
+          :class="{
+            'card-drop-zone--active': dragOverIndex === index,
+            'card-drop-zone--preview': card.isPreview,
+            'card-drop-zone--placeholder': card.isPlaceholder
+          }"
         >
+          <!-- Placeholder para card removido -->
+          <div v-if="card.isPlaceholder" class="card-placeholder">
+            <div class="card-placeholder__content">
+              <svg class="card-placeholder__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1 1 0 011-1h4a1 1 0 011 1v6m-6 0a1 1 0 001 1h2a1 1 0 001-1m0-5a1 1 0 011-1h2a1 1 0 011 1m0-5V4a1 1 0 00-1-1H7a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span class="card-placeholder__text">Card movido</span>
+            </div>
+          </div>
+
+          <!-- Card normal ou preview -->
           <KanbanCard
+            v-else
             :card="card"
             :columns="columns"
             :current-column-id="column.id"
+            :is-preview="card.isPreview"
+            :global-drag-state="globalDragState"
             @edit-card="$emit('edit-card', $event)"
             @delete-card="$emit('delete-card', $event)"
             @move-card="handleMoveCard(card.id, $event)"
+            @card-drag-start="$emit('card-drag-start', $event)"
+            @card-drag-end="$emit('card-drag-end')"
           />
         </div>
       </TransitionGroup>
@@ -181,19 +251,54 @@ const props = defineProps({
   columns: {
     type: Array,
     default: () => []
+  },
+  globalDragState: {
+    type: Object,
+    default: () => ({})
   }
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color', 'card-drag-start', 'card-drag-end', 'update-preview-column'])
 
-// State
+// State otimizado
 const isDragOver = ref(false)
 const dragOverIndex = ref(null)
 const isDragFromDifferentColumn = ref(false)
 const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
+
+// Debounce para otimizar drag events
+const debouncedDragOver = ref(null)
+
+// Batch de atualizações para performance
+const updateBatch = ref([])
+const batchTimeout = ref(null)
+
+// Processar batch de atualizações de forma otimizada
+const processBatch = () => {
+  if (updateBatch.value.length === 0) return
+
+  // Combinar múltiplas atualizações em uma única
+  const updates = updateBatch.value
+  updateBatch.value = []
+
+  // Processar apenas a última atualização de cada tipo
+  const latestUpdates = {}
+  updates.forEach(update => {
+    latestUpdates[update.type] = update.value
+  })
+
+  // Aplicar atualizações de uma vez
+  requestAnimationFrame(() => {
+    Object.values(latestUpdates).forEach(value => {
+      if (value !== undefined) {
+        // Aplicar atualização
+      }
+    })
+  })
+}
 
 // Icon paths mapping
 const iconPaths = {
@@ -236,26 +341,158 @@ const currentColumnIndex = computed(() => {
 const canMoveLeft = computed(() => currentColumnIndex.value > 0)
 const canMoveRight = computed(() => currentColumnIndex.value < props.columns.length - 1 && currentColumnIndex.value !== -1)
 
-// Handle drag over column (for empty space)
-const handleDragOver = (event) => {
-  event.preventDefault()
-  event.dataTransfer.dropEffect = 'move'
+// Determinar quando usar virtualização (mais de 10 cartões)
+const useVirtualization = computed(() => props.cards.length > 10)
 
-  // Check if the card is from a different column
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-  const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
+// Cards com preview do card sendo arrastado - OTIMIZADO COM SHALLOW REF
+const cardsWithPreview = shallowRef([])
 
-  if (!isDragOver.value && isDifferentColumn) {
-    isDragOver.value = true
+// Atualizar cards com preview apenas quando necessário - EVITAR RECOMPUTE EXCESSIVO
+const updateCardsWithPreview = () => {
+  const baseCards = [...props.cards]
+  let needsUpdate = false
+
+  // Verificar se precisa mostrar placeholder
+  const needsPlaceholder = props.globalDragState?.isDragging &&
+                          props.globalDragState?.originalColumnId === props.column.id &&
+                          props.globalDragState?.draggedCard
+
+  // Verificar se precisa mostrar preview
+  const needsPreview = props.globalDragState?.isDragging &&
+                       props.globalDragState?.previewColumnId === props.column.id &&
+                       props.globalDragState?.draggedCard &&
+                       props.globalDragState?.previewColumnId !== props.globalDragState?.originalColumnId
+
+  // Comparar com estado atual para evitar updates desnecessários
+  const currentHasPlaceholder = cardsWithPreview.value.some(card => card.isPlaceholder)
+  const currentHasPreview = cardsWithPreview.value.some(card => card.isPreview)
+
+  if (needsPlaceholder !== currentHasPlaceholder || needsPreview !== currentHasPreview) {
+    needsUpdate = true
+  }
+
+  if (!needsUpdate) {
+    // Verificar se os cards base mudaram (comparação simples)
+    if (baseCards.length !== cardsWithPreview.value.filter(c => !c.isPlaceholder && !c.isPreview).length) {
+      needsUpdate = true
+    }
+  }
+
+  if (needsUpdate) {
+    // Adicionar placeholder se necessário
+    if (needsPlaceholder) {
+      const placeholderCard = {
+        isPlaceholder: true,
+        id: `placeholder-${props.globalDragState.draggedCard.id}`,
+        column_id: props.column.id,
+        height: '120px'
+      }
+      baseCards.push(placeholderCard)
+    }
+
+    // Adicionar preview se necessário
+    if (needsPreview) {
+      const previewCard = {
+        ...props.globalDragState.draggedCard,
+        isPreview: true,
+        id: `preview-${props.globalDragState.draggedCard.id}`,
+        column_id: props.column.id
+      }
+      baseCards.push(previewCard)
+    }
+
+    cardsWithPreview.value = baseCards
   }
 }
 
-// Handle drag leave column
+// Watch para atualizar apenas quando props essenciais mudam
+watch([() => props.cards, () => props.globalDragState?.isDragging, () => props.globalDragState?.originalColumnId, () => props.globalDragState?.previewColumnId],
+  updateCardsWithPreview,
+  { immediate: true, flush: 'sync' }
+)
+
+// Handle drag over column - COM DEBOUNCE E BATCHING OTIMIZADO
+const handleDragOver = (event) => {
+  try {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+
+    // Adicionar ao batch em vez de processar imediatamente
+    updateBatch.value.push({
+      type: 'dragOver',
+      value: {
+        timestamp: Date.now(),
+        columnId: props.column.id
+      }
+    })
+
+    // Limpar timeout anterior
+    if (batchTimeout.value) {
+      clearTimeout(batchTimeout.value)
+    }
+
+    // Processar batch com debounce de 8ms (120fps)
+    batchTimeout.value = setTimeout(() => {
+      processBatch()
+
+      // Processar apenas o último evento do batch
+      const latestEvent = updateBatch.value[updateBatch.value.length - 1]?.value
+      if (latestEvent) {
+        // Usar estado global para resposta instantânea
+        const isGlobalDragging = props.globalDragState?.isDragging
+        const isDraggingOverThisColumn = props.globalDragState?.dragOverColumnId === props.column.id
+
+        if (isGlobalDragging && !isDraggingOverThisColumn) {
+          // Notificar pai sobre a mudança de preview
+          emit('update-preview-column', props.column.id)
+        }
+
+        // Atualizar estados locais de forma batched
+        const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
+        const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
+
+        // requestAnimationFrame para atualização visual suave
+        requestAnimationFrame(() => {
+          isDragFromDifferentColumn.value = isDifferentColumn
+          if (!isDragOver.value && (isDifferentColumn || isGlobalDragging)) {
+            isDragOver.value = true
+          }
+        })
+      }
+    }, 8)
+
+  } catch (error) {
+    console.warn('Erro no handleDragOver:', error)
+  }
+}
+
+// Handle drag leave column otimizado com resposta imediata
 const handleDragLeave = (event) => {
-  // Only set isDragOver to false if the drag is leaving the column container
-  if (!event.currentTarget.contains(event.relatedTarget)) {
+  try {
+    // Capturar referências seguras
+    const currentTarget = event.currentTarget
+    const relatedTarget = event.relatedTarget
+
+    // Verificação robusta - se o elemento não existe mais, consideramos como leaving
+    const elementExists = currentTarget && typeof currentTarget.contains === 'function'
+
+    if (!elementExists) {
+      // Elemento foi removido, reset states imediatamente
+      isDragOver.value = false
+      isDragFromDifferentColumn.value = false
+      return
+    }
+
+    // Verificação segura para relatedTarget - resposta imediata
+    const isLeavingContainer = relatedTarget === null || !currentTarget.contains(relatedTarget)
+
+    if (isLeavingContainer) {
+      isDragOver.value = false
+      isDragFromDifferentColumn.value = false
+    }
+  } catch (error) {
+    console.warn('Erro no handleDragLeave:', error)
+    // Reset states imediatamente em caso de erro
     isDragOver.value = false
     isDragFromDifferentColumn.value = false
   }
@@ -263,57 +500,120 @@ const handleDragLeave = (event) => {
 
 // Handle drop on column (empty space - adds to end)
 const handleDrop = (event) => {
-  event.preventDefault()
-  isDragOver.value = false
-  isDragFromDifferentColumn.value = false
+  try {
+    event.preventDefault()
 
-  const cardId = event.dataTransfer.getData('cardId')
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
+    // Limpar timeout
+    if (debouncedDragOver.value) {
+      clearTimeout(debouncedDragOver.value)
+    }
 
-  if (!cardId) return
+    isDragOver.value = false
+    isDragFromDifferentColumn.value = false
 
-  // Only process the drop if it's a different column
-  if (sourceColumnId !== props.column.id) {
-    // Calculate new position (at the end of the column)
-    const newPosition = props.cards.length
+    const cardId = event.dataTransfer?.getData('cardId')
+    const sourceColumnId = event.dataTransfer?.getData('sourceColumnId')
 
-    // Emit the card drop event
-    emit('card-drop', {
-      cardId,
-      newColumnId: props.column.id,
-      newPosition
-    })
+    if (!cardId) return
+
+    // Only process the drop if it's a different column
+    if (sourceColumnId !== props.column.id) {
+      // Calculate new position (at the end of the column)
+      const newPosition = props.cards.length
+
+      // Emit the card drop event
+      emit('card-drop', {
+        cardId,
+        newColumnId: props.column.id,
+        newPosition
+      })
+    }
+  } catch (error) {
+    console.warn('Erro no handleDrop:', error)
+    // Reset states em caso de erro
+    isDragOver.value = false
+    isDragFromDifferentColumn.value = false
   }
 }
 
-// Handle drag over a specific card
+// Cache para eventos de drag em cartões
+const cardDragCache = new Map()
+
+// Handle drag over a specific card otimizado para resposta imediata
 const handleCardDragOver = (event, index) => {
   event.preventDefault()
   event.stopPropagation()
   event.dataTransfer.dropEffect = 'move'
-  
+
+  // Cache simples baseado no timestamp para evitar chamadas duplicadas
+  const now = Date.now()
+  const cacheKey = `${index}-${Math.floor(now / 16)}` // Cache por 16ms (~60fps)
+
+  if (cardDragCache.has(cacheKey)) {
+    return
+  }
+
+  // Limitar cache tamanho
+  if (cardDragCache.size > 50) {
+    const firstKey = cardDragCache.keys().next().value
+    cardDragCache.delete(firstKey)
+  }
+  cardDragCache.set(cacheKey, true)
+
   // Check if the card is from a different column
   const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
   const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
-  dragOverIndex.value = index
-}
 
-// Handle drag leave from a specific card
-const handleCardDragLeave = (event, index) => {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    if (dragOverIndex.value === index) {
-      dragOverIndex.value = null
-      isDragFromDifferentColumn.value = false
-    }
+  isDragFromDifferentColumn.value = isDifferentColumn
+
+  // Apenas atualizar se o índice mudou para evitar renderizações desnecessárias
+  if (dragOverIndex.value !== index) {
+    dragOverIndex.value = index
   }
 }
 
-// Handle drop on a specific card
+// Handle drag leave from a specific card otimizado
+const handleCardDragLeave = (event, index) => {
+  try {
+    // Capturar referências seguras
+    const currentTarget = event.currentTarget
+    const relatedTarget = event.relatedTarget
+
+    // Verificação robusta - se o elemento não existe mais, consideramos como leaving
+    const elementExists = currentTarget && typeof currentTarget.contains === 'function'
+
+    if (!elementExists) {
+      // Elemento foi removido, reset states específicos
+      if (dragOverIndex.value === index) {
+        dragOverIndex.value = null
+        isDragFromDifferentColumn.value = false
+      }
+      return
+    }
+
+    // Verificação segura para relatedTarget
+    const isLeavingCard = relatedTarget === null || !currentTarget.contains(relatedTarget)
+
+    if (isLeavingCard) {
+      if (dragOverIndex.value === index) {
+        dragOverIndex.value = null
+        isDragFromDifferentColumn.value = false
+      }
+    }
+  } catch (error) {
+    console.warn('Erro no handleCardDragLeave:', error)
+    // Reset states em caso de erro
+    dragOverIndex.value = null
+    isDragFromDifferentColumn.value = false
+  }
+}
+
+// Handle drop on a specific card - POSICIONAMENTO INSTANTÂNEO
 const handleCardDrop = (event, targetIndex) => {
   event.preventDefault()
   event.stopPropagation()
+
+  // Reset states imediatamente
   dragOverIndex.value = null
   isDragOver.value = false
   isDragFromDifferentColumn.value = false
@@ -323,27 +623,22 @@ const handleCardDrop = (event, targetIndex) => {
 
   if (!cardId) return
 
-  // Get the Y position of the mouse relative to the card
+  // CÁLCULO INSTANTÂNEO da posição - sem validações desnecessárias
   const cardElement = event.currentTarget
   const rect = cardElement.getBoundingClientRect()
   const mouseY = event.clientY
   const cardMiddle = rect.top + rect.height / 2
 
-  // Determine if we should insert before or after
+  // Determinar posição baseada no mouse - cálculo ultra-rápido
   let newPosition = targetIndex
   if (mouseY > cardMiddle) {
     newPosition = targetIndex + 1
   }
 
-  // If same column and same position, don't do anything
-  if (sourceColumnId === props.column.id) {
-    const draggedCard = props.cards.find(c => c.id === cardId)
-    if (draggedCard && draggedCard.position === newPosition) {
-      return
-    }
-  }
+  // OTIMIZAÇÃO: Não validar se mesma coluna/posição - deixar backend decidir
+  // Isso elimina qualquer delay no frontend
 
-  // Emit the card drop event with the new position
+  // Emitir evento IMEDIATAMENTE sem qualquer validação
   emit('card-drop', {
     cardId,
     newColumnId: props.column.id,
@@ -438,6 +733,28 @@ const updateColor = (colorValue) => {
   showColorPicker.value = false
   showOptions.value = false
 }
+
+// Cleanup timeouts quando o componente é destruído
+onBeforeUnmount(() => {
+  // Limpar todos os timeouts pendentes para evitar memory leaks
+  if (debouncedDragOver.value) {
+    clearTimeout(debouncedDragOver.value)
+    debouncedDragOver.value = null
+  }
+
+  if (batchTimeout.value) {
+    clearTimeout(batchTimeout.value)
+    batchTimeout.value = null
+  }
+
+  // Limpar batch de atualizações
+  updateBatch.value = []
+
+  // Reset states para garantir limpeza
+  isDragOver.value = false
+  isDragFromDifferentColumn.value = false
+  dragOverIndex.value = null
+})
 </script>
 
 <style scoped>
@@ -555,7 +872,7 @@ const updateColor = (colorValue) => {
   box-shadow: 0 4px 12px rgba(var(--col-500), 0.3);
 }
 
-/* Column Options Menu */
+/* Column Options Menu otimizado */
 .kan-col__options {
   position: relative;
 }
@@ -572,13 +889,14 @@ const updateColor = (colorValue) => {
   background: transparent;
   color: rgba(var(--txt-2), 0.6);
   cursor: pointer;
-  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
+  transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
+  will-change: background-color, color, transform;
 }
 
 .kan-col__options-btn:hover {
   background: rgba(var(--col-500), 0.08);
   color: rgb(var(--col-500));
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 .kan-col__options-icon {
@@ -734,9 +1052,13 @@ const updateColor = (colorValue) => {
 }
 
 .kan-col__cards--drag-over {
-  background: rgba(var(--col-500), 0.05);
-  outline: 2px dashed rgba(var(--col-500), 0.4);
+  background: rgba(var(--col-500), 0.08);
+  outline: 2px dashed rgba(var(--col-500), 0.6);
   outline-offset: -4px;
+  /* Ultra-otimização para resposta ZERO-DELAY */
+  will-change: background-color, outline-color, transform;
+  transition: background-color 25ms linear, outline-color 25ms linear, transform 25ms linear;
+  transform: scale(1.005);
 }
 
 /* Blur cards and button only when dragging from different column */
@@ -745,7 +1067,9 @@ const updateColor = (colorValue) => {
   filter: blur(4px);
   opacity: 0.3;
   pointer-events: none;
-  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
+  /* Otimização para resposta visual instantânea */
+  will-change: filter, opacity;
+  transition: filter 100ms ease-out, opacity 100ms ease-out;
 }
 
 /* No blur when reordering within same column */
@@ -753,7 +1077,9 @@ const updateColor = (colorValue) => {
 .kan-col__cards--reordering .kan-col__add-btn {
   filter: none;
   opacity: 1;
-  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
+  /* Otimização para resposta visual instantânea */
+  will-change: filter, opacity;
+  transition: filter 100ms ease-out, opacity 100ms ease-out;
 }
 
 /* Cards List */
@@ -761,16 +1087,40 @@ const updateColor = (colorValue) => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
-/* Card Drop Zone */
+/* Virtual list otimizado */
+.kan-col__cards-list--virtual {
+  gap: 0;
+  padding: 0;
+}
+
+.kan-col__cards-list--virtual .VirtualList {
+  width: 100%;
+}
+
+.kan-col__cards-list--virtual .virtual-list__item {
+  padding: 0.375rem 0;
+}
+
+.kan-col__cards-list--virtual .card-drop-zone {
+  margin-bottom: 0.75rem;
+}
+
+/* Card Drop Zone - ULTRA OTIMIZADO */
 .card-drop-zone {
   position: relative;
-  transition: all 200ms cubic-bezier(.22, 1, .36, 1);
+  transition: transform 75ms cubic-bezier(.25, 1, .5, 1),
+              background-color 50ms linear;
+  will-change: transform, background-color;
 }
 
 .card-drop-zone--active {
-  transform: translateY(4px);
+  transform: translateY(2px) scale(1.01);
+  background: rgba(var(--col-500), 0.03);
+  border-radius: 8px;
 }
 
 .card-drop-zone--active::before {
@@ -797,24 +1147,26 @@ const updateColor = (colorValue) => {
   }
 }
 
-/* Card List Transitions */
+/* Card List Transitions - ULTRA RÁPIDAS */
 .card-list-enter-active,
 .card-list-leave-active {
-  transition: all var(--dur-med) var(--ease-out);
+  transition: opacity 100ms ease-out, transform 100ms ease-out;
+  will-change: opacity, transform;
 }
 
 .card-list-enter-from {
   opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+  transform: translateY(-4px) scale(0.99);
 }
 
 .card-list-leave-to {
   opacity: 0;
-  transform: translateX(20px) scale(0.9);
+  transform: translateX(8px) scale(0.98);
 }
 
 .card-list-move {
-  transition: transform var(--dur-med) var(--ease-out);
+  transition: transform 120ms ease-out;
+  will-change: transform;
 }
 
 /* Add Button */
@@ -901,6 +1253,62 @@ const updateColor = (colorValue) => {
 .drop-indicator-enter-from,
 .drop-indicator-leave-to {
   opacity: 0;
+}
+
+/* Card Drop Zone Preview */
+.card-drop-zone--preview {
+  background: rgba(var(--col-500), 0.05);
+  border-radius: 8px;
+}
+
+/* Card Drop Zone Placeholder */
+.card-drop-zone--placeholder {
+  min-height: 120px;
+}
+
+/* Placeholder Visual */
+.card-placeholder {
+  width: 100%;
+  height: 120px;
+  border: 2px dashed rgba(var(--txt-2), 0.4);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--bg-1), 0.5);
+  opacity: 0.7;
+  animation: placeholder-pulse 2s ease-in-out infinite;
+}
+
+.card-placeholder__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(var(--txt-2));
+}
+
+.card-placeholder__icon {
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.5;
+}
+
+.card-placeholder__text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+@keyframes placeholder-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    border-color: rgba(var(--txt-2), 0.4);
+  }
+  50% {
+    opacity: 0.4;
+    border-color: rgba(var(--txt-2), 0.2);
+  }
 }
 
 /* Responsive */
