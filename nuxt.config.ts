@@ -7,8 +7,8 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase'
   ],
   supabase: {
-    url: process.env.SUPABASE_URL || 'https://xklnwohwmirfcfzhzong.supabase.co',
-    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbG53b2h3bWlyZmNmemh6b25nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNzExNTIsImV4cCI6MjA3NDc0NzE1Mn0._EU8__293KLsWfRppzNDbqd1ygrDIfrhyLxv3Q-Q2Jk',
+    url: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
+    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
     redirectOptions: {
       login: '/',
       callback: '/atendimentos',
@@ -34,8 +34,8 @@ export default defineNuxtConfig({
     evolutionApiKey: process.env.EVOLUTION_API_KEY,
 
     public: {
-      supabaseUrl: process.env.SUPABASE_URL || 'https://xklnwohwmirfcfzhzong.supabase.co',
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbG53b2h3bWlyZmNmemh6b25nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNzExNTIsImV4cCI6MjA3NDc0NzE1Mn0._EU8__293KLsWfRppzNDbqd1ygrDIfrhyLxv3Q-Q2Jk',
+      supabaseUrl: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
       siteUrl: process.env.SITE_URL || 'http://localhost:3000'
     }
   }

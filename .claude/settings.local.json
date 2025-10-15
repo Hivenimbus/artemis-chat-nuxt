@@ -6,7 +6,15 @@
       "mcp__supabase__execute_sql",
       "mcp__supabase__apply_migration",
       "mcp__supabase__list_migrations",
-      "mcp__supabase__get_logs"
+      "mcp__supabase__get_logs",
+      "mcp__supabase-NOVO__list_migrations",
+      "mcp__supabase-NOVO__list_extensions",
+      "mcp__supabase__search_docs",
+      "mcp__supabase-NOVO__apply_migration",
+      "mcp__supabase-NOVO__execute_sql",
+      "mcp__supabase__list_extensions",
+      "mcp__supabase-NOVO__get_project_url",
+      "mcp__supabase-NOVO__get_anon_key"
     ],
     "deny": [],
     "ask": []
