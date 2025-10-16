@@ -31,10 +31,6 @@ const props = defineProps({
   bufferSize: {
     type: Number,
     default: 5
-  },
-  isDragging: {
-    type: Boolean,
-    default: false
   }
 })
 
@@ -43,24 +39,18 @@ const emit = defineEmits(['scroll'])
 // Estado
 const scrollTop = ref(0)
 const containerRef = ref(null)
-let scrollThrottle = null
 
-// Computados OTIMIZADOS para drag
-const effectiveBufferSize = computed(() => {
-  // Reduzir buffer durante drag para melhor performance
-  return props.isDragging ? 1 : props.bufferSize
-})
-
+// Computados
 const totalHeight = computed(() => props.items.length * props.itemSize)
 
 const startIndex = computed(() => {
-  return Math.max(0, Math.floor(scrollTop.value / props.itemSize) - effectiveBufferSize.value)
+  return Math.max(0, Math.floor(scrollTop.value / props.itemSize) - props.bufferSize)
 })
 
 const endIndex = computed(() => {
   return Math.min(
     props.items.length - 1,
-    Math.ceil((scrollTop.value + props.containerHeight) / props.itemSize) + effectiveBufferSize.value
+    Math.ceil((scrollTop.value + props.containerHeight) / props.itemSize) + props.bufferSize
   )
 })
 
@@ -74,22 +64,10 @@ const visibleItems = computed(() => {
 
 const offsetY = computed(() => startIndex.value * props.itemSize)
 
-// Métodos OTIMIZADOS
+// Métodos
 const handleScroll = (event) => {
-  if (props.isDragging) {
-    // Durante drag, atualizar imediatamente sem throttle
-    scrollTop.value = event.target.scrollTop
-    emit('scroll', event)
-  } else {
-    // Fora do drag, usar throttle para performance
-    if (!scrollThrottle) {
-      scrollThrottle = requestAnimationFrame(() => {
-        scrollTop.value = event.target.scrollTop
-        emit('scroll', event)
-        scrollThrottle = null
-      })
-    }
-  }
+  scrollTop.value = event.target.scrollTop
+  emit('scroll', event)
 }
 
 const scrollToIndex = (index) => {

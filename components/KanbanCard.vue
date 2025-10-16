@@ -137,7 +137,7 @@ const availableColumns = computed(() => {
   return (props.columns || []).filter(col => col.id !== props.currentColumnId)
 })
 
-// Handle drag start - ZERO DELAY PERFORMANCE
+// Handle drag start com MOVIMENTO INSTANTÂNEO
 const handleDragStart = (event) => {
   // Não fazer nada se for preview
   if (props.isPreview) {
@@ -153,10 +153,31 @@ const handleDragStart = (event) => {
   // Emitir evento para movimento instantâneo no pai
   emit('card-drag-start', props.card.id)
 
-  // USAR IMAGEM DE DRAG PADRÃO - zero overhead
-  // Sem customização para máxima performance
+  // Criar imagem de drag customizada para feedback visual
+  try {
+    const dragImage = event.target.cloneNode(true)
+    dragImage.style.transform = 'rotate(3deg) scale(0.9)'
+    dragImage.style.opacity = '0.85'
+    dragImage.style.position = 'absolute'
+    dragImage.style.top = '-1000px'
+    dragImage.style.pointerEvents = 'none'
+    dragImage.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)'
+    dragImage.style.borderRadius = '12px'
+    dragImage.style.maxWidth = '280px'
+    document.body.appendChild(dragImage)
 
-  // Adicionar classe CSS para feedback visual instantâneo
+    event.dataTransfer.setDragImage(dragImage, 50, 50)
+
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage)
+      }
+    }, 100)
+  } catch (error) {
+    console.warn('Não foi possível criar imagem de drag customizada:', error)
+  }
+
+  // Adicionar classe CSS para feedback visual
   event.target.classList.add('dragging')
 }
 
@@ -234,7 +255,8 @@ onBeforeUnmount(() => {
   padding: 1.25rem;
   box-shadow: var(--shadow-1);
   cursor: move;
-  /* ZERO DELAY - sem transições */
+  /* REMOVIDAS TRANSIÇÕES CONCORRENTES - MANTIDA APENAS TRANSFORM ESSENCIAL */
+  transition: transform 50ms linear;
   user-select: none;
   z-index: 1;
   will-change: transform;
@@ -268,49 +290,14 @@ onBeforeUnmount(() => {
 
 /* Rollback Error State */
 .kan-card--rollback-error {
-  animation: shake 0.6s ease-in-out;
+  animation: shake 0.5s ease-in-out;
   border: 2px solid rgb(var(--danger-500));
-  box-shadow: 0 0 20px rgba(var(--danger-500), 0.3);
-}
-
-/* Rollback Highlight State */
-.kan-card--rollback-highlight {
-  animation: highlight-pulse 2s ease-in-out;
-  background: linear-gradient(135deg, rgba(var(--danger-500), 0.05), rgba(var(--danger-400), 0.02));
 }
 
 @keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
-    border-color: rgb(var(--danger-500));
-  }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-3px);
-    border-color: rgb(var(--danger-400));
-  }
-  20%, 40%, 60%, 80% {
-    transform: translateX(3px);
-    border-color: rgb(var(--danger-400));
-  }
-}
-
-@keyframes highlight-pulse {
-  0%, 100% {
-    background: linear-gradient(135deg, rgba(var(--danger-500), 0.05), rgba(var(--danger-400), 0.02));
-    transform: scale(1);
-  }
-  25% {
-    background: linear-gradient(135deg, rgba(var(--danger-500), 0.1), rgba(var(--danger-400), 0.05));
-    transform: scale(1.02);
-  }
-  50% {
-    background: linear-gradient(135deg, rgba(var(--danger-500), 0.08), rgba(var(--danger-400), 0.04));
-    transform: scale(1.01);
-  }
-  75% {
-    background: linear-gradient(135deg, rgba(var(--danger-500), 0.06), rgba(var(--danger-400), 0.03));
-    transform: scale(1.005);
-  }
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
 }
 
 /* Preview State - Card fantasma durante drag */
@@ -416,8 +403,9 @@ onBeforeUnmount(() => {
   background: transparent;
   color: rgb(var(--txt-3));
   cursor: pointer;
-  /* ZERO DELAY - sem transições */
-  will-change: auto;
+  /* SIMPLIFICADO - APENAS TRANSFORM ESSENCIAL */
+  transition: transform 50ms linear;
+  will-change: transform;
 }
 
 .kan-card__action-btn:hover {
@@ -494,7 +482,7 @@ onBeforeUnmount(() => {
   border: none;
   text-align: left;
   cursor: pointer;
-  /* ZERO DELAY - sem transições */
+  transition: all var(--dur-fast) var(--ease-out);
   display: block;
 }
 
@@ -507,10 +495,10 @@ onBeforeUnmount(() => {
   transform: scale(0.98);
 }
 
-/* Fade Scale Transition - ZERO DELAY */
+/* Fade Scale Transition */
 .fade-scale-enter-active,
 .fade-scale-leave-active {
-  /* ZERO DELAY - sem transições */
+  transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out);
 }
 
 .fade-scale-enter-from,
@@ -526,7 +514,7 @@ onBeforeUnmount(() => {
   right: 0.5rem;
   transform: translateY(-50%);
   opacity: 0;
-  /* ZERO DELAY - sem transições */
+  transition: opacity var(--dur-fast) var(--ease-out);
   pointer-events: none;
 }
 

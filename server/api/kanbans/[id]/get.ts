@@ -5,114 +5,105 @@ export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   const kanbanId = getRouterParam(event, 'id')
 
-  // Validações rápidas combinadas
-  if (!user || !kanbanId) {
+  if (!user) {
     throw createError({
-      statusCode: user ? 400 : 401,
-      statusMessage: user ? 'ID do kanban é obrigatório' : 'Não autorizado'
+      statusCode: 401,
+      statusMessage: 'Não autorizado'
+    })
+  }
+
+  if (!kanbanId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'ID do kanban é obrigatório'
     })
   }
 
   try {
-    // 1. Buscar kanban de forma simples
-    const { data: kanbanData, error: kanbanError } = await supabase
-      .from('kanbans')
-      .select('id, title, description, created_at, updated_at, empresa_id, criado_por')
-      .eq('id', kanbanId)
+    // Obter o empresa_id do usuário
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.id)
       .single()
 
-    if (kanbanError || !kanbanData) {
-      console.error('Erro ao buscar kanban:', kanbanError)
+    if (userError || !userData?.empresa_id) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Usuário não está associado a nenhuma empresa'
+      })
+    }
+
+    // Verificar se o kanban existe e pertence à empresa do usuário
+    const { data: kanban, error: kanbanError } = await supabase
+      .from('kanbans')
+      .select(`
+        id,
+        title,
+        description,
+        created_at,
+        updated_at,
+        criado_por,
+        users (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('id', kanbanId)
+      .eq('empresa_id', userData.empresa_id)
+      .single()
+
+    if (kanbanError || !kanban) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Kanban não encontrado'
       })
     }
 
-    // 2. Verificar se usuário tem permissão (mesma empresa)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id, empresa_id')
-      .eq('id', user.id)
-      .eq('empresa_id', kanbanData.empresa_id)
-      .single()
+    // Buscar colunas do kanban
+    const { data: columns, error: columnsError } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('kanban_id', kanbanId)
+      .order('position', { ascending: true })
 
-    if (userError || !userData) {
-      console.error('Erro ao verificar permissão:', userError)
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Sem permissão para acessar este kanban'
-      })
-    }
-
-    // 3. Buscar dados do criador (opcional, se for o mesmo usuário)
-    let createdBy = null
-    if (kanbanData.criado_por) {
-      const { data: creatorData } = await supabase
-        .from('users')
-        .select('id, name, email')
-        .eq('id', kanbanData.criado_por)
-        .single()
-      createdBy = creatorData
-    }
-
-    // Buscar colunas e cartões em paralelo para melhor performance
-    const [columnsResult, cardsResult] = await Promise.all([
-      supabase
-        .from('kanban_columns')
-        .select('id, title, icon, color, position, kanban_id, created_at, updated_at')
-        .eq('kanban_id', kanbanId)
-        .order('position', { ascending: true }),
-
-      supabase
-        .from('kanban_cards')
-        .select('id, kanban_id, column_id, title, description, position, created_at, updated_at')
-        .eq('kanban_id', kanbanId)
-        .order('position', { ascending: true })
-    ])
-
-    if (columnsResult.error) {
-      console.error('Erro ao buscar colunas:', columnsResult.error)
+    if (columnsError) {
+      console.error('Erro ao buscar colunas:', columnsError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar colunas'
       })
     }
 
-    if (cardsResult.error) {
-      console.error('Erro ao buscar cartões:', cardsResult.error)
+    // Buscar cartões do kanban
+    const { data: cards, error: cardsError } = await supabase
+      .from('kanban_cards')
+      .select('*')
+      .eq('kanban_id', kanbanId)
+      .order('position', { ascending: true })
+
+    if (cardsError) {
+      console.error('Erro ao buscar cartões:', cardsError)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar cartões'
       })
     }
 
-    // Retorno otimizado
     return {
       success: true,
       data: {
-        id: kanbanData.id,
-        title: kanbanData.title,
-        description: kanbanData.description,
-        createdAt: kanbanData.created_at,
-        updatedAt: kanbanData.updated_at,
-        createdBy: createdBy,
-        columns: columnsResult.data || [],
-        cards: cardsResult.data || []
+        ...kanban,
+        createdAt: kanban.created_at,
+        updatedAt: kanban.updated_at,
+        createdBy: kanban.users,
+        columns: columns || [],
+        cards: cards || []
       }
     }
   } catch (error) {
     console.error('Erro no handler de kanban GET:', error)
-
-    // Se já for um erro definido, propagar
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Erro genérico
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
-    })
+    throw error
   }
 })

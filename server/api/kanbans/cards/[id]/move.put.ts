@@ -5,11 +5,17 @@ export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
   const cardId = getRouterParam(event, 'id')
 
-  // Validações rápidas
-  if (!user || !cardId) {
+  if (!user) {
     throw createError({
-      statusCode: user ? 400 : 401,
-      statusMessage: user ? 'ID do cartão é obrigatório' : 'Não autorizado'
+      statusCode: 401,
+      statusMessage: 'Não autorizado'
+    })
+  }
+
+  if (!cardId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'ID do cartão é obrigatório'
     })
   }
 
@@ -17,52 +23,77 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { column_id, position } = body
 
-    // Validação rápida dos campos obrigatórios
-    if (column_id === undefined || position === undefined || position === null) {
+    // Validação dos campos obrigatórios
+    if (!column_id || position === undefined || position === null) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Campos obrigatórios: column_id, position'
       })
     }
 
-    // QUERY COMBINADA para performance máxima - uma única chamada
-    const { data: cardWithPermission, error: fetchError } = await supabase
+    // Consulta otimizada com JOIN para buscar cartão, kanban e empresa em uma única query
+    const { data: cardData, error: fetchError } = await supabase
       .from('kanban_cards')
       .select(`
         id,
         kanban_id,
         column_id,
+        title,
+        description,
         position,
-        kanbans!inner(
+        created_at,
+        updated_at,
+        kanbans!inner (
           id,
-          empresa_id,
-          users!inner(
-            id,
-            empresa_id
-          )
+          empresa_id
         )
       `)
       .eq('id', cardId)
-      .eq('kanbans.users.id', user.id)
       .single()
 
-    if (fetchError || !cardWithPermission) {
-      console.error('Erro ao buscar cartão ou verificar permissão:', fetchError)
+    if (fetchError || !cardData) {
       throw createError({
-        statusCode: fetchError?.code === 'PGRST116' ? 404 : 403,
-        statusMessage: fetchError?.code === 'PGRST116' ? 'Cartão não encontrado' : 'Sem permissão para mover este cartão'
+        statusCode: 404,
+        statusMessage: 'Cartão não encontrado'
       })
     }
 
-    // UPDATE OTIMIZADO - sem select para máxima performance
-    const { error: updateError } = await supabase
+    // Verificar se o usuário pertence à empresa do kanban em uma única query
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, empresa_id')
+      .eq('id', user.id)
+      .eq('empresa_id', cardData.kanbans.empresa_id)
+      .single()
+
+    if (userError || !userData) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Sem permissão para mover este cartão'
+      })
+    }
+
+    // Mover cartão - query otimizada
+    const now = new Date().toISOString()
+    const { data: updatedCard, error: updateError } = await supabase
       .from('kanban_cards')
       .update({
         column_id,
         position,
-        updated_at: new Date().toISOString()
+        updated_at: now
       })
       .eq('id', cardId)
+      .select(`
+        id,
+        kanban_id,
+        column_id,
+        title,
+        description,
+        position,
+        created_at,
+        updated_at
+      `)
+      .single()
 
     if (updateError) {
       console.error('Erro ao mover cartão:', updateError)
@@ -72,28 +103,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Retorno mínimo para máxima performance
     return {
       success: true,
       data: {
-        id: cardId,
-        column_id,
-        position,
-        updated_at: new Date().toISOString()
+        ...updatedCard,
+        createdAt: updatedCard.created_at,
+        updatedAt: updatedCard.updated_at
       }
     }
   } catch (error) {
     console.error('Erro no handler de mover cartão:', error)
-
-    // Se já for um erro definido, propagar
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Erro genérico
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
-    })
+    throw error
   }
 })

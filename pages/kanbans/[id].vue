@@ -258,68 +258,35 @@ const loadingCard = ref(false)
 const loadingMove = ref(false)
 const loadingColumn = ref(false)
 
-// Computed - SIMPLIFICADO sem sort()
+// Computed
 const sortedColumns = computed(() => {
-  const colsArray = columns.value
-  const length = colsArray.length
-
-  // Para arrays pequenos (< 20 itens), insertion sort manual é mais rápido que sort()
-  if (length <= 1) return colsArray
-
-  const result = [...colsArray]
-
-  // Insertion sort simplificado - performance máxima para pequenos arrays
-  for (let i = 1; i < length; i++) {
-    const current = result[i]
-    let j = i - 1
-
-    // Encontrar posição correta
-    while (j >= 0 && result[j].position > current.position) {
-      result[j + 1] = result[j]
-      j--
-    }
-
-    result[j + 1] = current
-  }
-
-  return result
+  return columns.value.sort((a, b) => a.position - b.position)
 })
 
-// Cache REMOVIDO - cálculo direto é mais rápido
+// Cache para cards por coluna para evitar recálculos
+const columnCardsCache = new Map()
 
-// Get cards for a specific column - SEM SPLICE (EVITA RE-RENDERS)
+// Get cards for a specific column com memoização
 const getColumnCards = (columnId) => {
-  // Coleta em array separado + sort final - MELHOR PERFORMANCE
-
-  const cardsArray = cards.value
-  const length = cardsArray.length
-  const result = []
-
-  // Primeiro passo: coletar apenas cards da coluna (SEM splice)
-  for (let i = 0; i < length; i++) {
-    const card = cardsArray[i]
-    if (card.column_id === columnId) {
-      result.push(card)
-    }
+  // Verificar cache
+  const cacheKey = `${columnId}-${cards.value.length}`
+  if (columnCardsCache.has(cacheKey)) {
+    return columnCardsCache.get(cacheKey)
   }
 
-  // Segundo passo: ordenar uma única vez com insertion sort manual
-  if (result.length > 1) {
-    for (let i = 1; i < result.length; i++) {
-      const current = result[i]
-      let j = i - 1
+  // Calcular e cachear
+  const columnCards = cards.value
+    .filter(card => card.column_id === columnId)
+    .sort((a, b) => a.position - b.position)
 
-      // Encontrar posição correta
-      while (j >= 0 && result[j].position > current.position) {
-        result[j + 1] = result[j]
-        j--
-      }
-
-      result[j + 1] = current
-    }
+  // Limitar cache a 50 entradas
+  if (columnCardsCache.size > 50) {
+    const firstKey = columnCardsCache.keys().next().value
+    columnCardsCache.delete(firstKey)
   }
 
-  return result
+  columnCardsCache.set(cacheKey, columnCards)
+  return columnCards
 }
 
 // Load kanban data otimizado com cache
@@ -460,7 +427,8 @@ const addColumn = async () => {
     // Atualização delta - não recarregar tudo
     if (newColumn) {
       columns.value = [...columns.value, newColumn]
-      // Cache REMOVIDO - não há mais limpeza necessária
+      // Limpar cache de cards por coluna
+      columnCardsCache.clear()
     }
 
     closeAddColumnModal()
@@ -522,7 +490,7 @@ const handleDeleteCard = async (cardId) => {
     // Atualização delta
     if (deleted) {
       cards.value = cards.value.filter(c => c.id !== cardId)
-      // Cache REMOVIDO - não há mais limpeza necessária
+      columnCardsCache.clear()
     }
   } catch (error) {
     console.error('Erro ao excluir cartão:', error)
@@ -552,292 +520,215 @@ const handleDeleteColumn = async (columnId) => {
   }
 }
 
-// Estado global de dragging - SIMPLIFICADO para performance máxima
+// Estado global de dragging para movimento instantâneo
 const globalDragState = ref({
   isDragging: false,
   draggedCard: null,
-  originalColumnId: null
+  originalColumnId: null,
+  previewColumnId: null,
+  dragOverColumnId: null
 })
 
 // Sistema de backup/rollback inteligente para movimentação
 const dragBackup = ref(null)
 
-// Iniciar movimento instantâneo - OTIMIZADO MÁXIMO SEM RE-RENDER
+// Iniciar movimento instantâneo no drag start - OTIMIZADO
 const startInstantMove = (cardId) => {
-  // Loop manual para encontrar card - SEM findIndex()
-  let card = null
-  let cardIndex = -1
-  const cardsArray = cards.value
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return
 
-  for (let i = 0; i < cardsArray.length; i++) {
-    if (cardsArray[i].id === cardId) {
-      card = cardsArray[i]
-      cardIndex = i
-      break
-    }
-  }
-
-  if (!card || cardIndex === -1) return
-
-  // Criar backup mínimo
+  // Criar backup de forma síncrona ultra-rápida
   dragBackup.value = {
     cardId,
+    originalCard: { ...card },
     originalCards: [...cards.value],
-    originalColumnId: card.column_id
+    originalColumnId: card.column_id,
+    originalPosition: card.position,
+    timestamp: Date.now()
   }
 
-  // Configurar estado global simplificado
+  // Configurar estado global de dragging forma síncrona
   globalDragState.value = {
     isDragging: true,
     draggedCard: { ...card },
-    originalColumnId: card.column_id
+    originalColumnId: card.column_id,
+    previewColumnId: card.column_id,
+    dragOverColumnId: null
   }
 
-  // REMOVER CARD VISIVELMENTE - ZERO RE-RENDER
-  const columnId = card.column_id
+  // REMOVER CARD VISIVELMENTE de forma OTIMIZADA
+  const cardIndex = cards.value.findIndex(c => c.id === cardId)
+  if (cardIndex !== -1) {
+    // Remover card da visualização de forma imediata
+    const newCards = [...cards.value]
+    newCards.splice(cardIndex, 1)
 
-  // CRIAR NOVO ARRAY SEM O CARD - EVITA RE-RENDER DURANTE DRAG
-  const newCards = []
-  const length = cardsArray.length
+    // Reorganizar APENAS os cards da coluna afetada
+    const columnCards = newCards.filter(c => c.column_id === card.column_id)
+    const otherColumnCards = newCards.filter(c => c.column_id !== card.column_id)
 
-  // Loop manual ultra otimizado - ZERO RE-RENDER
-  for (let i = 0; i < length; i++) {
-    if (i !== cardIndex) {
-      const currentCard = cardsArray[i]
+    // Reorganizar posições sem criar novos objetos desnecessários
+    columnCards.forEach((c, index) => {
+      c.position = index
+    })
 
-      // Reorganizar posição se for da mesma coluna
-      if (currentCard.column_id === columnId) {
-        currentCard.position = newCards.length
-      }
+    // Atualizar estado de forma otimizada
+    cards.value = [...otherColumnCards, ...columnCards]
 
-      newCards.push(currentCard)
-    }
+    // Limpar cache APENAS da coluna afetada
+    const affectedCacheKeys = Array.from(columnCardsCache.keys())
+      .filter(key => key.includes(card.column_id.toString()))
+    affectedCacheKeys.forEach(key => columnCardsCache.delete(key))
   }
-
-  // ATRIBUIR NOVO ARRAY DE UMA VEZ - MINIMIZA TRIGGERS DO VUE
-  cards.value = newCards
 }
 
-// Finalizar movimento instantâneo - SIMPLIFICADO
+// Finalizar movimento instantâneo
 const endInstantMove = () => {
   globalDragState.value = {
     isDragging: false,
     draggedCard: null,
-    originalColumnId: null
+    originalColumnId: null,
+    previewColumnId: null,
+    dragOverColumnId: null
   }
 }
 
-// Update preview de coluna - REMOVIDO para simplificação
-// Não é mais necessário com estado global simplificado
-const updatePreviewColumn = () => {
-  // Função vazia - mantida apenas para compatibilidade de eventos
+// Atualizar preview de coluna durante o drag - OTIMIZADO
+const updatePreviewColumn = (columnId) => {
+  if (!globalDragState.value.isDragging) return
+
+  // Evitar atualizações desnecessárias se a coluna não mudou
+  if (globalDragState.value.previewColumnId === columnId) return
+
+  // Atualização síncrona e instantânea
+  globalDragState.value.dragOverColumnId = columnId
+  globalDragState.value.previewColumnId = columnId
+
+  // Se o card já foi movido visualmente, não fazer nada mais
+  // O preview será tratado pelo componente KanbanColumn
 }
 
-// Backup function REMOVIDA - backup simplificado está em startInstantMove
+// Criar backup do estado antes do drag
+const createDragBackup = (cardId) => {
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return null
 
-// Rollback INSTANTÂNEO sem animações
+  return {
+    cardId,
+    originalCard: { ...card },
+    originalCards: [...cards.value],
+    originalColumnId: card.column_id,
+    originalPosition: card.position,
+    timestamp: Date.now()
+  }
+}
+
+// Rollback suave com animação
 const performRollback = (backup) => {
   if (!backup) return
 
-  // Restaurar estado original de forma INSTANTÂNEA
-  cards.value = [...backup.originalCards]
-  // Cache REMOVIDO - não há mais limpeza necessária
+  // Adicionar classe de erro para feedback visual
+  const cardElement = document.querySelector(`[data-card-id="${backup.cardId}"]`)
+  if (cardElement) {
+    cardElement.classList.add('rollback-error')
+    setTimeout(() => {
+      cardElement.classList.remove('rollback-error')
+    }, 1000)
+  }
 
-  // Feedback visual INSTANTÂNEO - sem delays
+  // Restaurar estado original
+  cards.value = backup.originalCards
+  columnCardsCache.clear()
+
+  // Notificação sutil
   if (process.client) {
-    // 1. Highlight imediato no card restaurado
-    const cardElement = document.querySelector(`[data-card-id="${backup.cardId}"]`)
-    if (cardElement) {
-      // Adicionar highlight instantâneo
-      cardElement.classList.add('rollback-error', 'rollback-highlight')
-
-      // Remover classes instantaneamente também
-      cardElement.classList.remove('rollback-error', 'rollback-highlight')
-    }
-
-    // 2. Toast instantâneo sem animações
     const toast = document.createElement('div')
-    toast.className = 'fixed top-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-lg shadow-2xl z-50 flex flex-col gap-3 max-w-sm border-l-4 border-orange-600'
+    toast.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center gap-2'
     toast.innerHTML = `
-      <div class="flex items-center gap-3">
-        <div class="flex-shrink-0">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div class="flex-1">
-          <p class="font-semibold text-white">Falha ao mover cartão</p>
-          <p class="text-orange-100 text-sm">Posição original restaurada</p>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm">
-          Entendido
-        </button>
-      </div>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <span>Falha ao mover cartão - posição restaurada</span>
     `
-
-    // Mostrar toast INSTANTANEAMENTE - sem transições
     document.body.appendChild(toast)
-
-    // SEM setTimeout - REMOÇÃO IMEDIATA via clique
-    // O usuário remove o toast quando quiser - ZERO DELAY
+    setTimeout(() => toast.remove(), 4000)
   }
 }
 
-// Handle card drop - MOVIMENTO VERDADEIRAMENTE INSTANTÂNEO
+// Handle card drop - TOTALMENTE NÃO BLOQUEANTE
 const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
   if (!globalDragState.value.isDragging || !dragBackup.value) return
 
   // Movimento visual já foi feito no dragStart!
-  // Adicionar card imediatamente na nova posição para UX perfeito
-  const draggedCard = globalDragState.value.draggedCard
-  if (draggedCard) {
-    // Atualizar card visualmente de forma imediata
-    draggedCard.column_id = newColumnId
-    draggedCard.position = newPosition
+  // Iniciar persistência em background SEM BLOQUEAR A UI
 
-    // CONSTRUIR ARRAY FINAL SEM SPLICE - ZERO RE-RENDERS
-    const originalCards = cards.value
-    const newCards = []
-    const length = originalCards.length
+  const finalizeMove = async () => {
+    try {
+      // Encontrar posição correta
+      const targetColumnCards = cards.value.filter(c => c.column_id === newColumnId)
+      let actualPosition = newPosition
 
-    // Loop único: adicionar cards existentes + novo card na posição correta
-    let addedDraggedCard = false
-    for (let i = 0; i < length; i++) {
-      // Adicionar card na posição correta se for o momento
-      if (!addedDraggedCard && i === newPosition) {
-        newCards.push(draggedCard)
-        addedDraggedCard = true
+      const draggedCardId = globalDragState.value.draggedCard?.id
+      if (targetColumnCards.some(c => c.id === draggedCardId)) {
+        actualPosition = targetColumnCards.findIndex(c => c.id === draggedCardId)
       }
 
-      // Adicionar card original (não é o dragged card)
-      if (originalCards[i].id !== draggedCard.id) {
-        newCards.push(originalCards[i])
+      // Persistir em background COM TIMEOUT LONGO para não bloquear
+      const persistPromise = new Promise((resolve, reject) => {
+        setTimeout(async () => {
+          try {
+            await $fetch(`/api/kanbans/cards/${cardId}/move`, {
+              method: 'PUT',
+              body: {
+                column_id: newColumnId,
+                position: actualPosition
+              }
+            })
+            resolve()
+          } catch (apiError) {
+            // Fallback direto
+            try {
+              const { error } = await supabase
+                .from('kanban_cards')
+                .update({
+                  column_id: newColumnId,
+                  position: actualPosition,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', cardId)
+
+              if (error) throw error
+              resolve()
+            } catch (fallbackError) {
+              reject(fallbackError)
+            }
+          }
+        }, 50) // 50ms delay para garantir que não bloqueie
+      })
+
+      await persistPromise
+
+    } catch (error) {
+      console.error('Erro na persistência (background):', error)
+      // Rollback em background se falhar
+      if (dragBackup.value) {
+        performRollback(dragBackup.value)
       }
     }
-
-    // Adicionar no final se não foi adicionado ainda
-    if (!addedDraggedCard) {
-      newCards.push(draggedCard)
-    }
-
-    // REORGANIZAR POSIÇÕES - LOOP MANUAL ULTRA OTIMIZADO
-    const cardsArray = newCards
-    const newLength = cardsArray.length
-
-    // Criar mapa de posições por coluna para performance
-    const columnPositions = {}
-
-    // Primeiro passe: contar cards por coluna
-    for (let i = 0; i < newLength; i++) {
-      const card = cardsArray[i]
-      const colId = card.column_id
-
-      if (!columnPositions[colId]) {
-        columnPositions[colId] = 0
-      }
-    }
-
-    // Segundo passe: atribuir posições corretas
-    for (let i = 0; i < newLength; i++) {
-      const card = cardsArray[i]
-      const colId = card.column_id
-
-      card.position = columnPositions[colId]++
-    }
-
-    // ATRIBUIR ARRAY FINAL DE UMA VEZ - MINIMIZA TRIGGERS DO VUE
-    cards.value = newCards
   }
 
-  // Finalizar estado imediatamente para UX instantâneo
+  // EXECUTAR EM BACKGROUND - NÃO ESPERAR!
+  finalizeMove()
+
+  // Finalizar estado imediatamente
   endInstantMove()
 
-  // Persistir em background de forma 100% SÍNCRONA - ZERO DELAY ABSOLUTO
-  const persistInBackground = () => {
-    // VALIDAÇÃO IMEDIATA sem async
-    if (!draggedCard) return
-
-    // CÁLCULO INSTANTÂNEO DA POSIÇÃO - SEM findIndex()
-    const cardsArray = cards.value
-    const targetColumnCards = []
-
-    // Loop único: filtrar e encontrar posição
-    let actualPosition = newPosition
-    for (let i = 0; i < cardsArray.length; i++) {
-      const card = cardsArray[i]
-      if (card.column_id === newColumnId) {
-        targetColumnCards.push(card)
-        if (card.id === draggedCard.id) {
-          actualPosition = targetColumnCards.length - 1
-        }
-      }
+  // Limpar backup após tempo
+  setTimeout(() => {
+    if (dragBackup.value?.cardId === cardId) {
+      dragBackup.value = null
     }
-
-    // FETCH SÍNCRONO USANDO XMLHttpRequest para ZERO DELAY
-    const persistRequest = new XMLHttpRequest()
-    persistRequest.open('PUT', `/api/kanbans/cards/${cardId}/move`, true)
-    persistRequest.setRequestHeader('Content-Type', 'application/json')
-
-    persistRequest.onload = () => {
-      if (persistRequest.status >= 400) {
-        // ERRO: Tentar fallback Supabase
-        persistWithSupabase(cardId, newColumnId, actualPosition)
-      }
-      // SUCESSO: Não fazer nada (movimento visual já foi feito)
-    }
-
-    persistRequest.onerror = () => {
-      // ERRO DE REDE: Tentar fallback
-      persistWithSupabase(cardId, newColumnId, actualPosition)
-    }
-
-    // ENVIAR REQUISIÇÃO SEM BLOQUEAR
-    persistRequest.send(JSON.stringify({
-      column_id: newColumnId,
-      position: actualPosition
-    }))
-  }
-
-  // Fallback Supabase também síncrono
-  const persistWithSupabase = (cardId, newColumnId, actualPosition) => {
-    // IMPORTANTE: Usar async IIFE sem await para não bloquear
-    (async () => {
-      try {
-        const { error } = await supabase
-          .from('kanban_cards')
-          .update({
-            column_id: newColumnId,
-            position: actualPosition,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', cardId)
-
-        if (error) {
-          console.error('Erro na persistência Supabase:', error)
-          // Rollback se falhar
-          if (dragBackup.value) {
-            performRollback(dragBackup.value)
-          }
-        }
-      } catch (error) {
-        console.error('Erro crítico na persistência:', error)
-        // Rollback se falhar
-        if (dragBackup.value) {
-          performRollback(dragBackup.value)
-        }
-      }
-    })()
-  }
-
-  // Executar persistência IMEDIATAMENTE sem delay
-  persistInBackground()
-
-  // Limpar backup imediatamente
-  if (dragBackup.value?.cardId === cardId) {
-    dragBackup.value = null
-  }
+  }, 3000)
 }
 
 // Save card otimizado com atualização delta
@@ -877,27 +768,17 @@ const saveCard = async () => {
         updatedCard = data
       }
 
-      // Atualização delta - SEM findIndex()
+      // Atualização delta
       if (updatedCard) {
-        const cardsArray = cards.value
-        let cardIndex = -1
-
-        // Loop manual para encontrar posição
-        for (let i = 0; i < cardsArray.length; i++) {
-          if (cardsArray[i].id === editingCard.value.id) {
-            cardIndex = i
-            break
-          }
-        }
-
+        const cardIndex = cards.value.findIndex(c => c.id === editingCard.value.id)
         if (cardIndex !== -1) {
           cards.value = [
-            ...cardsArray.slice(0, cardIndex),
+            ...cards.value.slice(0, cardIndex),
             updatedCard,
-            ...cardsArray.slice(cardIndex + 1)
+            ...cards.value.slice(cardIndex + 1)
           ]
         }
-        // Cache REMOVIDO - não há mais limpeza necessária
+        columnCardsCache.clear()
       }
     } else {
       // Create new card
@@ -943,7 +824,7 @@ const saveCard = async () => {
       // Atualização delta
       if (newCard) {
         cards.value = [...cards.value, newCard]
-        // Cache REMOVIDO - não há mais limpeza necessária
+        columnCardsCache.clear()
       }
     }
 
