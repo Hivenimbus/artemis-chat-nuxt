@@ -19,14 +19,14 @@
                 <div class="kan-menu__item" :class="{ 'kan-menu__item--active': k.id === currentKanbanId }">
                   <button class="kan-menu__item-button" @click="selectKanban(k.id)">
                     <span class="kan-menu__dot" :class="{ 'kan-menu__dot--active': k.id === currentKanbanId }"></span>
-                    <span class="kan-menu__item-label">{{ k.title }}</span>
+                    <span class="kan-menu__item-label">{{ k.name }}</span>
                   </button>
                   <div class="kan-menu__item-actions">
                     <button 
                       class="kan-menu__action-btn kan-menu__action-btn--edit"
                       @click.stop="editKanban(k)"
                       title="Editar kanban"
-                      :aria-label="`Editar ${k.title}`"
+                      :aria-label="`Editar ${k.name}`"
                     >
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -36,7 +36,7 @@
                       class="kan-menu__action-btn kan-menu__action-btn--delete"
                       @click.stop="deleteKanban(k.id)"
                       title="Apagar kanban"
-                      :aria-label="`Apagar ${k.title}`"
+                      :aria-label="`Apagar ${k.name}`"
                     >
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -56,53 +56,8 @@
           </div>
         </div>
       </div>
-      <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center items-center h-64">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p class="mt-4 text-sm text-gray-500">Carregando kanbans...</p>
-        </div>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">Erro ao carregar kanbans</h3>
-        <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
-        <div class="mt-6">
-          <button
-            @click="loadKanbans"
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else-if="kanbans.length === 0" class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum kanban encontrado</h3>
-        <p class="mt-1 text-sm text-gray-500">Comece criando seu primeiro quadro kanban</p>
-        <div class="mt-6">
-          <button
-            @click="createNewKanban"
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Criar Kanban
-          </button>
-        </div>
-      </div>
-
       <!-- Kanban Columns -->
-      <div v-else class="board-columns-container" ref="boardColumnsContainerRef">
+      <div class="board-columns-container" ref="boardColumnsContainerRef">
         <div class="board-columns" ref="boardColumnsRef">
           <div
             v-for="column in columns"
@@ -487,19 +442,19 @@
 </template>
 
 <script setup>
-// Cliente Supabase
-const user = useSupabaseUser()
+// State local para o kanban
+const columns = ref([
+  { id: 'todo', title: 'Para Fazer', position: 0 },
+  { id: 'doing', title: 'Fazendo', position: 1 },
+  { id: 'done', title: 'Concluído', position: 2 }
+])
 
-// Estado
-const kanbans = ref([])
-const currentKanbanId = ref(null)
+const kanbans = ref([
+  { id: 'default', name: 'Kanban Padrão' },
+  { id: 'work', name: 'Projetos' }
+])
+const currentKanbanId = ref('default')
 const showKanbanMenu = ref(false)
-const loading = ref(true)
-const error = ref('')
-
-// Colunas e cartões do kanban atual
-const columns = ref([])
-const cards = ref([])
 
 // Scroll indicators state
 const boardColumnsContainerRef = ref(null)
@@ -530,6 +485,7 @@ const scrollColumns = (direction) => {
   })
 }
 
+const cards = ref([])
 const showCardModal = ref(false)
 const editingCard = ref(null)
 const savingCard = ref(false)
@@ -552,133 +508,20 @@ const kanbanForm = ref({
   ]
 })
 
-const currentKanbanName = computed(() => {
-  const kanban = kanbans.value.find(k => k.id === currentKanbanId.value)
-  return kanban?.title || 'Selecionar Kanban'
-})
-
+const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
 const toggleKanbanMenu = () => { showKanbanMenu.value = !showKanbanMenu.value }
-
-const selectKanban = async (id) => {
-  currentKanbanId.value = id
-  showKanbanMenu.value = false
-  await loadCurrentKanban()
-}
-
-// Função para carregar kanbans da empresa
-const loadKanbans = async () => {
-  try {
-    loading.value = true
-    error.value = ''
-
-    const { data } = await $fetch('/api/kanbans')
-
-    kanbans.value = data
-
-    // Se não há kanbans, selecionar o primeiro
-    if (kanbans.value.length > 0 && !currentKanbanId.value) {
-      currentKanbanId.value = kanbans.value[0].id
-      await loadCurrentKanban()
-    }
-
-  } catch (err) {
-    console.error('Erro ao carregar kanbans:', err)
-    error.value = 'Erro ao carregar kanbans: ' + (err.message || 'Tente novamente.')
-  } finally {
-    loading.value = false
-  }
-}
-
-// Função para carregar kanban atual com colunas e cartões
-const loadCurrentKanban = async () => {
-  if (!currentKanbanId.value) return
-
-  try {
-    const { data } = await $fetch(`/api/kanbans/${currentKanbanId.value}/get`)
-
-    columns.value = data.columns || []
-    cards.value = data.cards || []
-
-    // Se não há colunas, criar as padrão
-    if (columns.value.length === 0) {
-      await createDefaultColumns()
-    }
-
-  } catch (err) {
-    console.error('Erro ao carregar kanban atual:', err)
-    error.value = 'Erro ao carregar kanban atual: ' + (err.message || 'Tente novamente.')
-  }
-}
-
-// Criar colunas padrão para um kanban
-const createDefaultColumns = async () => {
-  try {
-    const defaultColumns = [
-      { title: 'Para Fazer', icon: 'clipboard', color: 'blue', position: 0 },
-      { title: 'Fazendo', icon: 'clock', color: 'yellow', position: 1 },
-      { title: 'Concluído', icon: 'check', color: 'green', position: 2 }
-    ]
-
-    for (const column of defaultColumns) {
-      await $fetch('/api/kanbans/columns', {
-        method: 'POST',
-        body: {
-          kanban_id: currentKanbanId.value,
-          title: column.title,
-          icon: column.icon,
-          color: column.color,
-          position: column.position
-        }
-      })
-    }
-
-    // Recarregar kanban atual
-    await loadCurrentKanban()
-  } catch (error) {
-    console.error('Erro ao criar colunas padrão:', error)
-  }
-}
+const selectKanban = (id) => { currentKanbanId.value = id; showKanbanMenu.value = false }
 
 // Edit kanban
-const editKanban = async (kanban) => {
-  const newName = prompt('Novo nome do kanban:', kanban.title)
-  const newDescription = prompt('Descrição do kanban:', kanban.description || '')
-
-  if (newName && newName.trim()) {
-    try {
-      const { data } = await $fetch(`/api/kanbans/${kanban.id}`, {
-        method: 'PUT',
-        body: {
-          title: newName.trim(),
-          description: newDescription?.trim() || null
-        }
-      })
-
-      // Atualizar kanban localmente
-      const index = kanbans.value.findIndex(k => k.id === kanban.id)
-      if (index > -1) {
-        kanbans.value[index] = {
-          ...kanbans.value[index],
-          title: data.title,
-          description: data.description,
-          updatedAt: data.updatedAt
-        }
-      }
-
-      // Se for o kanban atual, atualizar também
-      if (currentKanbanId.value === kanban.id) {
-        await loadCurrentKanban()
-      }
-
-    } catch (error) {
-      console.error('Erro ao editar kanban:', error)
-      alert('Erro ao editar kanban: ' + (error.message || 'Tente novamente.'))
-    }
+const editKanban = (kanban) => {
+  const newName = prompt('Novo nome do kanban:', kanban.name)
+  if (newName && newName.trim() && newName.trim() !== kanban.name) {
+    kanban.name = newName.trim()
   }
 }
 
 // Delete kanban
-const deleteKanban = async (kanbanId) => {
+const deleteKanban = (kanbanId) => {
   const kanban = kanbans.value.find(k => k.id === kanbanId)
   if (!kanban) return
 
@@ -687,37 +530,25 @@ const deleteKanban = async (kanbanId) => {
     return
   }
 
-  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.title}"? Todos os cartões serão perdidos.`)) {
+  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.name}"? Todos os cartões serão perdidos.`)) {
     return
   }
 
-  try {
-    await $fetch(`/api/kanbans/${kanbanId}`, {
-      method: 'DELETE'
-    })
-
-    // Remove kanban localmente
-    const index = kanbans.value.findIndex(k => k.id === kanbanId)
-    if (index > -1) {
-      kanbans.value.splice(index, 1)
-    }
-
-    // If current kanban was deleted, switch to first available
-    if (currentKanbanId.value === kanbanId) {
-      currentKanbanId.value = kanbans.value[0]?.id || null
-      if (currentKanbanId.value) {
-        await loadCurrentKanban()
-      } else {
-        columns.value = []
-        cards.value = []
-      }
-    }
-
-    showKanbanMenu.value = false
-  } catch (error) {
-    console.error('Erro ao excluir kanban:', error)
-    alert('Erro ao excluir kanban: ' + (error.message || 'Tente novamente.'))
+  // Remove kanban
+  const index = kanbans.value.findIndex(k => k.id === kanbanId)
+  if (index > -1) {
+    kanbans.value.splice(index, 1)
   }
+
+  // Remove all cards from this kanban
+  cards.value = cards.value.filter(card => card.kanban_id !== kanbanId)
+
+  // If current kanban was deleted, switch to first available
+  if (currentKanbanId.value === kanbanId) {
+    currentKanbanId.value = kanbans.value[0]?.id || 'default'
+  }
+
+  showKanbanMenu.value = false
 }
 
 // Open kanban modal
@@ -813,27 +644,48 @@ const getColorData = (colorValue) => {
 const saveKanban = async () => {
   try {
     savingKanban.value = true
-
-    // Criar novo kanban via API
-    const { data } = await $fetch('/api/kanbans', {
-      method: 'POST',
-      body: {
-        title: kanbanForm.value.name.trim(),
-        description: null // A implementação atual não tem descrição no formulário
-      }
-    })
-
-    // Adicionar à lista local
-    kanbans.value.unshift(data)
-
-    // Selecionar o novo kanban
-    currentKanbanId.value = data.id
-    await loadCurrentKanban()
-
+    
+    // Create new kanban
+    const id = `k_${Date.now()}`
+    kanbans.value.push({ id, name: kanbanForm.value.name.trim() })
+    
+    // Create columns for this kanban
+    const newColumns = kanbanForm.value.columns
+      .filter(col => col.name.trim())
+      .map((col, index) => ({
+        id: `col_${Date.now()}_${index}`,
+        title: col.name.trim(),
+        icon: col.icon,
+        color: col.color,
+        position: index
+      }))
+    
+    // Switch to new kanban
+    currentKanbanId.value = id
+    
+    // Update columns (this will be kanban-specific in a real app)
+    columns.value = newColumns
+    
+    // Add a welcome card
+    const now = new Date().toISOString()
+    if (newColumns.length > 0) {
+      cards.value.push({
+        id: `${Date.now()}_1`,
+        kanban_id: id,
+        columnId: newColumns[0].id,
+        title: 'Bem-vindo ao seu novo kanban!',
+        description: 'Comece adicionando suas tarefas',
+        isUrgent: false,
+        position: 0,
+        created_at: now,
+        updated_at: now
+      })
+    }
+    
     closeKanbanModal()
   } catch (error) {
-    console.error('Erro ao criar kanban:', error)
-    alert('Erro ao criar kanban: ' + (error.message || 'Tente novamente.'))
+    console.error('Error creating kanban:', error)
+    alert('Erro ao criar kanban. Tente novamente.')
   } finally {
     savingKanban.value = false
   }
@@ -931,10 +783,10 @@ const handleMoveColumn = ({ columnId, direction }) => {
 const handleDeleteColumn = (columnId) => {
   // Move all cards from deleted column to 'todo'
   cards.value.forEach(card => {
-    if (card.column_id === columnId) {
-      card.column_id = 'todo'
+    if (card.columnId === columnId) {
+      card.columnId = 'todo'
       // Reposition in todo column
-      const todoCards = cards.value.filter(c => c.column_id === 'todo')
+      const todoCards = cards.value.filter(c => c.columnId === 'todo')
       card.position = todoCards.length
     }
   })
@@ -952,7 +804,7 @@ const handleDeleteColumn = (columnId) => {
 // Get cards for a specific column in current kanban
 const getColumnCards = (columnId) => {
   return cards.value
-    .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === columnId)
+    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
     .sort((a, b) => a.position - b.position)
 }
 
@@ -974,7 +826,7 @@ const handleEditCard = (card) => {
   cardForm.value = {
     title: card.title,
     description: card.description || '',
-    columnId: card.column_id,
+    columnId: card.columnId,
     isUrgent: card.isUrgent || false
   }
   showCardModal.value = true
@@ -984,70 +836,72 @@ const handleEditCard = (card) => {
 const handleDeleteCard = async (cardId) => {
   if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return
 
-  try {
-    await $fetch(`/api/kanbans/cards/${cardId}`, {
-      method: 'DELETE'
-    })
-
-    // Recarregar kanban atual
-    await loadCurrentKanban()
-  } catch (error) {
-    console.error('Erro ao excluir cartão:', error)
-    alert('Erro ao excluir cartão: ' + (error.message || 'Tente novamente.'))
+  const cardIndex = cards.value.findIndex(card => card.id === cardId)
+  if (cardIndex > -1) {
+    cards.value.splice(cardIndex, 1)
+    // Reposition remaining cards in the same column
+    const deletedCardColumn = cards.value[cardIndex]?.columnId
+    if (deletedCardColumn) {
+      repositionCardsInColumn(deletedCardColumn)
+    }
   }
 }
 
 // Handle card drop
-const handleCardDrop = async ({ cardId, newColumnId, newPosition }) => {
-  try {
-    await $fetch(`/api/kanbans/cards/${cardId}/move`, {
-      method: 'PUT',
-      body: {
-        column_id: newColumnId,
-        position: newPosition
-      }
-    })
+const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return
 
-    // Recarregar kanban atual
-    await loadCurrentKanban()
-  } catch (error) {
-    console.error('Erro ao mover cartão:', error)
-    alert('Erro ao mover cartão: ' + (error.message || 'Tente novamente.'))
+  const oldColumnId = card.columnId
+  const oldPosition = card.position
+
+  // Moving to a different column
+  if (oldColumnId !== newColumnId) {
+    card.columnId = newColumnId
+    card.position = newPosition
+    repositionCardsInColumn(oldColumnId)
+    repositionCardsInColumn(newColumnId)
+  } 
+  // Moving within the same column
+  else {
+    // Get all cards in the same column except the dragged one
+    const columnCards = cards.value
+      .filter(c => c.columnId === oldColumnId && c.id !== cardId)
+      .sort((a, b) => a.position - b.position)
+
+    // Insert the card at the new position
+    columnCards.splice(newPosition, 0, card)
+
+    // Update positions for all cards
+    columnCards.forEach((c, index) => {
+      c.position = index
+    })
   }
 }
 
 // Handle move card via dropdown
-const handleMoveCard = async ({ cardId, fromColumnId, toColumnId }) => {
+const handleMoveCard = ({ cardId, fromColumnId, toColumnId }) => {
   if (fromColumnId === toColumnId) return
 
-  try {
-    const card = cards.value.find(c => c.id === cardId)
-    if (!card) return
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) return
 
-    // Calcular nova posição (fim da coluna de destino)
-    const targetColumnCards = cards.value.filter(c => c.kanban_id === currentKanbanId.value && c.column_id === toColumnId)
-    const newPosition = targetColumnCards.length
+  const oldColumnId = card.columnId
+  
+  // Move card to end of target column
+  card.columnId = toColumnId
+  const targetColumnCards = cards.value.filter(c => c.kanban_id === currentKanbanId.value && c.columnId === toColumnId)
+  card.position = targetColumnCards.length
 
-    await $fetch(`/api/kanbans/cards/${cardId}/move`, {
-      method: 'PUT',
-      body: {
-        column_id: toColumnId,
-        position: newPosition
-      }
-    })
-
-    // Recarregar kanban atual
-    await loadCurrentKanban()
-  } catch (error) {
-    console.error('Erro ao mover cartão:', error)
-    alert('Erro ao mover cartão: ' + (error.message || 'Tente novamente.'))
-  }
+  // Reposition cards in both columns
+  repositionCardsInColumn(oldColumnId)
+  repositionCardsInColumn(toColumnId)
 }
 
 // Reposition cards in a column for current kanban
 const repositionCardsInColumn = (columnId) => {
   const columnCards = cards.value
-    .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === columnId)
+    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
     .sort((a, b) => a.position - b.position)
 
   columnCards.forEach((card, index) => {
@@ -1062,46 +916,45 @@ const saveCard = async () => {
 
     if (editingCard.value) {
       // Update existing card
-      await $fetch(`/api/kanbans/cards/${editingCard.value.id}`, {
-        method: 'PUT',
-        body: {
-          title: cardForm.value.title,
-          description: cardForm.value.description,
-          column_id: cardForm.value.columnId
-        }
-      })
+      editingCard.value.title = cardForm.value.title
+      editingCard.value.description = cardForm.value.description
+      editingCard.value.columnId = cardForm.value.columnId
+      editingCard.value.isUrgent = cardForm.value.isUrgent
+      editingCard.value.updated_at = new Date().toISOString()
 
-      // Recarregar kanban atual
-      await loadCurrentKanban()
+      // Reposition if column changed
+      if (editingCard.value.columnId !== cardForm.value.columnId) {
+        repositionCardsInColumn(editingCard.value.columnId)
+        repositionCardsInColumn(cardForm.value.columnId)
+      }
     } else {
       // Create new card
       const maxPosition = Math.max(
         ...cards.value
-          .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === cardForm.value.columnId)
+          .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === cardForm.value.columnId)
           .map(card => card.position),
         -1
       )
 
-      await $fetch('/api/kanbans/cards', {
-        method: 'POST',
-        body: {
-          kanban_id: currentKanbanId.value,
-          column_id: cardForm.value.columnId,
-          title: cardForm.value.title,
-          description: cardForm.value.description,
-          position: maxPosition + 1,
-          is_urgent: cardForm.value.isUrgent
-        }
-      })
+      const newCard = {
+        id: Date.now().toString(), // Simple ID generation
+        kanban_id: currentKanbanId.value,
+        columnId: cardForm.value.columnId,
+        title: cardForm.value.title,
+        description: cardForm.value.description,
+        isUrgent: cardForm.value.isUrgent,
+        position: maxPosition + 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
 
-      // Recarregar kanban atual
-      await loadCurrentKanban()
+      cards.value.push(newCard)
     }
 
     closeCardModal()
   } catch (error) {
-    console.error('Erro ao salvar cartão:', error)
-    alert('Erro ao salvar cartão: ' + (error.message || 'Tente novamente.'))
+    console.error('Error saving card:', error)
+    alert('Erro ao salvar tarefa. Tente novamente.')
   } finally {
     savingCard.value = false
   }
@@ -1119,8 +972,8 @@ const closeCardModal = () => {
   }
 }
 
-// Carregar dados quando o componente for montado
-onMounted(async () => {
+// Load some example cards on mount
+onMounted(() => {
   // Set up scroll indicators listeners
   const el = boardColumnsRef.value
   const container = boardColumnsContainerRef.value
@@ -1169,8 +1022,59 @@ onMounted(async () => {
   }
   document.addEventListener('click', closeDropdowns)
 
-  // Carregar kanbans e dados
-  await loadKanbans()
+  // Add some example cards
+  cards.value = [
+    {
+      id: '1',
+      kanban_id: 'default',
+      columnId: 'todo',
+      title: 'Configurar projeto',
+      description: 'Instalar dependências e configurar ambiente de desenvolvimento',
+      isUrgent: true,
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      kanban_id: 'default',
+      columnId: 'todo',
+      title: 'Criar layout inicial',
+      description: 'Desenvolver estrutura básica das páginas',
+      isUrgent: false,
+      position: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: '3',
+      kanban_id: 'default',
+      columnId: 'doing',
+      title: 'Implementar autenticação',
+      description: 'Configurar sistema de login e registro de usuários',
+      isUrgent: false,
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: '4',
+      kanban_id: 'default',
+      columnId: 'done',
+      title: 'Definir requisitos',
+      description: 'Levantar requisitos com o cliente',
+      isUrgent: false,
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ]
+  // Add example cards for another kanban (work)
+  cards.value.push(
+    { id: 'w1', kanban_id: 'work', columnId: 'todo', title: 'Planejar sprint', description: 'Definir escopo da sprint', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'w2', kanban_id: 'work', columnId: 'doing', title: 'Revisar PRs', description: 'Revisão dos pull requests abertos', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'w3', kanban_id: 'work', columnId: 'done', title: 'Reunião diária', description: 'Daily standup concluída', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+  )
 })
 
 // Definir middleware de autenticação
