@@ -14,7 +14,9 @@
       "mcp__supabase-NOVO__execute_sql",
       "mcp__supabase__list_extensions",
       "mcp__supabase-NOVO__get_project_url",
-      "mcp__supabase-NOVO__get_anon_key"
+      "mcp__supabase-NOVO__get_anon_key",
+      "mcp__supabase-NOVO__list_tables",
+      "mcp__supabase-NOVO__get_logs"
     ],
     "deny": [],
     "ask": []

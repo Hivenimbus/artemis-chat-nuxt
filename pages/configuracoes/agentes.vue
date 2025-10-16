@@ -350,7 +350,7 @@ definePageMeta({
 
 // Cliente Supabase
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { userData } = useUser()
 
 // Estado
 const searchTerm = ref('')
@@ -385,21 +385,20 @@ const loadAgents = async () => {
     loading.value = true
     error.value = ''
 
-    // Primeiro, obter o empresa_id do usuário atual
-    const { data: currentUserData, error: userError } = await supabase
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.value.id)
-      .single()
-
-    if (userError) {
-      throw userError
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
     }
 
-    if (!currentUserData?.empresa_id) {
+    // Log para debug
+    console.log('Carregando agentes para o usuário:', userData.value.id)
+
+    // Usar o empresa_id do usuário já carregado no userData
+    if (!userData.value?.empresa_id) {
       throw new Error('Usuário não está associado a nenhuma empresa')
     }
 
+  
     // Carregar apenas os usuários da mesma empresa
     const { data, error: fetchError } = await supabase
       .from('users')
@@ -415,7 +414,7 @@ const loadAgents = async () => {
         )
       `)
       .in('role', ['user', 'admin'])
-      .eq('empresa_id', currentUserData.empresa_id)
+      .eq('empresa_id', userData.value.empresa_id)
       .order('created_at', { ascending: false })
 
     if (fetchError) {
@@ -600,18 +599,15 @@ const saveAgent = async () => {
   if (!validateForm()) return
 
   try {
-    // Obter o empresa_id do usuário atual
-    const { data: currentUserData, error: userError } = await supabase
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.value.id)
-      .single()
-
-    if (userError) {
-      throw userError
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
     }
 
-    if (!currentUserData?.empresa_id) {
+    console.log('Salvando agente com usuário:', userData.value.id)
+
+    // Usar o empresa_id do usuário já carregado
+    if (!userData.value?.empresa_id) {
       throw new Error('Usuário não está associado a nenhuma empresa')
     }
 
@@ -639,7 +635,7 @@ const saveAgent = async () => {
           name: formData.value.name,
           email: formData.value.email,
           role: formData.value.role,
-          empresa_id: currentUserData.empresa_id
+          empresa_id: userData.value.empresa_id
         })
 
       if (error) throw error
@@ -678,18 +674,15 @@ const deleteAgent = async () => {
   if (!agentToDelete.value) return
 
   try {
-    // Verificar se o usuário tem permissão para excluir (mesma empresa)
-    const { data: currentUserData, error: userError } = await supabase
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.value.id)
-      .single()
-
-    if (userError) {
-      throw userError
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
     }
 
-    if (!currentUserData?.empresa_id) {
+    console.log('Excluindo agente com usuário:', userData.value.id)
+
+    // Usar o empresa_id do usuário já carregado
+    if (!userData.value?.empresa_id) {
       throw new Error('Usuário não está associado a nenhuma empresa')
     }
 
@@ -704,7 +697,7 @@ const deleteAgent = async () => {
       throw agentError
     }
 
-    if (agentData?.empresa_id !== currentUserData.empresa_id) {
+    if (agentData?.empresa_id !== userData.value.empresa_id) {
       throw new Error('Sem permissão para excluir este usuário')
     }
 
@@ -725,9 +718,16 @@ const deleteAgent = async () => {
   }
 }
 
-// Carregar dados quando o componente for montado
-onMounted(() => {
-  loadAgents()
+// Controle para evitar múltiplas chamadas
+const dataLoaded = ref(false)
+
+// Carregar dados quando o componente for montado e userData estiver disponível
+watchEffect(() => {
+  // Apenas carrega quando os dados do usuário estiverem disponíveis e ainda não foi carregado
+  if (userData.value && !dataLoaded.value) {
+    dataLoaded.value = true
+    loadAgents()
+  }
 })
 </script>
 

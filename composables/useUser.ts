@@ -8,10 +8,26 @@ export const useUser = () => {
     error.value = null
 
     try {
+      console.log('useUser: Buscando dados do usuário...')
       const response = await $fetch('/api/user')
       userData.value = response.data
+
+      // Validar se os dados retornados são válidos
+      if (!response.data?.id) {
+        throw new Error('Dados do usuário inválidos: ID ausente')
+      }
+
+      // Validar se o ID é um UUID válido
+      const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
+      if (!uuidRegex.test(response.data.id)) {
+        console.error('useUser: ID de usuário inválido retornado da API:', response.data.id)
+        throw new Error('ID de usuário inválido retornado da API')
+      }
+
+      console.log('useUser: Dados carregados com sucesso para:', response.data.id)
       return response
     } catch (err: any) {
+      console.error('useUser: Erro ao buscar dados do usuário:', err)
       error.value = err.data?.statusMessage || err.message || 'Erro ao buscar dados do usuário'
       throw err
     } finally {

@@ -41,7 +41,7 @@
           <div class="flex items-center space-x-3">
             <!-- Filtro de empresa apenas para superadmin -->
             <select
-              v-if="user?.role === 'superadmin'"
+              v-if="userData?.role === 'superadmin'"
               v-model="filterEmpresa"
               class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
@@ -584,7 +584,7 @@ definePageMeta({
 
 // Cliente Supabase
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { userData } = useUser()
 
 // Estado
 const searchTerm = ref('')
@@ -624,22 +624,23 @@ const loadData = async () => {
     loading.value = true
     error.value = ''
 
-    // Carregar dados do usuário logado com sua empresa
-    if (user.value) {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select(`
-          empresa_id,
-          empresas (
-            id,
-            nome
-          )
-        `)
-        .eq('id', user.value.id)
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
+    }
+
+    console.log('Carregando dados para o usuário:', userData.value.id)
+
+    // Usar dados do usuário já carregado
+    if (userData.value?.empresa_id) {
+      const { data: empresaData, error: empresaError } = await supabase
+        .from('empresas')
+        .select('id, nome')
+        .eq('id', userData.value.empresa_id)
         .single()
 
-      if (userError) throw userError
-      currentUserEmpresa.value = userData.empresas
+      if (empresaError) throw empresaError
+      currentUserEmpresa.value = empresaData
     }
 
     // Carregar equipes com informações da empresa
@@ -655,7 +656,7 @@ const loadData = async () => {
       .order('created_at', { ascending: false })
 
     // Se não for superadmin, filtrar apenas equipes da própria empresa
-    if (currentUserEmpresa.value && user.value?.role !== 'superadmin') {
+    if (currentUserEmpresa.value && userData.value?.role !== 'superadmin') {
       teamsQuery = teamsQuery.eq('empresa_id', currentUserEmpresa.value.id)
     }
 
@@ -681,7 +682,7 @@ const loadData = async () => {
       .order('name', { ascending: true })
 
     // Se não for superadmin, filtrar apenas agentes da própria empresa
-    if (currentUserEmpresa.value && user.value?.role !== 'superadmin') {
+    if (currentUserEmpresa.value && userData.value?.role !== 'superadmin') {
       agentsQuery = agentsQuery.eq('empresa_id', currentUserEmpresa.value.id)
     }
 
@@ -696,7 +697,7 @@ const loadData = async () => {
       .order('nome', { ascending: true })
 
     // Se não for superadmin, carregar apenas a própria empresa
-    if (user.value?.role !== 'superadmin' && currentUserEmpresa.value) {
+    if (userData.value?.role !== 'superadmin' && currentUserEmpresa.value) {
       empresasQuery = empresasQuery.eq('id', currentUserEmpresa.value.id)
     }
 
@@ -874,6 +875,13 @@ const toggleAgentInTeam = async (agentId) => {
   if (!selectedTeam.value) return
 
   try {
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
+    }
+
+    console.log('Alterando agentes da equipe com usuário:', userData.value.id)
+
     const exists = isAgentInTeam(agentId)
 
     if (exists) {
@@ -949,6 +957,13 @@ const saveTeam = async () => {
   if (!validateForm()) return
 
   try {
+    // Validar se o usuário está autenticado
+    if (!userData.value?.id) {
+      throw new Error('Usuário não autenticado ou dados inválidos')
+    }
+
+    console.log('Salvando equipe com usuário:', userData.value.id)
+
     // Garantir que estamos usando a empresa do usuário logado
     const empresaId = currentUserEmpresa.value?.id
     if (!empresaId) {
@@ -1020,9 +1035,16 @@ const deleteTeam = async () => {
   }
 }
 
-// Carregar dados quando o componente for montado
-onMounted(() => {
-  loadData()
+// Controle para evitar múltiplas chamadas
+const dataLoaded = ref(false)
+
+// Carregar dados quando o componente for montado e userData estiver disponível
+watchEffect(() => {
+  // Apenas carrega quando os dados do usuário estiverem disponíveis e ainda não foi carregado
+  if (userData.value && !dataLoaded.value) {
+    dataLoaded.value = true
+    loadData()
+  }
 })
 </script>
 

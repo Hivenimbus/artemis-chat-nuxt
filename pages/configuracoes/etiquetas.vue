@@ -326,7 +326,7 @@ definePageMeta({
 })
 
 // Cliente Supabase
-const user = useSupabaseUser()
+const { userData } = useUser()
 
 // Estado
 const searchTerm = ref('')
@@ -567,9 +567,16 @@ const deleteTag = async () => {
   }
 }
 
-// Carregar dados quando o componente for montado
-onMounted(() => {
-  loadTags()
+// Controle para evitar múltiplas chamadas
+const dataLoaded = ref(false)
+
+// Carregar dados quando o componente for montado e userData estiver disponível
+watchEffect(() => {
+  // Apenas carrega quando os dados do usuário estiverem disponíveis e ainda não foi carregado
+  if (userData.value && !dataLoaded.value) {
+    dataLoaded.value = true
+    loadTags()
+  }
 })
 </script>
 
