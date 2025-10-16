@@ -127,6 +127,7 @@
           :item-size="140"
           :container-height="400"
           :buffer-size="3"
+          :is-dragging="globalDragState?.isDragging || false"
         >
           <template #default="{ item: card, index }">
             <div
@@ -269,36 +270,8 @@ const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
 
-// Debounce para otimizar drag events
-const debouncedDragOver = ref(null)
-
-// Batch de atualizações para performance
-const updateBatch = ref([])
-const batchTimeout = ref(null)
-
-// Processar batch de atualizações de forma otimizada
-const processBatch = () => {
-  if (updateBatch.value.length === 0) return
-
-  // Combinar múltiplas atualizações em uma única
-  const updates = updateBatch.value
-  updateBatch.value = []
-
-  // Processar apenas a última atualização de cada tipo
-  const latestUpdates = {}
-  updates.forEach(update => {
-    latestUpdates[update.type] = update.value
-  })
-
-  // Aplicar atualizações de uma vez
-  requestAnimationFrame(() => {
-    Object.values(latestUpdates).forEach(value => {
-      if (value !== undefined) {
-        // Aplicar atualização
-      }
-    })
-  })
-}
+// Variáveis simplificadas para melhor performance
+// Removido batching complexo em favor de resposta imediata
 
 // Icon paths mapping
 const iconPaths = {
@@ -405,64 +378,100 @@ const updateCardsWithPreview = () => {
   }
 }
 
-// Watch para atualizar apenas quando props essenciais mudam
-watch([() => props.cards, () => props.globalDragState?.isDragging, () => props.globalDragState?.originalColumnId, () => props.globalDragState?.previewColumnId],
-  updateCardsWithPreview,
+// Watch ULTRA OTIMIZADO - DESATIVADO DURANTE DRAG PARA ZERO DELAY
+let isDuringDrag = false
+
+// Watch simples apenas para cards - globalDragState handled manualmente
+watch(() => props.cards,
+  (newCards, oldCards) => {
+    if (!isDuringDrag) {
+      updateCardsWithPreview()
+    }
+  },
   { immediate: true, flush: 'sync' }
 )
 
-// Handle drag over column - COM DEBOUNCE E BATCHING OTIMIZADO
+// Watch separado para drag state com otimização máxima
+watch(() => props.globalDragState?.isDragging,
+  (isDragging, wasDragging) => {
+    isDuringDrag = isDragging
+
+    if (isDragging) {
+      // INÍCIO DRAG: Atualização imediata sem recálculo complexo
+      const baseCards = [...props.cards]
+      const needsPlaceholder = props.globalDragState?.originalColumnId === props.column.id
+      const needsPreview = props.globalDragState?.previewColumnId === props.column.id
+
+      // Adicionar items diretamente sem validações complexas
+      if (needsPlaceholder) {
+        const placeholderCard = {
+          isPlaceholder: true,
+          id: `placeholder-${props.globalDragState.draggedCard?.id}`,
+          column_id: props.column.id,
+          height: '120px'
+        }
+        baseCards.push(placeholderCard)
+      }
+
+      if (needsPreview && props.globalDragState?.draggedCard) {
+        const previewCard = {
+          ...props.globalDragState.draggedCard,
+          isPreview: true,
+          id: `preview-${props.globalDragState.draggedCard.id}`,
+          column_id: props.column.id
+        }
+        baseCards.push(previewCard)
+      }
+
+      cardsWithPreview.value = baseCards
+    } else {
+      // FIM DRAG: Reset imediato
+      isDuringDrag = false
+      cardsWithPreview.value = [...props.cards]
+    }
+  },
+  { immediate: false, flush: 'sync' }
+)
+
+// Watch simples para preview column - apenas quando não está arrastando
+watch(() => props.globalDragState?.previewColumnId,
+  (newColumnId, oldColumnId) => {
+    if (!isDuringDrag && newColumnId !== oldColumnId) {
+      updateCardsWithPreview()
+    }
+  },
+  { immediate: false, flush: 'sync' }
+)
+
+// Handle drag over column - SIMPLIFICADO E OTIMIZADO
 const handleDragOver = (event) => {
   try {
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
 
-    // Adicionar ao batch em vez de processar imediatamente
-    updateBatch.value.push({
-      type: 'dragOver',
-      value: {
-        timestamp: Date.now(),
-        columnId: props.column.id
-      }
-    })
+    // Resposta imediata usando estado global
+    const isGlobalDragging = props.globalDragState?.isDragging
+    const isDraggingOverThisColumn = props.globalDragState?.dragOverColumnId === props.column.id
 
-    // Limpar timeout anterior
-    if (batchTimeout.value) {
-      clearTimeout(batchTimeout.value)
+    if (isGlobalDragging && !isDraggingOverThisColumn) {
+      // Notificar pai imediatamente sobre a mudança de preview
+      emit('update-preview-column', props.column.id)
     }
 
-    // Processar batch com debounce de 8ms (120fps)
-    batchTimeout.value = setTimeout(() => {
-      processBatch()
+    // Atualizar estados locais de forma síncrona para resposta instantânea
+    const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
+    const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
 
-      // Processar apenas o último evento do batch
-      const latestEvent = updateBatch.value[updateBatch.value.length - 1]?.value
-      if (latestEvent) {
-        // Usar estado global para resposta instantânea
-        const isGlobalDragging = props.globalDragState?.isDragging
-        const isDraggingOverThisColumn = props.globalDragState?.dragOverColumnId === props.column.id
-
-        if (isGlobalDragging && !isDraggingOverThisColumn) {
-          // Notificar pai sobre a mudança de preview
-          emit('update-preview-column', props.column.id)
-        }
-
-        // Atualizar estados locais de forma batched
-        const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-        const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-
-        // requestAnimationFrame para atualização visual suave
-        requestAnimationFrame(() => {
-          isDragFromDifferentColumn.value = isDifferentColumn
-          if (!isDragOver.value && (isDifferentColumn || isGlobalDragging)) {
-            isDragOver.value = true
-          }
-        })
-      }
-    }, 8)
+    if (isDifferentColumn || isGlobalDragging) {
+      isDragFromDifferentColumn.value = isDifferentColumn
+      isDragOver.value = true
+    }
 
   } catch (error) {
     console.warn('Erro no handleDragOver:', error)
+    // Reset states em caso de erro
+    isDragOver.value = false
+    isDragFromDifferentColumn.value = false
   }
 }
 
@@ -503,11 +512,6 @@ const handleDrop = (event) => {
   try {
     event.preventDefault()
 
-    // Limpar timeout
-    if (debouncedDragOver.value) {
-      clearTimeout(debouncedDragOver.value)
-    }
-
     isDragOver.value = false
     isDragFromDifferentColumn.value = false
 
@@ -536,31 +540,15 @@ const handleDrop = (event) => {
   }
 }
 
-// Cache para eventos de drag em cartões
-const cardDragCache = new Map()
+// Cache removido para simplicidade e performance
 
-// Handle drag over a specific card otimizado para resposta imediata
+// Handle drag over a specific card - SIMPLIFICADO E OTIMIZADO
 const handleCardDragOver = (event, index) => {
   event.preventDefault()
   event.stopPropagation()
   event.dataTransfer.dropEffect = 'move'
 
-  // Cache simples baseado no timestamp para evitar chamadas duplicadas
-  const now = Date.now()
-  const cacheKey = `${index}-${Math.floor(now / 16)}` // Cache por 16ms (~60fps)
-
-  if (cardDragCache.has(cacheKey)) {
-    return
-  }
-
-  // Limitar cache tamanho
-  if (cardDragCache.size > 50) {
-    const firstKey = cardDragCache.keys().next().value
-    cardDragCache.delete(firstKey)
-  }
-  cardDragCache.set(cacheKey, true)
-
-  // Check if the card is from a different column
+  // Resposta imediata sem cache complexo
   const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
   const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
 
@@ -608,7 +596,7 @@ const handleCardDragLeave = (event, index) => {
   }
 }
 
-// Handle drop on a specific card - POSICIONAMENTO INSTANTÂNEO
+// Handle drop on a specific card - ZERO LAYOUT THRASHING
 const handleCardDrop = (event, targetIndex) => {
   event.preventDefault()
   event.stopPropagation()
@@ -623,22 +611,21 @@ const handleCardDrop = (event, targetIndex) => {
 
   if (!cardId) return
 
-  // CÁLCULO INSTANTÂNEO da posição - sem validações desnecessárias
-  const cardElement = event.currentTarget
-  const rect = cardElement.getBoundingClientRect()
-  const mouseY = event.clientY
-  const cardMiddle = rect.top + rect.height / 2
+  // CÁLCULO ULTRA RÁPIDO - ZERO DOM QUERIES
+  // Usar apenas offsetY nativo do evento - SEM getBoundingClientRect()
+  const offsetY = event.offsetY || 0
+  const targetHeight = event.currentTarget?.clientHeight || 140
 
-  // Determinar posição baseada no mouse - cálculo ultra-rápido
+  // Determinar posição baseada no offset - cálculo instantâneo sem layout thrashing
   let newPosition = targetIndex
-  if (mouseY > cardMiddle) {
+  if (offsetY > targetHeight / 2) {
     newPosition = targetIndex + 1
   }
 
-  // OTIMIZAÇÃO: Não validar se mesma coluna/posição - deixar backend decidir
-  // Isso elimina qualquer delay no frontend
+  // OTIMIZAÇÃO MÁXIMA: Zero DOM queries, zero cálculos complexos
+  // Posição calculada instantaneamente com dados nativos do evento
 
-  // Emitir evento IMEDIATAMENTE sem qualquer validação
+  // Emitir evento IMEDIATAMENTE sem delay
   emit('card-drop', {
     cardId,
     newColumnId: props.column.id,
@@ -734,22 +721,8 @@ const updateColor = (colorValue) => {
   showOptions.value = false
 }
 
-// Cleanup timeouts quando o componente é destruído
+// Cleanup simplificado quando o componente é destruído
 onBeforeUnmount(() => {
-  // Limpar todos os timeouts pendentes para evitar memory leaks
-  if (debouncedDragOver.value) {
-    clearTimeout(debouncedDragOver.value)
-    debouncedDragOver.value = null
-  }
-
-  if (batchTimeout.value) {
-    clearTimeout(batchTimeout.value)
-    batchTimeout.value = null
-  }
-
-  // Limpar batch de atualizações
-  updateBatch.value = []
-
   // Reset states para garantir limpeza
   isDragOver.value = false
   isDragFromDifferentColumn.value = false
@@ -801,7 +774,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: auto;
-  transition: all var(--dur-fast) var(--ease-out);
+  /* ZERO DELAY - sem transições */
 }
 
 /* Color Variants per Status */
@@ -889,8 +862,8 @@ onBeforeUnmount(() => {
   background: transparent;
   color: rgba(var(--txt-2), 0.6);
   cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out, transform 120ms ease-out;
-  will-change: background-color, color, transform;
+  /* ZERO DELAY - sem transições */
+  will-change: auto;
 }
 
 .kan-col__options-btn:hover {
@@ -930,7 +903,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: all 120ms ease-out;
+  /* ZERO DELAY - sem transições */
   text-align: left;
 }
 
@@ -996,7 +969,7 @@ onBeforeUnmount(() => {
   color: rgb(var(--txt-1));
   cursor: pointer;
   font-size: 0.875rem;
-  transition: all 120ms ease-out;
+  /* ZERO DELAY - sem transições */
   text-align: left;
 }
 
@@ -1055,9 +1028,7 @@ onBeforeUnmount(() => {
   background: rgba(var(--col-500), 0.08);
   outline: 2px dashed rgba(var(--col-500), 0.6);
   outline-offset: -4px;
-  /* Ultra-otimização para resposta ZERO-DELAY */
-  will-change: background-color, outline-color, transform;
-  transition: background-color 25ms linear, outline-color 25ms linear, transform 25ms linear;
+  /* ZERO DELAY - sem transições */
   transform: scale(1.005);
 }
 
@@ -1067,9 +1038,7 @@ onBeforeUnmount(() => {
   filter: blur(4px);
   opacity: 0.3;
   pointer-events: none;
-  /* Otimização para resposta visual instantânea */
-  will-change: filter, opacity;
-  transition: filter 100ms ease-out, opacity 100ms ease-out;
+  /* ZERO DELAY - sem transições */
 }
 
 /* No blur when reordering within same column */
@@ -1077,9 +1046,7 @@ onBeforeUnmount(() => {
 .kan-col__cards--reordering .kan-col__add-btn {
   filter: none;
   opacity: 1;
-  /* Otimização para resposta visual instantânea */
-  will-change: filter, opacity;
-  transition: filter 100ms ease-out, opacity 100ms ease-out;
+  /* ZERO DELAY - sem transições */
 }
 
 /* Cards List */
@@ -1109,12 +1076,10 @@ onBeforeUnmount(() => {
   margin-bottom: 0.75rem;
 }
 
-/* Card Drop Zone - ULTRA OTIMIZADO */
+/* Card Drop Zone - ZERO DELAY */
 .card-drop-zone {
   position: relative;
-  transition: transform 75ms cubic-bezier(.25, 1, .5, 1),
-              background-color 50ms linear;
-  will-change: transform, background-color;
+  /* ZERO DELAY - sem transições */
 }
 
 .card-drop-zone--active {
@@ -1147,11 +1112,10 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Card List Transitions - ULTRA RÁPIDAS */
+/* Card List Transitions - ZERO DELAY */
 .card-list-enter-active,
 .card-list-leave-active {
-  transition: opacity 100ms ease-out, transform 100ms ease-out;
-  will-change: opacity, transform;
+  /* ZERO DELAY - sem transições */
 }
 
 .card-list-enter-from {
@@ -1165,8 +1129,7 @@ onBeforeUnmount(() => {
 }
 
 .card-list-move {
-  transition: transform 120ms ease-out;
-  will-change: transform;
+  /* ZERO DELAY - sem transições */
 }
 
 /* Add Button */
@@ -1185,7 +1148,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  /* ZERO DELAY - sem transições */
 }
 
 .kan-col__add-btn:hover {
@@ -1244,10 +1207,10 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Drop Indicator Transitions */
+/* Drop Indicator Transitions - ZERO DELAY */
 .drop-indicator-enter-active,
 .drop-indicator-leave-active {
-  transition: opacity var(--dur-fast) var(--ease-out);
+  /* ZERO DELAY - sem transições */
 }
 
 .drop-indicator-enter-from,
