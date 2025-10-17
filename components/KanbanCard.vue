@@ -64,33 +64,25 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
         </button>
+        
+        <!-- Dropdown Menu -->
+        <Transition name="fade-scale">
+          <div v-if="showMoveMenu" class="kan-card__move-menu" role="menu" @click.stop>
+            <div class="kan-card__move-menu-header">Mover para:</div>
+            <button
+              v-for="column in availableColumns"
+              :key="column.id"
+              @click="moveToColumn(column.id)"
+              class="kan-card__move-menu-item"
+              role="menuitem"
+            >
+              {{ column.title }}
+            </button>
+          </div>
+        </Transition>
       </div>
     </div>
   </div>
-
-  <!-- Teleport Dropdown para o body -->
-  <Teleport to="body">
-    <div
-      v-if="showMoveMenu"
-      ref="teleportedDropdownRef"
-      class="kan-card__move-menu-teleported"
-      :style="dropdownStyle"
-      :class="`kan-card__move-menu--${dropdownPosition}`"
-      role="menu"
-      @click.stop
-    >
-      <div class="kan-card__move-menu-header">Mover para:</div>
-      <button
-        v-for="column in availableColumns"
-        :key="column.id"
-        @click="moveToColumn(column.id)"
-        class="kan-card__move-menu-item"
-        role="menuitem"
-      >
-        {{ column.title }}
-      </button>
-    </div>
-  </Teleport>
 </template>
 
 <script setup>
@@ -116,126 +108,11 @@ const emit = defineEmits(['edit-card', 'delete-card', 'move-card'])
 // State
 const showMoveMenu = ref(false)
 const moveMenuRef = ref(null)
-const teleportedDropdownRef = ref(null)
-const dropdownStyle = ref({
-  position: 'fixed',
-  top: '0px',
-  left: '0px',
-  zIndex: 9999
-})
-const dropdownPosition = ref('bottom') // 'bottom' ou 'top'
 
 // Available columns (exclude current column)
 const availableColumns = computed(() => {
   return (props.columns || []).filter(col => col.id !== props.currentColumnId)
 })
-
-// Calculate dropdown position with Teleport - duas fases
-const calculateDropdownPosition = () => {
-  if (!moveMenuRef.value) return
-
-  const moveButton = moveMenuRef.value.querySelector('button')
-  if (!moveButton) return
-
-  // Obter coordenadas do botão
-  const buttonRect = moveButton.getBoundingClientRect()
-  const viewportHeight = window.innerHeight
-  const viewportWidth = window.innerWidth
-
-  // Dimensões estimadas para cálculo inicial
-  const estimatedHeight = 200
-  const estimatedWidth = 180
-  const gap = 8
-
-  // Calcular espaço disponível
-  const spaceBelow = viewportHeight - buttonRect.bottom
-  const spaceAbove = buttonRect.top
-  const spaceRight = viewportWidth - buttonRect.right
-  const spaceLeft = buttonRect.left
-
-  // Determinar posição vertical
-  let topPosition
-  if (spaceBelow < estimatedHeight && spaceAbove > estimatedHeight) {
-    topPosition = buttonRect.top - estimatedHeight - gap
-    dropdownPosition.value = 'top'
-  } else {
-    topPosition = buttonRect.bottom + gap
-    dropdownPosition.value = 'bottom'
-  }
-
-  // Determinar posição horizontal
-  let leftPosition
-  if (spaceRight < estimatedWidth && spaceLeft > estimatedWidth) {
-    leftPosition = buttonRect.left
-  } else {
-    leftPosition = buttonRect.right - estimatedWidth
-  }
-
-  // Garantir que fique dentro dos limites
-  if (leftPosition < 8) leftPosition = 8
-  if (leftPosition + estimatedWidth > viewportWidth - 8) {
-    leftPosition = viewportWidth - estimatedWidth - 8
-  }
-  if (topPosition < 8) topPosition = 8
-  if (topPosition + estimatedHeight > viewportHeight - 8) {
-    topPosition = viewportHeight - estimatedHeight - 8
-  }
-
-  // Aplicar estilo inicial
-  dropdownStyle.value = {
-    position: 'fixed',
-    top: `${topPosition}px`,
-    left: `${leftPosition}px`,
-    zIndex: 9999
-  }
-
-  // Fase 2: Recalcular com dimensões reais após renderização
-  nextTick(() => {
-    if (!teleportedDropdownRef.value) return
-
-    const dropdown = teleportedDropdownRef.value
-    const dropdownRect = dropdown.getBoundingClientRect()
-
-    // Se o dropdown realmente foi renderizado, recalcular com dimensões reais
-    if (dropdownRect.height > 0 && dropdownRect.width > 0) {
-      const realHeight = dropdownRect.height
-      const realWidth = dropdownRect.width
-
-      // Recalcular posição com dimensões reais
-      if (spaceBelow < realHeight && spaceAbove > realHeight) {
-        topPosition = buttonRect.top - realHeight - gap
-        dropdownPosition.value = 'top'
-      } else {
-        topPosition = buttonRect.bottom + gap
-        dropdownPosition.value = 'bottom'
-      }
-
-      if (spaceRight < realWidth && spaceLeft > realWidth) {
-        leftPosition = buttonRect.left
-      } else {
-        leftPosition = buttonRect.right - realWidth
-      }
-
-      // Ajustar limites com dimensões reais
-      if (leftPosition < 8) leftPosition = 8
-      if (leftPosition + realWidth > viewportWidth - 8) {
-        leftPosition = viewportWidth - realWidth - 8
-      }
-      if (topPosition < 8) topPosition = 8
-      if (topPosition + realHeight > viewportHeight - 8) {
-        topPosition = viewportHeight - realHeight - 8
-      }
-
-      // Aplicar estilo corrigido
-      dropdownStyle.value = {
-        position: 'fixed',
-        top: `${topPosition}px`,
-        left: `${leftPosition}px`,
-        zIndex: 9999
-      }
-    }
-  })
-}
 
 // Toggle move menu
 const toggleMoveMenu = () => {
@@ -248,63 +125,18 @@ const toggleMoveMenu = () => {
   }
 
   showMoveMenu.value = !showMoveMenu.value
-
-  if (showMoveMenu.value) {
-    // Prevenir scroll no body quando o menu abrir
-    document.body.style.overflow = 'hidden'
-
-    // Calcular posição quando o menu for aberto
-    nextTick(() => {
-      calculateDropdownPosition()
-    })
-  } else {
-    // Restaurar scroll quando o menu fechar
-    document.body.style.overflow = ''
-    // Resetar dropdownStyle para valores padrão
-    dropdownStyle.value = {
-      position: 'fixed',
-      top: '0px',
-      left: '0px',
-      zIndex: 9999
-    }
-  }
 }
 
 // Move to column
 const moveToColumn = (columnId) => {
   emit('move-card', columnId)
   showMoveMenu.value = false
-  // Restaurar scroll do body
-  document.body.style.overflow = ''
-  // Resetar dropdownStyle para valores padrão
-  dropdownStyle.value = {
-    position: 'fixed',
-    top: '0px',
-    left: '0px',
-    zIndex: 9999
-  }
 }
 
 // Click outside to close menu
 const handleClickOutside = (event) => {
-  if (showMoveMenu.value && !teleportedDropdownRef.value?.contains(event.target) && !moveMenuRef.value?.contains(event.target)) {
+  if (showMoveMenu.value && moveMenuRef.value && !moveMenuRef.value.contains(event.target)) {
     showMoveMenu.value = false
-    // Restaurar scroll do body
-    document.body.style.overflow = ''
-    // Resetar dropdownStyle para valores padrão
-    dropdownStyle.value = {
-      position: 'fixed',
-      top: '0px',
-      left: '0px',
-      zIndex: 9999
-    }
-  }
-}
-
-// Handle window resize to recalculate dropdown position
-const handleResize = () => {
-  if (showMoveMenu.value) {
-    calculateDropdownPosition()
   }
 }
 
@@ -326,13 +158,17 @@ const handleGlobalDropdownClose = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+<<<<<<< HEAD
   window.addEventListener('resize', handleResize)
   // Adicionar listener para eventos globais de dropdown
   document.addEventListener('close-other-dropdowns', handleGlobalDropdownClose)
+=======
+>>>>>>> parent of 0c2c4b7 (ajustando dropdown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+<<<<<<< HEAD
   window.removeEventListener('resize', handleResize)
   // Remover listener para eventos globais de dropdown
   document.removeEventListener('close-other-dropdowns', handleGlobalDropdownClose)
@@ -340,98 +176,10 @@ onBeforeUnmount(() => {
   if (showMoveMenu.value) {
     document.body.style.overflow = ''
   }
+=======
+>>>>>>> parent of 0c2c4b7 (ajustando dropdown)
 })
 </script>
-
-<style>
-/* Global CSS Variables for dropdown teleportado */
-:root {
-  --kan-card-bg-0: 244 246 250;
-  --kan-card-bg-1: 255 255 255;
-  --kan-card-txt-1: 17 24 39;
-  --kan-card-txt-2: 75 85 99;
-  --kan-card-txt-3: 156 163 175;
-  --kan-card-ring: 59 130 246;
-
-  --kan-card-danger-500: 239 68 68;
-  --kan-card-danger-400: 252 165 165;
-
-  --kan-card-radius-xs: 8px;
-  --kan-card-radius-sm: 12px;
-
-  --kan-card-shadow-1: 0 6px 18px rgba(0,0,0,.08);
-  --kan-card-shadow-2: 0 12px 28px rgba(0,0,0,.12);
-  --kan-card-shadow-3: 0 18px 34px rgba(0,0,0,.16);
-
-  --kan-card-dur-fast: 150ms;
-  --kan-card-ease-out: cubic-bezier(.22, 1, .36, 1);
-}
-
-/* Estilos globais para o dropdown teleportado */
-.kan-card__move-menu-teleported {
-  min-width: 180px;
-  background: rgb(255, 255, 255);
-  border: 1px solid rgba(156, 163, 175, 0.2);
-  border-radius: 12px;
-  box-shadow: 0 20px 48px rgba(0,0,0,.25);
-  overflow: hidden;
-  animation: dropdownFadeIn 150ms cubic-bezier(.22, 1, .36, 1);
-  z-index: 9999;
-  position: fixed;
-  max-height: 300px;
-  overflow-y: auto;
-  /* Garantir opacidade total */
-  opacity: 1 !important;
-  /* Adicionar backdrop para melhor contraste */
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-}
-
-@keyframes dropdownFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.kan-card__move-menu-header {
-  padding: 0.625rem 0.875rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: rgb(75, 85, 99);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: rgba(156, 163, 175, 0.05);
-  border-bottom: 1px solid rgba(156, 163, 175, 0.1);
-}
-
-.kan-card__move-menu-item {
-  width: 100%;
-  padding: 0.75rem 0.875rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgb(17, 24, 39);
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  transition: all 150ms cubic-bezier(.22, 1, .36, 1);
-  display: block;
-}
-
-.kan-card__move-menu-item:hover {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgb(16, 185, 129);
-}
-
-.kan-card__move-menu-item:active {
-  transform: scale(0.98);
-}
-</style>
 
 <style scoped>
 /* Local CSS Variables */
@@ -610,6 +358,7 @@ onBeforeUnmount(() => {
 .kan-card__move-menu {
   position: absolute;
   right: 0;
+  top: calc(100% + 0.5rem);
   min-width: 180px;
   background: rgb(var(--bg-1));
   border: 1px solid rgba(var(--txt-3), 0.2);
@@ -619,21 +368,38 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* Posicionamento padrão (abaixo do botão) - só para o dropdown original */
-.kan-card__move-menu--bottom {
-  top: calc(100% + 0.5rem);
+.kan-card__move-menu-header {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgb(var(--txt-2));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(var(--txt-3), 0.05);
+  border-bottom: 1px solid rgba(var(--txt-3), 0.1);
 }
 
-/* Posicionamento acima do botão (só para o dropdown original) */
-.kan-card__move-menu--top {
-  bottom: calc(100% + 0.5rem);
-  top: auto;
+.kan-card__move-menu-item {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--txt-1));
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  display: block;
 }
 
-/* Alinhamento à esquerda quando não há espaço à direita (só para o dropdown original) */
-.kan-card__move--align-left .kan-card__move-menu {
-  right: auto;
-  left: 0;
+.kan-card__move-menu-item:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: rgb(16, 185, 129);
+}
+
+.kan-card__move-menu-item:active {
+  transform: scale(0.98);
 }
 
 /* Fade Scale Transition */
@@ -646,11 +412,6 @@ onBeforeUnmount(() => {
 .fade-scale-leave-to {
   transform: scale(0.95) translateY(-4px);
   opacity: 0;
-}
-
-/* Transição suave para mudança de posição do dropdown */
-.kan-card__move-menu {
-  transition: all 150ms var(--ease-out);
 }
 
 
