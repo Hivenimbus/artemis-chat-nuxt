@@ -682,11 +682,25 @@ const updateColor = (colorValue) => {
   opacity: 0.5;
   background: rgba(var(--col-500), 0.1);
   border: 2px dashed rgba(var(--col-500), 0.4);
+  cursor: grabbing !important;
+}
+
+/* VueDraggable Dragging Class */
+.kan-card--dragging {
+  opacity: 0.8;
+  transform: rotate(2deg) scale(1.03);
+  box-shadow: var(--shadow-3);
+  cursor: grabbing !important;
 }
 
 /* Card transitions for VueDraggable */
 .kan-col__cards-list > * {
   transition: all var(--dur-fast) var(--ease-out);
+}
+
+/* Ensure cards maintain grab cursor */
+.kan-col__cards-list .kan-card {
+  cursor: grab !important;
 }
 
 /* Add Button */
