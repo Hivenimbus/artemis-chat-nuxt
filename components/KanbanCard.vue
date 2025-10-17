@@ -239,6 +239,14 @@ const calculateDropdownPosition = () => {
 
 // Toggle move menu
 const toggleMoveMenu = () => {
+  if (!showMoveMenu.value) {
+    // Se estamos abrindo o dropdown, notificar outros dropdowns para fechar
+    const event = new CustomEvent('close-other-dropdowns', {
+      detail: { cardId: props.card.id }
+    })
+    document.dispatchEvent(event)
+  }
+
   showMoveMenu.value = !showMoveMenu.value
 
   if (showMoveMenu.value) {
@@ -300,14 +308,34 @@ const handleResize = () => {
   }
 }
 
+// Global event handler for closing other dropdowns
+const handleGlobalDropdownClose = (event) => {
+  if (event.detail && event.detail.cardId !== props.card.id) {
+    showMoveMenu.value = false
+    // Restaurar scroll do body
+    document.body.style.overflow = ''
+    // Resetar dropdownStyle para valores padrão
+    dropdownStyle.value = {
+      position: 'fixed',
+      top: '0px',
+      left: '0px',
+      zIndex: 9999
+    }
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('resize', handleResize)
+  // Adicionar listener para eventos globais de dropdown
+  document.addEventListener('close-other-dropdowns', handleGlobalDropdownClose)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('resize', handleResize)
+  // Remover listener para eventos globais de dropdown
+  document.removeEventListener('close-other-dropdowns', handleGlobalDropdownClose)
   // Garantir que o scroll seja restaurado se o componente for destruído
   if (showMoveMenu.value) {
     document.body.style.overflow = ''
