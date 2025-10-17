@@ -473,7 +473,6 @@ onBeforeUnmount(() => {
   box-shadow: var(--shadow-2);
   border-color: rgb(var(--ring));
   z-index: 2;
-  cursor: grab;
 }
 
 /* Increase z-index when move menu is open */
@@ -487,27 +486,6 @@ onBeforeUnmount(() => {
 }
 
 /* Urgent Card Variant - removed border, keeping only badge */
-
-/* Ensure cursor is always visible */
-.kan-card,
-.kan-card:hover,
-.kan-card:focus {
-  cursor: grab !important;
-}
-
-/* Cursor when actively dragging */
-.kan-card--dragging {
-  cursor: grabbing !important;
-}
-
-/* Cursor over action buttons should be pointer */
-.kan-card__action-btn {
-  cursor: pointer !important;
-}
-
-.kan-card__action-btn:hover {
-  cursor: pointer !important;
-}
 
 /* Card Content */
 .kan-card__content {
@@ -675,35 +653,6 @@ onBeforeUnmount(() => {
   transition: all 150ms var(--ease-out);
 }
 
-
-/* Global cursor fix - ensure cursor is always visible */
-.kan-card,
-.kan-card * {
-  cursor: inherit !important;
-}
-
-.kan-card,
-.kan-card:hover,
-.kan-card:focus,
-.kan-card:active {
-  cursor: grab !important;
-}
-
-/* Action buttons should override with pointer cursor */
-.kan-card .kan-card__action-btn,
-.kan-card .kan-card__action-btn:hover,
-.kan-card .kan-card__action-btn:focus,
-.kan-card .kan-card__action-btn:active {
-  cursor: pointer !important;
-}
-
-/* Move button should be pointer */
-.kan-card .kan-card__move button,
-.kan-card .kan-card__move button:hover,
-.kan-card .kan-card__move button:focus,
-.kan-card .kan-card__move button:active {
-  cursor: pointer !important;
-}
 
 /* Responsive */
 @media (max-width: 640px) {
