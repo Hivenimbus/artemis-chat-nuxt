@@ -72,6 +72,8 @@
               @edit-card="handleEditCard"
               @delete-card="handleDeleteCard"
               @card-drop="handleCardDrop"
+              @update-cards="handleUpdateCards"
+              @card-moved="handleCardMoved"
               @move-card="handleMoveCard"
               @move-column="handleMoveColumn"
               @rename-column="handleRenameColumn"
@@ -847,35 +849,107 @@ const handleDeleteCard = async (cardId) => {
   }
 }
 
-// Handle card drop
+// Validate card integrity
+const validateCardIntegrity = () => {
+  const totalCards = columns.value.reduce((sum, col) => {
+    return sum + getColumnCards(col.id).length
+  }, 0)
+
+  const masterCardsCount = cards.value.filter(c => c.kanban_id === currentKanbanId.value).length
+
+  if (totalCards !== masterCardsCount) {
+    console.error(`Card integrity mismatch: total in columns (${totalCards}) != master array (${masterCardsCount})`)
+    return false
+  }
+
+  return true
+}
+
+// Handle card moved between columns
+const handleCardMoved = (moveData) => {
+  console.log('Card moved:', moveData)
+
+  const { cardId, fromColumnId, toColumnId, newIndex } = moveData
+
+  if (!cardId || !fromColumnId || !toColumnId) {
+    console.error('Invalid move data:', moveData)
+    return
+  }
+
+  // Validate card exists before moving
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) {
+    console.error('Card not found:', cardId)
+    // Try to recover by finding the card in any column
+    const allColumnsCards = columns.value.flatMap(col => getColumnCards(col.id))
+    const foundCard = allColumnsCards.find(c => c.id === cardId)
+    if (foundCard) {
+      console.log('Recovering lost card:', foundCard)
+      cards.value.push({ ...foundCard })
+    } else {
+      console.error('Card completely lost:', cardId)
+      return
+    }
+  }
+
+  console.log(`Moving card ${cardId} from ${fromColumnId} to ${toColumnId}`)
+
+  // Update card's column and position
+  const targetCard = cards.value.find(c => c.id === cardId)
+  if (targetCard) {
+    targetCard.columnId = toColumnId
+    targetCard.position = newIndex || 0
+    targetCard.updated_at = new Date().toISOString()
+  }
+
+  // Reposition cards in both columns
+  repositionCardsInColumn(fromColumnId)
+  repositionCardsInColumn(toColumnId)
+
+  // Validate integrity after operation
+  setTimeout(() => {
+    validateCardIntegrity()
+  }, 100)
+}
+
+// Handle update cards from VueDraggablePlus (reordering within same column)
+const handleUpdateCards = (updatedCards) => {
+  console.log('Cards updated:', updatedCards)
+
+  const columnId = updatedCards[0]?.columnId
+  if (!columnId) return
+
+  // Update positions for cards in this column
+  updatedCards.forEach((updatedCard, index) => {
+    const card = cards.value.find(c => c.id === updatedCard.id)
+    if (card) {
+      card.position = index
+      card.updated_at = new Date().toISOString()
+    }
+  })
+}
+
+// Handle card drop (simplified for VueDraggablePlus)
 const handleCardDrop = ({ cardId, newColumnId, newPosition }) => {
   const card = cards.value.find(c => c.id === cardId)
   if (!card) return
 
   const oldColumnId = card.columnId
-  const oldPosition = card.position
 
-  // Moving to a different column
+  // Update card column and position
+  card.columnId = newColumnId
+  card.position = newPosition
+
+  // Update timestamps
+  card.updated_at = new Date().toISOString()
+
+  // Reposition cards in both columns if moved between columns
   if (oldColumnId !== newColumnId) {
-    card.columnId = newColumnId
-    card.position = newPosition
     repositionCardsInColumn(oldColumnId)
     repositionCardsInColumn(newColumnId)
-  } 
-  // Moving within the same column
-  else {
-    // Get all cards in the same column except the dragged one
-    const columnCards = cards.value
-      .filter(c => c.columnId === oldColumnId && c.id !== cardId)
-      .sort((a, b) => a.position - b.position)
-
-    // Insert the card at the new position
-    columnCards.splice(newPosition, 0, card)
-
-    // Update positions for all cards
-    columnCards.forEach((c, index) => {
-      c.position = index
-    })
+  } else {
+    // Just reposition in the same column
+    repositionCardsInColumn(newColumnId)
   }
 }
 
@@ -898,15 +972,26 @@ const handleMoveCard = ({ cardId, fromColumnId, toColumnId }) => {
   repositionCardsInColumn(toColumnId)
 }
 
-// Reposition cards in a column for current kanban
+// Reposition cards in a column for current kanban (simplified)
 const repositionCardsInColumn = (columnId) => {
   const columnCards = cards.value
     .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
     .sort((a, b) => a.position - b.position)
 
+  console.log(`Repositioning ${columnCards.length} cards in column ${columnId}`)
+
   columnCards.forEach((card, index) => {
     card.position = index
+    card.updated_at = new Date().toISOString()
   })
+
+  // Validate that all cards are still present
+  const cardsAfterReposition = cards.value
+    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
+
+  if (cardsAfterReposition.length !== columnCards.length) {
+    console.error(`Card loss detected during repositioning in column ${columnId}`)
+  }
 }
 
 // Save card
@@ -974,6 +1059,11 @@ const closeCardModal = () => {
 
 // Load some example cards on mount
 onMounted(() => {
+  // Validate initial card integrity
+  setTimeout(() => {
+    validateCardIntegrity()
+  }, 500)
+
   // Set up scroll indicators listeners
   const el = boardColumnsRef.value
   const container = boardColumnsContainerRef.value

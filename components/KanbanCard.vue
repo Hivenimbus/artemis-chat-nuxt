@@ -1,13 +1,10 @@
 <template>
   <div
-    draggable="true"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
     class="kan-card"
     :class="{
-      'kan-card--dragging': isDragging,
       'kan-card--urgent': card.isUrgent
     }"
+    :data-card-id="card.id"
   >
     <!-- Card Content -->
     <div class="kan-card__content">
@@ -85,13 +82,6 @@
         </Transition>
       </div>
     </div>
-
-    <!-- Drag Handle Indicator -->
-    <div class="kan-card__drag-handle" aria-hidden="true">
-      <svg class="kan-card__drag-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-      </svg>
-    </div>
   </div>
 </template>
 
@@ -116,7 +106,6 @@ const props = defineProps({
 const emit = defineEmits(['edit-card', 'delete-card', 'move-card'])
 
 // State
-const isDragging = ref(false)
 const showMoveMenu = ref(false)
 const moveMenuRef = ref(null)
 
@@ -124,23 +113,6 @@ const moveMenuRef = ref(null)
 const availableColumns = computed(() => {
   return (props.columns || []).filter(col => col.id !== props.currentColumnId)
 })
-
-// Handle drag start
-const handleDragStart = (event) => {
-  isDragging.value = true
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('cardId', props.card.id)
-  event.dataTransfer.setData('sourceColumnId', props.card.columnId)
-
-  // Add a custom data attribute for better drag detection
-  event.target.classList.add('dragging')
-}
-
-// Handle drag end
-const handleDragEnd = (event) => {
-  isDragging.value = false
-  event.target.classList.remove('dragging')
-}
 
 // Toggle move menu
 const toggleMoveMenu = () => {
@@ -198,7 +170,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-sm);
   padding: 1.25rem;
   box-shadow: var(--shadow-1);
-  cursor: move;
+  cursor: grab;
   transition: all var(--dur-fast) var(--ease-out);
   user-select: none;
   z-index: 1;
@@ -222,14 +194,6 @@ onBeforeUnmount(() => {
 }
 
 /* Urgent Card Variant - removed border, keeping only badge */
-
-/* Dragging State */
-.kan-card--dragging {
-  opacity: 0.6;
-  transform: rotate(2deg) scale(1.03);
-  box-shadow: var(--shadow-3);
-  cursor: grabbing;
-}
 
 /* Card Content */
 .kan-card__content {
@@ -410,26 +374,6 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-/* Drag Handle */
-.kan-card__drag-handle {
-  position: absolute;
-  top: 50%;
-  right: 0.5rem;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-  pointer-events: none;
-}
-
-.kan-card:hover .kan-card__drag-handle {
-  opacity: 0.3;
-}
-
-.kan-card__drag-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: rgb(var(--txt-2));
-}
 
 /* Responsive */
 @media (max-width: 640px) {

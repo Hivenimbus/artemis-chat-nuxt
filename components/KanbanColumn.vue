@@ -110,37 +110,30 @@
     </div>
 
     <!-- Cards Container -->
-    <div
-      class="kan-col__cards"
-      :class="{ 
-        'kan-col__cards--drag-over': isDragOver && isDragFromDifferentColumn,
-        'kan-col__cards--reordering': dragOverIndex !== null && !isDragFromDifferentColumn
-      }"
-      @dragover.prevent="handleDragOver"
-      @dragleave="handleDragLeave"
-      @drop="handleDrop"
-    >
-      <!-- Cards -->
-      <TransitionGroup name="card-list" tag="div" class="kan-col__cards-list">
-        <div
-          v-for="(card, index) in cards"
+    <div class="kan-col__cards">
+      <!-- Draggable Cards List -->
+      <VueDraggable
+        v-model="columnCards"
+        :group="{ name: 'kanban-cards', pull: true, put: true }"
+        :animation="150"
+        ghost-class="kan-card--ghost"
+        drag-class="kan-card--dragging"
+        class="kan-col__cards-list"
+        @add="handleCardAdd"
+        @remove="handleCardRemove"
+        @end="handleDragEnd"
+      >
+        <KanbanCard
+          v-for="card in columnCards"
           :key="card.id"
-          class="card-drop-zone"
-          @dragover.prevent="handleCardDragOver($event, index)"
-          @dragleave="handleCardDragLeave($event, index)"
-          @drop="handleCardDrop($event, index)"
-          :class="{ 'card-drop-zone--active': dragOverIndex === index }"
-        >
-          <KanbanCard
-            :card="card"
-            :columns="columns"
-            :current-column-id="column.id"
-            @edit-card="$emit('edit-card', $event)"
-            @delete-card="$emit('delete-card', $event)"
-            @move-card="handleMoveCard(card.id, $event)"
-          />
-        </div>
-      </TransitionGroup>
+          :card="card"
+          :columns="columns"
+          :current-column-id="column.id"
+          @edit-card="$emit('edit-card', $event)"
+          @delete-card="$emit('delete-card', $event)"
+          @move-card="handleMoveCard(card.id, $event)"
+        />
+      </VueDraggable>
 
       <!-- Add Card Button -->
       <button
@@ -153,21 +146,14 @@
         </svg>
         Adicionar cartão
       </button>
-
-      <!-- Drop Indicator - Only show when dragging from different column -->
-      <Transition name="drop-indicator">
-        <div v-if="isDragOver && isDragFromDifferentColumn" class="kan-col__drop-indicator">
-          <svg class="kan-col__drop-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-          <span>Solte o cartão aqui</span>
-        </div>
-      </Transition>
     </div>
   </div>
 </template>
 
 <script setup>
+// Import VueDraggablePlus
+import { VueDraggable } from 'vue-draggable-plus'
+
 // Props
 const props = defineProps({
   column: {
@@ -185,15 +171,80 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'update-cards', 'card-moved', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
 
 // State
-const isDragOver = ref(false)
-const dragOverIndex = ref(null)
-const isDragFromDifferentColumn = ref(false)
 const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
+
+// Create a computed property for cards in this column
+const columnCards = computed({
+  get: () => props.cards,
+  set: (newCards) => {
+    // Only emit update if this is a reordering within the same column
+    // Cross-column moves are handled by @add and @remove events
+    const currentCardIds = props.cards.map(c => c.id).sort()
+    const newCardIds = newCards.map(c => c.id).sort()
+
+    // If the cards are the same (just reordered), emit update event
+    if (JSON.stringify(currentCardIds) === JSON.stringify(newCardIds)) {
+      emit('update-cards', newCards)
+    }
+  }
+})
+
+// Store current drag state
+const dragState = ref({
+  cardId: null,
+  fromColumnId: null,
+  toColumnId: null
+})
+
+// Handle card added to this column
+const handleCardAdd = (event) => {
+  const { item, newIndex } = event
+  const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
+
+  console.log('Card added to column', props.column.id, { cardId, newIndex })
+
+  if (cardId) {
+    // Update drag state
+    dragState.value.cardId = cardId
+    dragState.value.toColumnId = props.column.id
+
+    // Emit the move event with complete information
+    emit('card-moved', {
+      cardId,
+      fromColumnId: dragState.value.fromColumnId,
+      toColumnId: props.column.id,
+      newIndex,
+      oldIndex: null
+    })
+
+    // Reset drag state
+    dragState.value = { cardId: null, fromColumnId: null, toColumnId: null }
+  }
+}
+
+// Handle card removed from this column
+const handleCardRemove = (event) => {
+  const { item, oldIndex } = event
+  const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
+
+  console.log('Card removed from column', props.column.id, { cardId, oldIndex })
+
+  if (cardId) {
+    // Store the source column for when the card is added elsewhere
+    dragState.value.cardId = cardId
+    dragState.value.fromColumnId = props.column.id
+  }
+}
+
+// Handle drag end event from VueDraggable
+const handleDragEnd = (event) => {
+  console.log('Drag ended:', event)
+}
 
 // Icon paths mapping
 const iconPaths = {
@@ -224,7 +275,7 @@ const columnColor = computed(() => {
 })
 
 // Check if this is a default column (can't be deleted)
-const isDefaultColumn = computed(() => 
+const isDefaultColumn = computed(() =>
   ['todo', 'doing', 'done'].includes(props.column.id)
 )
 
@@ -235,121 +286,6 @@ const currentColumnIndex = computed(() => {
 
 const canMoveLeft = computed(() => currentColumnIndex.value > 0)
 const canMoveRight = computed(() => currentColumnIndex.value < props.columns.length - 1 && currentColumnIndex.value !== -1)
-
-// Handle drag over column (for empty space)
-const handleDragOver = (event) => {
-  event.preventDefault()
-  event.dataTransfer.dropEffect = 'move'
-
-  // Check if the card is from a different column
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-  const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
-
-  if (!isDragOver.value && isDifferentColumn) {
-    isDragOver.value = true
-  }
-}
-
-// Handle drag leave column
-const handleDragLeave = (event) => {
-  // Only set isDragOver to false if the drag is leaving the column container
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    isDragOver.value = false
-    isDragFromDifferentColumn.value = false
-  }
-}
-
-// Handle drop on column (empty space - adds to end)
-const handleDrop = (event) => {
-  event.preventDefault()
-  isDragOver.value = false
-  isDragFromDifferentColumn.value = false
-
-  const cardId = event.dataTransfer.getData('cardId')
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-
-  if (!cardId) return
-
-  // Only process the drop if it's a different column
-  if (sourceColumnId !== props.column.id) {
-    // Calculate new position (at the end of the column)
-    const newPosition = props.cards.length
-
-    // Emit the card drop event
-    emit('card-drop', {
-      cardId,
-      newColumnId: props.column.id,
-      newPosition
-    })
-  }
-}
-
-// Handle drag over a specific card
-const handleCardDragOver = (event, index) => {
-  event.preventDefault()
-  event.stopPropagation()
-  event.dataTransfer.dropEffect = 'move'
-  
-  // Check if the card is from a different column
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-  const isDifferentColumn = sourceColumnId && sourceColumnId !== props.column.id
-  
-  isDragFromDifferentColumn.value = isDifferentColumn
-  dragOverIndex.value = index
-}
-
-// Handle drag leave from a specific card
-const handleCardDragLeave = (event, index) => {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    if (dragOverIndex.value === index) {
-      dragOverIndex.value = null
-      isDragFromDifferentColumn.value = false
-    }
-  }
-}
-
-// Handle drop on a specific card
-const handleCardDrop = (event, targetIndex) => {
-  event.preventDefault()
-  event.stopPropagation()
-  dragOverIndex.value = null
-  isDragOver.value = false
-  isDragFromDifferentColumn.value = false
-
-  const cardId = event.dataTransfer.getData('cardId')
-  const sourceColumnId = event.dataTransfer.getData('sourceColumnId')
-
-  if (!cardId) return
-
-  // Get the Y position of the mouse relative to the card
-  const cardElement = event.currentTarget
-  const rect = cardElement.getBoundingClientRect()
-  const mouseY = event.clientY
-  const cardMiddle = rect.top + rect.height / 2
-
-  // Determine if we should insert before or after
-  let newPosition = targetIndex
-  if (mouseY > cardMiddle) {
-    newPosition = targetIndex + 1
-  }
-
-  // If same column and same position, don't do anything
-  if (sourceColumnId === props.column.id) {
-    const draggedCard = props.cards.find(c => c.id === cardId)
-    if (draggedCard && draggedCard.position === newPosition) {
-      return
-    }
-  }
-
-  // Emit the card drop event with the new position
-  emit('card-drop', {
-    cardId,
-    newColumnId: props.column.id,
-    newPosition
-  })
-}
 
 // Column management functions
 const startRename = () => {
@@ -733,88 +669,24 @@ const updateColor = (colorValue) => {
   background: rgba(var(--col-500), 0.5);
 }
 
-.kan-col__cards--drag-over {
-  background: rgba(var(--col-500), 0.05);
-  outline: 2px dashed rgba(var(--col-500), 0.4);
-  outline-offset: -4px;
-}
-
-/* Blur cards and button only when dragging from different column */
-.kan-col__cards--drag-over .kan-col__cards-list,
-.kan-col__cards--drag-over .kan-col__add-btn {
-  filter: blur(4px);
-  opacity: 0.3;
-  pointer-events: none;
-  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
-}
-
-/* No blur when reordering within same column */
-.kan-col__cards--reordering .kan-col__cards-list,
-.kan-col__cards--reordering .kan-col__add-btn {
-  filter: none;
-  opacity: 1;
-  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
-}
-
 /* Cards List */
 .kan-col__cards-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 100px;
 }
 
-/* Card Drop Zone */
-.card-drop-zone {
-  position: relative;
-  transition: all 200ms cubic-bezier(.22, 1, .36, 1);
+/* VueDraggable Ghost Class */
+.kan-card--ghost {
+  opacity: 0.5;
+  background: rgba(var(--col-500), 0.1);
+  border: 2px dashed rgba(var(--col-500), 0.4);
 }
 
-.card-drop-zone--active {
-  transform: translateY(4px);
-}
-
-.card-drop-zone--active::before {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, rgb(var(--col-500)), rgb(var(--col-400)));
-  border-radius: 2px;
-  box-shadow: 0 0 12px rgba(var(--col-500), 0.5);
-  animation: pulse-line 1s ease-in-out infinite;
-}
-
-@keyframes pulse-line {
-  0%, 100% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scaleX(0.98);
-  }
-}
-
-/* Card List Transitions */
-.card-list-enter-active,
-.card-list-leave-active {
-  transition: all var(--dur-med) var(--ease-out);
-}
-
-.card-list-enter-from {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.95);
-}
-
-.card-list-leave-to {
-  opacity: 0;
-  transform: translateX(20px) scale(0.9);
-}
-
-.card-list-move {
-  transition: transform var(--dur-med) var(--ease-out);
+/* Card transitions for VueDraggable */
+.kan-col__cards-list > * {
+  transition: all var(--dur-fast) var(--ease-out);
 }
 
 /* Add Button */
@@ -854,53 +726,6 @@ const updateColor = (colorValue) => {
 .kan-col__add-icon {
   width: 1.25rem;
   height: 1.25rem;
-}
-
-/* Drop Indicator */
-.kan-col__drop-indicator {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  background: rgba(var(--col-500), 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: var(--radius-sm);
-  color: rgb(var(--col-500));
-  font-weight: 700;
-  font-size: 1.125rem;
-  pointer-events: none;
-  z-index: 20;
-}
-
-.kan-col__drop-icon {
-  width: 4rem;
-  height: 4rem;
-  stroke-width: 2.5;
-  animation: bounce-indicator 1s ease-in-out infinite;
-}
-
-@keyframes bounce-indicator {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-/* Drop Indicator Transitions */
-.drop-indicator-enter-active,
-.drop-indicator-leave-active {
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-
-.drop-indicator-enter-from,
-.drop-indicator-leave-to {
-  opacity: 0;
 }
 
 /* Responsive */
