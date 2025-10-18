@@ -315,9 +315,9 @@ const statusOptions = computed(() => {
   }
 
   return [
-    { label: 'Todos', value: 'todos', count: statusCounts.todos },
+    { label: 'Minhas', value: 'ativo', count: statusCounts.ativo },
     { label: 'Aguardando', value: 'aguardando', count: statusCounts.aguardando },
-    { label: 'Ativo', value: 'ativo', count: statusCounts.ativo }
+    { label: 'Todos', value: 'todos', count: statusCounts.todos }
   ]
 })
 
