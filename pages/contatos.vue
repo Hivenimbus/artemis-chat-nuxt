@@ -79,12 +79,7 @@
                     </div>
 
                     <div class="ml-3 sm:ml-4 flex-1 min-w-0">
-                      <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-1 sm:space-y-0">
-                        <h3 class="text-sm sm:text-base font-semibold text-gray-900 truncate">{{ contact.name }}</h3>
-                        <span :class="getStatusClass(contact.status)" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full self-start sm:self-auto">
-                          {{ getStatusText(contact.status) }}
-                        </span>
-                      </div>
+                      <h3 class="text-sm sm:text-base font-semibold text-gray-900 truncate mb-1 sm:mb-2">{{ contact.name }}</h3>
                       <div class="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-gray-500">
                         <span class="flex items-center truncate">
                           <svg class="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,23 +93,21 @@
                           </svg>
                           {{ formatPhone(contact.phone) }}
                         </span>
-                        <span class="flex items-center">
-                          <svg class="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                          </svg>
-                          {{ formatDate(contact.lastContact) }}
-                          <NuxtLink
-                            :to="`/contato/${contact.id}`"
-                            class="ml-2 text-blue-600 hover:text-blue-900 text-xs sm:text-sm font-medium transition-colors"
-                          >
-                            ver mais
-                          </NuxtLink>
-                        </span>
+                        <NuxtLink
+                          :to="`/contato/${contact.id}`"
+                          class="text-blue-600 hover:text-blue-900 text-xs sm:text-sm font-medium transition-colors"
+                        >
+                          ver mais
+                        </NuxtLink>
                       </div>
-                      <div class="mt-2 flex flex-wrap gap-1">
-                        <span v-for="tag in contact.tags" :key="tag" :class="getTagColor(tag)" class="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium">
-                          {{ tag }}
-                        </span>
+                      <div class="mt-2">
+                        <TagEditor
+                          :tags="contact.tags"
+                          :available-tags="availableTags"
+                          :editing="editingContactTags === contact.id"
+                          @toggle-edit="toggleTagsEdit(contact.id)"
+                          @update-tags="updateContactTags(contact.id, $event)"
+                        />
                       </div>
                     </div>
                   </div>
@@ -237,20 +230,8 @@
                       </div>
                     </div>
 
-                    <!-- Quarto Grid: Biografia e Empresa -->
+                    <!-- Quarto Grid: Empresa e Endereço -->
                     <div class="form-field grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <!-- Biografia -->
-                      <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                          Biografia
-                        </label>
-                        <input
-                          v-model="contact.biography"
-                          type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                      </div>
-
                       <!-- Empresa -->
                       <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -262,6 +243,32 @@
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       </div>
+
+                      <!-- Endereço -->
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Endereço
+                        </label>
+                        <input
+                          v-model="contact.address"
+                          type="text"
+                          placeholder="Rua, número, complemento..."
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Quinto Grid: Biografia (largura completa) -->
+                    <div class="form-field">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Biografia
+                      </label>
+                      <textarea
+                        v-model="contact.biography"
+                        rows="3"
+                        placeholder="Informações adicionais sobre o contato..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                      ></textarea>
                     </div>
 
                     <!-- Botão de Atualizar -->
@@ -371,7 +378,8 @@ const contacts = ref([
     city: 'São Paulo',
     country: 'Brasil',
     biography: 'Gerente de projetos com mais de 10 anos de experiência em tecnologia.',
-    company: 'Tech Solutions Ltda'
+    company: 'Tech Solutions Ltda',
+    address: 'Rua das Flores, 123, apto 45'
   },
   {
     id: 2,
@@ -385,7 +393,8 @@ const contacts = ref([
     city: 'Rio de Janeiro',
     country: 'Brasil',
     biography: 'Especialista em marketing digital e redes sociais.',
-    company: 'Marketing Digital Agency'
+    company: 'Marketing Digital Agency',
+    address: 'Avenida Atlântica, 456, sala 201'
   },
   {
     id: 3,
@@ -399,7 +408,8 @@ const contacts = ref([
     city: 'Belo Horizonte',
     country: 'Brasil',
     biography: 'Desenvolvedor full-stack com foco em aplicações web.',
-    company: 'DevWorks'
+    company: 'DevWorks',
+    address: 'Rua Afonso Pena, 789, conjunto 12'
   },
   {
     id: 4,
@@ -413,7 +423,8 @@ const contacts = ref([
     city: 'Salvador',
     country: 'Brasil',
     biography: 'Designer gráfico com experiência em branding.',
-    company: 'Creative Studio'
+    company: 'Creative Studio',
+    address: 'Praça da Sé, 100, centro'
   },
   {
     id: 5,
@@ -427,7 +438,8 @@ const contacts = ref([
     city: 'Brasília',
     country: 'Brasil',
     biography: 'Consultor de negócios especializado em transformação digital.',
-    company: 'Business Consulting Group'
+    company: 'Business Consulting Group',
+    address: 'Setor de Clubes Esportivos Sul, 2000'
   },
   {
     id: 6,
@@ -441,7 +453,8 @@ const contacts = ref([
     city: 'Porto Alegre',
     country: 'Brasil',
     biography: 'Advogada especializada em direito empresarial.',
-    company: 'Law & Associates'
+    company: 'Law & Associates',
+    address: 'Rua Augusta, 1500, conj. 205'
   },
   {
     id: 7,
@@ -455,7 +468,8 @@ const contacts = ref([
     city: 'Curitiba',
     country: 'Brasil',
     biography: 'Engenheiro de software com experiência em cloud computing.',
-    company: 'CloudTech Solutions'
+    company: 'CloudTech Solutions',
+    address: 'Alameda Santos, 2233, 14º andar'
   },
   {
     id: 8,
@@ -469,7 +483,8 @@ const contacts = ref([
     city: 'Recife',
     country: 'Brasil',
     biography: 'Gerente de produtos especializada em SaaS.',
-    company: 'Product Innovations Inc'
+    company: 'Product Innovations Inc',
+    address: 'Avenida Brigadeiro Faria Lima, 3477, 12º andar'
   },
   {
     id: 9,
@@ -483,7 +498,8 @@ const contacts = ref([
     city: 'Fortaleza',
     country: 'Brasil',
     biography: 'Analista financeiro com experiência em investimentos.',
-    company: 'Financial Services Ltd'
+    company: 'Financial Services Ltd',
+    address: 'Rua XV de Novembro, 3000, 5º andar'
   },
   {
     id: 10,
@@ -497,7 +513,8 @@ const contacts = ref([
     city: 'Manaus',
     country: 'Brasil',
     biography: 'Coordenadora de projetos sociais.',
-    company: 'Community Development NGO'
+    company: 'Community Development NGO',
+    address: 'Rua da Consolação, 200, térreo'
   },
   {
     id: 11,
@@ -511,7 +528,8 @@ const contacts = ref([
     city: 'São Paulo',
     country: 'Brasil',
     biography: 'CTO de empresa de tecnologia.',
-    company: 'Innovation Tech'
+    company: 'Innovation Tech',
+    address: 'Rua Haddock Lobo, 595, 10º andar'
   },
   {
     id: 12,
@@ -525,7 +543,8 @@ const contacts = ref([
     city: 'Campinas',
     country: 'Brasil',
     biography: 'Analista de sistemas.',
-    company: 'Data Corp'
+    company: 'Data Corp',
+    address: 'Avenida Paulista, 1000, 22º andar'
   },
   {
     id: 13,
@@ -539,7 +558,8 @@ const contacts = ref([
     city: 'São Paulo',
     country: 'Brasil',
     biography: 'Diretor executivo.',
-    company: 'Executive Solutions'
+    company: 'Executive Solutions',
+    address: 'Rua Fidencio Ramos, 220, 15º andar'
   },
   {
     id: 14,
@@ -637,7 +657,8 @@ const contacts = ref([
     city: 'Natal',
     country: 'Brasil',
     biography: 'Gerente de projetos.',
-    company: 'Project Management'
+    company: 'Project Management',
+    address: 'Avenida Presidente Médici, 1500, Tirol'
   },
   {
     id: 21,
@@ -651,7 +672,8 @@ const contacts = ref([
     city: 'Maceió',
     country: 'Brasil',
     biography: 'Consultor financeiro.',
-    company: 'Financial Consulting'
+    company: 'Financial Consulting',
+    address: 'Rua da Constituição, 1235, Centro'
   },
   {
     id: 22,
@@ -665,7 +687,8 @@ const contacts = ref([
     city: 'João Pessoa',
     country: 'Brasil',
     biography: 'Especialista em RH.',
-    company: 'HR Solutions'
+    company: 'HR Solutions',
+    address: 'Avenida General Edson Ramalho, 382, Manaíra'
   },
   {
     id: 23,
@@ -679,12 +702,12 @@ const contacts = ref([
     city: 'Aracaju',
     country: 'Brasil',
     biography: 'Empreendedor digital.',
-    company: 'Digital Business'
+    company: 'Digital Business',
+    address: 'Rua São Paulo, 580, Salgado Filho'
   }
 ])
 
 const searchTerm = ref('')
-const statusFilter = ref('')
 
 // Paginação
 const currentPage = ref(1)
@@ -699,6 +722,12 @@ const updateSuccess = ref(null)
 // Estado do modal de criação
 const showCreateModal = ref(false)
 
+// Estado de edição de tags nos cards
+const editingContactTags = ref(null)
+
+// Tags disponíveis para edição
+const availableTags = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+
 // Computados
 const filteredContacts = computed(() => {
   let result = contacts.value
@@ -710,10 +739,6 @@ const filteredContacts = computed(() => {
       contact.email.toLowerCase().includes(search) ||
       contact.phone.includes(search)
     )
-  }
-
-  if (statusFilter.value) {
-    result = result.filter(contact => contact.status === statusFilter.value)
   }
 
   return result
@@ -738,14 +763,6 @@ const endItem = computed(() => {
   const end = currentPage.value * itemsPerPage.value
   return end > filteredContacts.value.length ? filteredContacts.value.length : end
 })
-
-const activeContactsCount = computed(() =>
-  contacts.value.filter(c => c.status === 'active').length
-)
-
-const pendingContactsCount = computed(() =>
-  contacts.value.filter(c => c.status === 'pending').length
-)
 
 const vipContactsCount = computed(() =>
   contacts.value.filter(c => c.tags.includes('VIP')).length
@@ -777,23 +794,6 @@ const formatDate = (date) => {
   return date.toLocaleDateString('pt-BR')
 }
 
-const getStatusClass = (status) => {
-  const classes = {
-    active: 'bg-green-100 text-green-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    inactive: 'bg-red-100 text-red-800'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    active: 'Ativo',
-    pending: 'Pendente',
-    inactive: 'Inativo'
-  }
-  return texts[status] || 'Desconhecido'
-}
 
 const getTagColor = (tag) => {
   const colors = {
@@ -852,14 +852,13 @@ const handleCreateContact = (contactData) => {
     name: contactData.name + (contactData.lastName ? ' ' + contactData.lastName : ''),
     email: contactData.email,
     phone: contactData.phone,
-    status: contactData.status,
     tags: contactData.tags,
-    lastContact: contactData.lastContact,
     lastName: contactData.lastName || '',
     city: contactData.city || '',
     country: contactData.country || '',
     biography: contactData.biography || '',
-    company: contactData.company || ''
+    company: contactData.company || '',
+    address: contactData.address || ''
   }
 
   // Adicionar ao início da lista
@@ -875,6 +874,28 @@ const handleCreateContact = (contactData) => {
   setTimeout(() => {
     updateSuccess.value = null
   }, 3000)
+}
+
+// Métodos de edição de tags
+const toggleTagsEdit = (contactId) => {
+  if (editingContactTags.value === contactId) {
+    editingContactTags.value = null
+  } else {
+    editingContactTags.value = contactId
+  }
+}
+
+const updateContactTags = (contactId, newTags) => {
+  // Encontrar o contato no array
+  const contactIndex = contacts.value.findIndex(c => c.id === contactId)
+
+  if (contactIndex !== -1) {
+    // Atualizar as tags
+    contacts.value[contactIndex].tags = newTags
+
+    // Sair do modo de edição
+    editingContactTags.value = null
+  }
 }
 
 // Métodos de paginação
@@ -897,7 +918,7 @@ const nextPage = () => {
 }
 
 // Resetar paginação quando a busca mudar
-watch([searchTerm, statusFilter], () => {
+watch(searchTerm, () => {
   currentPage.value = 1
 })
 

@@ -133,17 +133,15 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                Status
+                Endereço
               </label>
-              <select
-                v-model="formData.status"
+              <input
+                v-model="formData.address"
+                type="text"
                 :disabled="loading"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="active">Ativo</option>
-                <option value="pending">Pendente</option>
-                <option value="inactive">Inativo</option>
-              </select>
+                placeholder="Rua, número, complemento..."
+              />
             </div>
           </div>
 
@@ -312,7 +310,7 @@ const formData = ref({
   country: '',
   biography: '',
   company: '',
-  status: 'active',
+  address: '',
   tags: []
 })
 
@@ -384,7 +382,7 @@ const resetForm = () => {
     country: '',
     biography: '',
     company: '',
-    status: 'active',
+    address: '',
     tags: []
   }
   clearErrors()

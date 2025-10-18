@@ -69,16 +69,15 @@
                   </div>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center space-x-3 mb-2">
-                    <h3 class="text-xl font-semibold text-gray-900">{{ contact.name }}</h3>
-                    <span :class="getStatusClass(contact.status)" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
-                      {{ getStatusText(contact.status) }}
-                    </span>
-                  </div>
-                  <div class="flex flex-wrap gap-1 mb-3">
-                    <span v-for="tag in contact.tags" :key="tag" :class="getTagColor(tag)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-                      {{ tag }}
-                    </span>
+                  <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ contact.name }}</h3>
+                  <div class="mb-3">
+                    <TagEditor
+                      :tags="contact.tags"
+                      :available-tags="availableTags"
+                      :editing="editingTags"
+                      @toggle-edit="toggleTagsEdit"
+                      @update-tags="updateContactTags"
+                    />
                   </div>
                 </div>
               </div>
@@ -155,15 +154,13 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      v-model="contact.status"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                    <input
+                      v-model="contact.address"
+                      type="text"
+                      placeholder="Rua, número, complemento..."
                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    >
-                      <option value="active">Ativo</option>
-                      <option value="pending">Pendente</option>
-                      <option value="inactive">Inativo</option>
-                    </select>
+                    />
                   </div>
                 </div>
 
@@ -217,10 +214,10 @@
                     <p class="mt-1 text-sm text-gray-900">{{ contact.company || 'Não informado' }}</p>
                   </div>
                   <div>
-                    <h4 class="text-sm font-medium text-gray-500">Último Contato</h4>
-                    <p class="mt-1 text-sm text-gray-900">{{ formatDate(contact.lastContact) }}</p>
+                    <h4 class="text-sm font-medium text-gray-500">Endereço</h4>
+                    <p class="mt-1 text-sm text-gray-900">{{ contact.address || 'Não informado' }}</p>
                   </div>
-                </div>
+                                  </div>
 
                 <div v-if="contact.biography">
                   <h4 class="text-sm font-medium text-gray-500">Biografia</h4>
@@ -272,11 +269,7 @@
                   <dt class="text-sm font-medium text-gray-500">Tempo de Cadastro</dt>
                   <dd class="text-sm font-semibold text-gray-900">30 dias</dd>
                 </div>
-                <div class="flex items-center justify-between">
-                  <dt class="text-sm font-medium text-gray-500">Última Atividade</dt>
-                  <dd class="text-sm font-semibold text-gray-900">{{ formatDate(contact.lastContact) }}</dd>
-                </div>
-              </dl>
+                              </dl>
             </div>
           </div>
 
@@ -343,6 +336,9 @@
 </template>
 
 <script setup>
+// Componentes
+import TagEditor from '~/components/TagEditor.vue'
+
 // Dados mockados (mesmos dados da página de contatos)
 const mockContacts = [
   {
@@ -357,7 +353,8 @@ const mockContacts = [
     city: 'São Paulo',
     country: 'Brasil',
     biography: 'Gerente de projetos com mais de 10 anos de experiência em tecnologia.',
-    company: 'Tech Solutions Ltda'
+    company: 'Tech Solutions Ltda',
+    address: 'Rua das Flores, 123, Centro'
   },
   {
     id: 2,
@@ -371,7 +368,8 @@ const mockContacts = [
     city: 'Rio de Janeiro',
     country: 'Brasil',
     biography: 'Especialista em marketing digital e redes sociais.',
-    company: 'Marketing Digital Agency'
+    company: 'Marketing Digital Agency',
+    address: 'Avenida Atlântica, 2000, Copacabana'
   },
   {
     id: 3,
@@ -385,7 +383,8 @@ const mockContacts = [
     city: 'Belo Horizonte',
     country: 'Brasil',
     biography: 'Desenvolvedor full-stack com foco em aplicações web.',
-    company: 'DevWorks'
+    company: 'DevWorks',
+    address: 'Rua Afonso Pena, 1500, Centro'
   },
   {
     id: 4,
@@ -399,7 +398,8 @@ const mockContacts = [
     city: 'Salvador',
     country: 'Brasil',
     biography: 'Designer gráfico com experiência em branding.',
-    company: 'Creative Studio'
+    company: 'Creative Studio',
+    address: 'Rua da Bahia, 800, Pelourinho'
   },
   {
     id: 5,
@@ -413,7 +413,8 @@ const mockContacts = [
     city: 'Brasília',
     country: 'Brasil',
     biography: 'Consultor de negócios especializado em transformação digital.',
-    company: 'Business Consulting Group'
+    company: 'Business Consulting Group',
+    address: 'Setor Comercial Sul, 700, Asa Sul'
   }
 ]
 
@@ -421,6 +422,10 @@ const route = useRoute()
 const contact = ref(null)
 const editMode = ref(false)
 const updateSuccess = ref(null)
+
+// Tags
+const editingTags = ref(false)
+const availableTags = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
 
 // Buscar contato pelo ID
 const findContactById = (id) => {
@@ -464,23 +469,6 @@ const formatDate = (date) => {
   return date.toLocaleDateString('pt-BR')
 }
 
-const getStatusClass = (status) => {
-  const classes = {
-    active: 'bg-green-100 text-green-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    inactive: 'bg-red-100 text-red-800'
-  }
-  return classes[status] || 'bg-gray-100 text-gray-800'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    active: 'Ativo',
-    pending: 'Pendente',
-    inactive: 'Inativo'
-  }
-  return texts[status] || 'Desconhecido'
-}
 
 const getTagColor = (tag) => {
   const colors = {
@@ -509,6 +497,24 @@ const updateContact = () => {
 
   // Sair do modo de edição
   editMode.value = false
+}
+
+// Métodos de edição de tags
+const toggleTagsEdit = () => {
+  editingTags.value = !editingTags.value
+}
+
+const updateContactTags = (newTags) => {
+  // Atualizar as tags do contato
+  if (contact.value) {
+    contact.value.tags = newTags
+  }
+
+  // Sair do modo de edição de tags
+  editingTags.value = false
+
+  // Não mostrar mensagem de sucesso para evitar poluição visual
+  // O feedback visual é a própria atualização das tags
 }
 
 // Meta tags da página
