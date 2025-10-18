@@ -181,7 +181,7 @@
                   </label>
                   <select
                     id="card-column"
-                    v-model="cardForm.columnId"
+                    v-model="cardForm.column_id"
                     class="form-input form-select"
                   >
                     <option v-for="column in columns" :key="column.id" :value="column.id">
@@ -194,7 +194,7 @@
                   <div class="form-checkbox-wrapper">
                     <input
                       id="card-urgent"
-                      v-model="cardForm.isUrgent"
+                      v-model="cardForm.is_urgent"
                       type="checkbox"
                       class="form-checkbox"
                     />
@@ -439,23 +439,113 @@
       </div>
     </Transition>
   </div>
+
+  <!-- Sistema de Notificações -->
+  <div class="notifications-container">
+    <TransitionGroup name="notification" tag="div">
+      <div
+        v-for="notification in notifications"
+        :key="notification.id"
+        :class="[
+          'notification',
+          `notification--${notification.type}`,
+          {
+            'notification--syncing': notification.syncing
+          }
+        ]"
+      >
+        <div class="notification__content">
+          <div class="notification__icon">
+            <svg v-if="notification.type === 'success'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <svg v-else-if="notification.type === 'error'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <svg v-else-if="notification.type === 'warning'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="notification__message">
+            {{ notification.message }}
+          </div>
+          <div v-if="notification.syncing" class="notification__sync">
+            <div class="notification__spinner"></div>
+          </div>
+          <button
+            @click="removeNotification(notification.id)"
+            class="notification__close"
+            aria-label="Fechar notificação"
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </TransitionGroup>
+  </div>
 </template>
 
 <script setup>
-// State local para o kanban
-const columns = ref([
-  { id: 'todo', title: 'Para Fazer', position: 0 },
-  { id: 'doing', title: 'Fazendo', position: 1 },
-  { id: 'done', title: 'Concluído', position: 2 },
-  { id: 'testing', title: 'Teste (Vazia)', position: 3 }
-])
+// Definir middleware de autenticação
+definePageMeta({
+  middleware: 'auth'
+})
 
-const kanbans = ref([
-  { id: 'default', name: 'Kanban Padrão' },
-  { id: 'work', name: 'Projetos' }
-])
-const currentKanbanId = ref('default')
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
+
+// State para o kanban
+const columns = ref([])
+const kanbans = ref([])
+const currentKanbanId = ref(null)
 const showKanbanMenu = ref(false)
+const loading = ref(true)
+const error = ref('')
+
+// Sistema de notificações e rollback
+const notifications = ref([])
+const syncStatus = ref({}) // Para tracking de operações em background
+
+// Função de notificação
+const showNotification = (message, type = 'info') => {
+  const id = Date.now()
+  notifications.value.push({
+    id,
+    message,
+    type,
+    timestamp: new Date()
+  })
+
+  // Auto-remove após 3 segundos para success, 5 para erros
+  setTimeout(() => {
+    const index = notifications.value.findIndex(n => n.id === id)
+    if (index > -1) {
+      notifications.value.splice(index, 1)
+    }
+  }, type === 'success' ? 3000 : 5000)
+}
+
+// Função de rollback otimista
+const rollbackOptimisticUpdate = (originalData, targetRef) => {
+  if (Array.isArray(originalData)) {
+    targetRef.value.splice(0, targetRef.value.length, ...originalData)
+  } else if (typeof originalData === 'object') {
+    Object.assign(targetRef.value, originalData)
+  }
+}
+
+// Remover notificação manualmente
+const removeNotification = (id) => {
+  const index = notifications.value.findIndex(n => n.id === id)
+  if (index > -1) {
+    notifications.value.splice(index, 1)
+  }
+}
 
 // Scroll indicators state
 const boardColumnsContainerRef = ref(null)
@@ -493,11 +583,9 @@ const savingCard = ref(false)
 const cardForm = ref({
   title: '',
   description: '',
-  columnId: 'todo',
-  isUrgent: false
+  column_id: null,
+  is_urgent: false
 })
-
-// Simplified state management
 
 // Kanban modal state
 const showKanbanModal = ref(false)
@@ -511,47 +599,136 @@ const kanbanForm = ref({
   ]
 })
 
-const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.name || 'Selecionar Kanban')
+const currentKanbanName = computed(() => kanbans.value.find(k => k.id === currentKanbanId.value)?.title || 'Selecionar Kanban')
 const toggleKanbanMenu = () => { showKanbanMenu.value = !showKanbanMenu.value }
-const selectKanban = (id) => { currentKanbanId.value = id; showKanbanMenu.value = false }
+const selectKanban = (id) => {
+  currentKanbanId.value = id;
+  showKanbanMenu.value = false;
+  loadKanbanData();
+}
+
+// Carregar kanbans do usuário
+const loadKanbans = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('kanbans')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    kanbans.value = data || []
+
+    // Selecionar primeiro kanban se não houver nenhum selecionado
+    if (!currentKanbanId.value && kanbans.value.length > 0) {
+      currentKanbanId.value = kanbans.value[0].id
+      await loadKanbanData()
+    }
+  } catch (error) {
+    console.error('Error loading kanbans:', error)
+    error.value = 'Erro ao carregar kanbans'
+    showNotification('Erro ao carregar seus kanbans. Tente recarregar a página.', 'error')
+  }
+}
+
+// Carregar dados do kanban atual
+const loadKanbanData = async () => {
+  if (!currentKanbanId.value) return
+
+  try {
+    loading.value = true
+
+    // Carregar colunas
+    const { data: columnsData, error: columnsError } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('kanban_id', currentKanbanId.value)
+      .order('position', { ascending: true })
+
+    if (columnsError) throw columnsError
+    columns.value = columnsData || []
+
+    // Carregar cards
+    const { data: cardsData, error: cardsError } = await supabase
+      .from('kanban_cards')
+      .select('*')
+      .eq('kanban_id', currentKanbanId.value)
+      .order('position', { ascending: true })
+
+    if (cardsError) throw cardsError
+    cards.value = cardsData || []
+
+  } catch (error) {
+    console.error('Error loading kanban data:', error)
+    error.value = 'Erro ao carregar dados do kanban'
+  } finally {
+    loading.value = false
+  }
+}
 
 // Edit kanban
-const editKanban = (kanban) => {
-  const newName = prompt('Novo nome do kanban:', kanban.name)
-  if (newName && newName.trim() && newName.trim() !== kanban.name) {
-    kanban.name = newName.trim()
+const editKanban = async (kanban) => {
+  const newName = prompt('Novo nome do kanban:', kanban.title)
+  if (newName && newName.trim() && newName.trim() !== kanban.title) {
+    try {
+      const { error } = await supabase
+        .from('kanbans')
+        .update({
+          title: newName.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', kanban.id)
+
+      if (error) throw error
+
+      kanban.title = newName.trim()
+    } catch (error) {
+      console.error('Error updating kanban:', error)
+      showNotification('Erro ao atualizar kanban. Tente novamente.', 'error')
+    }
   }
 }
 
 // Delete kanban
-const deleteKanban = (kanbanId) => {
+const deleteKanban = async (kanbanId) => {
   const kanban = kanbans.value.find(k => k.id === kanbanId)
   if (!kanban) return
 
   if (kanbans.value.length <= 1) {
-    alert('Você não pode excluir o último kanban.')
+    showNotification('Você não pode excluir o último kanban.', 'warning')
     return
   }
 
-  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.name}"? Todos os cartões serão perdidos.`)) {
+  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.title}"? Todos os cartões serão perdidos.`)) {
     return
   }
 
-  // Remove kanban
-  const index = kanbans.value.findIndex(k => k.id === kanbanId)
-  if (index > -1) {
-    kanbans.value.splice(index, 1)
+  try {
+    const { error } = await supabase
+      .from('kanbans')
+      .delete()
+      .eq('id', kanbanId)
+
+    if (error) throw error
+
+    // Remove kanban from local state
+    const index = kanbans.value.findIndex(k => k.id === kanbanId)
+    if (index > -1) {
+      kanbans.value.splice(index, 1)
+    }
+
+    // If current kanban was deleted, switch to first available
+    if (currentKanbanId.value === kanbanId) {
+      currentKanbanId.value = kanbans.value[0]?.id || null
+      if (currentKanbanId.value) {
+        await loadKanbanData()
+      }
+    }
+
+    showKanbanMenu.value = false
+  } catch (error) {
+    console.error('Error deleting kanban:', error)
+    showNotification('Erro ao excluir kanban. Tente novamente.', 'error')
   }
-
-  // Remove all cards from this kanban
-  cards.value = cards.value.filter(card => card.kanban_id !== kanbanId)
-
-  // If current kanban was deleted, switch to first available
-  if (currentKanbanId.value === kanbanId) {
-    currentKanbanId.value = kanbans.value[0]?.id || 'default'
-  }
-
-  showKanbanMenu.value = false
 }
 
 // Open kanban modal
@@ -647,48 +824,55 @@ const getColorData = (colorValue) => {
 const saveKanban = async () => {
   try {
     savingKanban.value = true
-    
+
+    if (!user.value?.empresa_id) {
+      throw new Error('Usuário não vinculado a uma empresa')
+    }
+
     // Create new kanban
-    const id = `k_${Date.now()}`
-    kanbans.value.push({ id, name: kanbanForm.value.name.trim() })
-    
+    const { data: newKanban, error: kanbanError } = await supabase
+      .from('kanbans')
+      .insert({
+        title: kanbanForm.value.name.trim(),
+        description: null,
+        empresa_id: user.value.empresa_id,
+        created_by: user.value.id
+      })
+      .select()
+      .single()
+
+    if (kanbanError) throw kanbanError
+
     // Create columns for this kanban
-    const newColumns = kanbanForm.value.columns
+    const columnsToCreate = kanbanForm.value.columns
       .filter(col => col.name.trim())
       .map((col, index) => ({
-        id: `col_${Date.now()}_${index}`,
+        kanban_id: newKanban.id,
         title: col.name.trim(),
         icon: col.icon,
         color: col.color,
         position: index
       }))
-    
-    // Switch to new kanban
-    currentKanbanId.value = id
-    
-    // Update columns (this will be kanban-specific in a real app)
-    columns.value = newColumns
-    
-    // Add a welcome card
-    const now = new Date().toISOString()
-    if (newColumns.length > 0) {
-      cards.value.push({
-        id: `${Date.now()}_1`,
-        kanban_id: id,
-        columnId: newColumns[0].id,
-        title: 'Bem-vindo ao seu novo kanban!',
-        description: 'Comece adicionando suas tarefas',
-        isUrgent: false,
-        position: 0,
-        created_at: now,
-        updated_at: now
-      })
+
+    if (columnsToCreate.length > 0) {
+      const { error: columnsError } = await supabase
+        .from('kanban_columns')
+        .insert(columnsToCreate)
+
+      if (columnsError) throw columnsError
     }
-    
+
+    // Add to local state
+    kanbans.value.push(newKanban)
+
+    // Switch to new kanban
+    currentKanbanId.value = newKanban.id
+    await loadKanbanData()
+
     closeKanbanModal()
   } catch (error) {
     console.error('Error creating kanban:', error)
-    alert('Erro ao criar kanban. Tente novamente.')
+    showNotification('Erro ao criar kanban. Tente novamente.', 'error')
   } finally {
     savingKanban.value = false
   }
@@ -708,224 +892,431 @@ const closeKanbanModal = () => {
 }
 
 // Column management functions
-const addNewColumn = () => {
+const addNewColumn = async () => {
   if (columns.value.length >= 6) {
-    alert('Limite de 6 colunas por kanban alcançado.')
+    showNotification('Limite de 6 colunas por kanban alcançado.', 'warning')
     return
   }
 
   const title = prompt('Nome da nova coluna:')
   if (!title || !title.trim()) return
-  
-  const newColumn = {
-    id: `col_${Date.now()}`,
-    title: title.trim(),
-    icon: 'clipboard',
-    color: 'blue',
-    position: columns.value.length
-  }
-  columns.value.push(newColumn)
-  
-  // Scroll to the new column after DOM update
-  nextTick(() => {
-    const boardColumns = boardColumnsRef.value
-    if (boardColumns) {
-      boardColumns.scrollTo({
-        left: boardColumns.scrollWidth,
-        behavior: 'smooth'
+
+  try {
+    const { data: newColumn, error } = await supabase
+      .from('kanban_columns')
+      .insert({
+        kanban_id: currentKanbanId.value,
+        title: title.trim(),
+        icon: 'clipboard',
+        color: 'blue',
+        position: columns.value.length
       })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    columns.value.push(newColumn)
+
+    // Scroll to the new column after DOM update
+    nextTick(() => {
+      const boardColumns = boardColumnsRef.value
+      if (boardColumns) {
+        boardColumns.scrollTo({
+          left: boardColumns.scrollWidth,
+          behavior: 'smooth'
+        })
+      }
+    })
+  } catch (error) {
+    console.error('Error adding column:', error)
+    showNotification('Erro ao adicionar coluna. Tente novamente.', 'error')
+  }
+}
+
+const handleRenameColumn = async ({ columnId, newTitle }) => {
+  try {
+    const { error } = await supabase
+      .from('kanban_columns')
+      .update({
+        title: newTitle,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', columnId)
+
+    if (error) throw error
+
+    const column = columns.value.find(c => c.id === columnId)
+    if (column) {
+      column.title = newTitle
     }
-  })
-}
-
-const handleRenameColumn = ({ columnId, newTitle }) => {
-  const column = columns.value.find(c => c.id === columnId)
-  if (column) {
-    column.title = newTitle
+  } catch (error) {
+    console.error('Error renaming column:', error)
+    showNotification('Erro ao renomear coluna. Tente novamente.', 'error')
   }
 }
 
-const handleUpdateColumnIcon = ({ columnId, icon }) => {
-  const column = columns.value.find(c => c.id === columnId)
-  if (column) {
-    column.icon = icon
+const handleUpdateColumnIcon = async ({ columnId, icon }) => {
+  try {
+    const { error } = await supabase
+      .from('kanban_columns')
+      .update({
+        icon: icon,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', columnId)
+
+    if (error) throw error
+
+    const column = columns.value.find(c => c.id === columnId)
+    if (column) {
+      column.icon = icon
+    }
+  } catch (error) {
+    console.error('Error updating column icon:', error)
   }
 }
 
-const handleUpdateColumnColor = ({ columnId, color }) => {
-  const column = columns.value.find(c => c.id === columnId)
-  if (column) {
-    column.color = color
+const handleUpdateColumnColor = async ({ columnId, color }) => {
+  try {
+    const { error } = await supabase
+      .from('kanban_columns')
+      .update({
+        color: color,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', columnId)
+
+    if (error) throw error
+
+    const column = columns.value.find(c => c.id === columnId)
+    if (column) {
+      column.color = color
+    }
+  } catch (error) {
+    console.error('Error updating column color:', error)
   }
 }
 
 // Handle move column
-const handleMoveColumn = ({ columnId, direction }) => {
+const handleMoveColumn = async ({ columnId, direction }) => {
   const currentIndex = columns.value.findIndex(c => c.id === columnId)
   if (currentIndex === -1) return
 
   const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1
-  
+
   // Check bounds
   if (newIndex < 0 || newIndex >= columns.value.length) return
 
-  // Swap columns
-  const columnsCopy = [...columns.value]
-  const temp = columnsCopy[currentIndex]
-  columnsCopy[currentIndex] = columnsCopy[newIndex]
-  columnsCopy[newIndex] = temp
+  try {
+    // Swap columns
+    const columnsCopy = [...columns.value]
+    const temp = columnsCopy[currentIndex]
+    columnsCopy[currentIndex] = columnsCopy[newIndex]
+    columnsCopy[newIndex] = temp
 
-  // Update positions
-  columnsCopy.forEach((col, index) => {
-    col.position = index
-  })
+    // Update positions in database
+    const updates = columnsCopy.map((col, index) => ({
+      id: col.id,
+      position: index
+    }))
 
-  columns.value = columnsCopy
+    for (const update of updates) {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .update({
+          position: update.position,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', update.id)
+
+      if (error) throw error
+    }
+
+    // Update positions in local state
+    columnsCopy.forEach((col, index) => {
+      col.position = index
+    })
+
+    columns.value = columnsCopy
+  } catch (error) {
+    console.error('Error moving column:', error)
+    showNotification('Erro ao mover coluna. Tente novamente.', 'error')
+  }
 }
 
-const handleDeleteColumn = (columnId) => {
-  // Move all cards from deleted column to 'todo'
-  cards.value.forEach(card => {
-    if (card.columnId === columnId) {
-      card.columnId = 'todo'
-      // Reposition in todo column
-      const todoCards = cards.value.filter(c => c.columnId === 'todo')
-      card.position = todoCards.length
-    }
-  })
-  
-  // Remove the column
-  const columnIndex = columns.value.findIndex(c => c.id === columnId)
-  if (columnIndex > -1) {
-    columns.value.splice(columnIndex, 1)
+const handleDeleteColumn = async (columnId) => {
+  if (!confirm('Tem certeza que deseja excluir esta coluna? Todos os cartões nesta coluna também serão excluídos.')) {
+    return
   }
-  
-  // Reposition cards in todo column
-  repositionCardsInColumn('todo')
+
+  try {
+    // Move cards to first column before deleting
+    const firstColumn = columns.value.find(c => c.id !== columnId)
+    if (firstColumn) {
+      const { error: moveError } = await supabase
+        .from('kanban_cards')
+        .update({
+          column_id: firstColumn.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('column_id', columnId)
+
+      if (moveError) throw moveError
+    }
+
+    // Delete the column
+    const { error } = await supabase
+      .from('kanban_columns')
+      .delete()
+      .eq('id', columnId)
+
+    if (error) throw error
+
+    // Remove from local state
+    const columnIndex = columns.value.findIndex(c => c.id === columnId)
+    if (columnIndex > -1) {
+      columns.value.splice(columnIndex, 1)
+    }
+
+    // Update positions of remaining columns
+    const updates = columns.value.map((col, index) => ({
+      id: col.id,
+      position: index
+    }))
+
+    for (const update of updates) {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .update({
+          position: update.position,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', update.id)
+
+      if (error) throw error
+    }
+
+    // Reload data to update cards
+    await loadKanbanData()
+  } catch (error) {
+    console.error('Error deleting column:', error)
+    showNotification('Erro ao excluir coluna. Tente novamente.', 'error')
+  }
 }
 
 // Get cards for a specific column in current kanban
 const getColumnCards = (columnId) => {
   return cards.value
-    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
+    .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === columnId)
     .sort((a, b) => a.position - b.position)
 }
 
-// Handle add card
+// Handle add card com atualização otimista
 const handleAddCard = (columnId) => {
   editingCard.value = null
   cardForm.value = {
     title: '',
     description: '',
-    columnId: columnId,
-    isUrgent: false
+    column_id: columnId,
+    is_urgent: false
   }
   showCardModal.value = true
 }
 
-// Handle edit card
+// Handle edit card com atualização otimista
 const handleEditCard = (card) => {
   editingCard.value = card
   cardForm.value = {
     title: card.title,
     description: card.description || '',
-    columnId: card.columnId,
-    isUrgent: card.isUrgent || false
+    column_id: card.column_id,
+    is_urgent: card.is_urgent || false
   }
   showCardModal.value = true
 }
 
-// Handle delete card
+// Handle delete card com atualização otimista
 const handleDeleteCard = async (cardId) => {
   if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return
 
+  // Encontrar card para rollback
   const cardIndex = cards.value.findIndex(card => card.id === cardId)
-  if (cardIndex > -1) {
-    cards.value.splice(cardIndex, 1)
+  const cardToDelete = cardIndex > -1 ? cards.value[cardIndex] : null
+
+  if (!cardToDelete) return
+
+  // Atualização otimista: remover imediatamente da UI
+  const deletedCardColumn = cardToDelete.column_id
+  cards.value.splice(cardIndex, 1)
+
+  try {
+    // Sincronizar com banco em background
+    const { error } = await supabase
+      .from('kanban_cards')
+      .delete()
+      .eq('id', cardId)
+
+    if (error) throw error
+
     // Reposition remaining cards in the same column
-    const deletedCardColumn = cards.value[cardIndex]?.columnId
-    if (deletedCardColumn) {
-      repositionCardsInColumn(deletedCardColumn)
-    }
+    await repositionCardsInColumn(deletedCardColumn)
+  } catch (error) {
+    console.error('Error deleting card:', error)
+    // Rollback: restaurar card na UI
+    cards.value.splice(cardIndex, 0, cardToDelete)
+    showNotification('Erro ao excluir tarefa. Tente novamente.', 'error')
   }
 }
 
 
-// Handle card moved between columns - SIMPLIFIED
-const handleCardMoved = (moveData) => {
+// Handle card moved between columns com atualização otimista
+const handleCardMoved = async (moveData) => {
   const { cardId, fromColumnId, toColumnId, newIndex } = moveData
 
   // Basic validation
   if (!cardId || !toColumnId) return
 
-  // Find the card
+  // Encontrar card para rollback
   const targetCard = cards.value.find(c => c.id === cardId)
   if (!targetCard) return
 
-  // Skip if moving to same column
-  if (targetCard.columnId === toColumnId) return
+  // Salvar estado original para rollback
+  const originalState = {
+    column_id: targetCard.column_id,
+    position: targetCard.position
+  }
 
-  // Update card
-  const oldColumnId = targetCard.columnId
-  targetCard.columnId = toColumnId
-  targetCard.position = newIndex !== undefined ? newIndex : 0
-  targetCard.updated_at = new Date().toISOString()
+  try {
+    // Atualização otimista: atualizar UI imediatamente
+    const oldColumnId = targetCard.column_id
+    targetCard.column_id = toColumnId
+    targetCard.position = newIndex !== undefined ? newIndex : 0
 
-  // Reposition cards in both columns
-  nextTick(() => {
-    repositionCardsInColumn(oldColumnId)
-    repositionCardsInColumn(toColumnId)
-  })
+    // Sincronizar com banco em background
+    const { error } = await supabase
+      .from('kanban_cards')
+      .update({
+        column_id: toColumnId,
+        position: newIndex !== undefined ? newIndex : 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cardId)
+
+    if (error) throw error
+
+    // Reposition cards in both columns
+    await repositionCardsInColumn(oldColumnId)
+    await repositionCardsInColumn(toColumnId)
+  } catch (error) {
+    console.error('Error moving card:', error)
+    // Rollback: restaurar estado original
+    targetCard.column_id = originalState.column_id
+    targetCard.position = originalState.position
+    showNotification('Erro ao mover tarefa. Tente novamente.', 'error')
+  }
 }
 
-// Handle update cards from VueDraggablePlus (reordering within same column)
-const handleUpdateCards = (updatedCards) => {
-  if (!updatedCards || updatedCards.length === 0) return
+// Handle move card via dropdown com atualização otimista
+const handleMoveCard = async (moveData) => {
+  // Suporte para diferentes formatos do evento
+  let cardId, fromColumnId, toColumnId
 
-  // Get columnId from the first card
-  const columnId = updatedCards[0]?.columnId
-  if (!columnId) return
+  if (moveData.cardId) {
+    // Formato completo com objeto
+    cardId = moveData.cardId
+    fromColumnId = moveData.fromColumnId
+    toColumnId = moveData.toColumnId
+  } else {
+    // Formato simples (compatibilidade com KanbanCard.vue)
+    cardId = moveData
+    const card = cards.value.find(c => c.id === cardId)
+    if (!card) return
+    fromColumnId = card.column_id
+    toColumnId = moveData
+  }
 
-  // Update positions for cards in this column
-  updatedCards.forEach((updatedCard, index) => {
-    const card = cards.value.find(c => c.id === updatedCard.id)
-    if (card) {
-      card.position = index
-      card.updated_at = new Date().toISOString()
-    }
-  })
-}
-
-// Handle move card via dropdown
-const handleMoveCard = ({ cardId, fromColumnId, toColumnId }) => {
   if (fromColumnId === toColumnId) return
 
+  // Encontrar card para rollback
   const card = cards.value.find(c => c.id === cardId)
   if (!card) return
 
-  const oldColumnId = card.columnId
-  
-  // Move card to end of target column
-  card.columnId = toColumnId
-  const targetColumnCards = cards.value.filter(c => c.kanban_id === currentKanbanId.value && c.columnId === toColumnId)
-  card.position = targetColumnCards.length
+  // Salvar estado original
+  const originalState = {
+    column_id: card.column_id,
+    position: card.position
+  }
 
-  // Reposition cards in both columns
-  repositionCardsInColumn(oldColumnId)
-  repositionCardsInColumn(toColumnId)
+  try {
+    // Calculate new position (end of target column)
+    const targetColumnCards = cards.value.filter(c =>
+      c.kanban_id === currentKanbanId.value && c.column_id === toColumnId
+    )
+    const newPosition = targetColumnCards.length
+
+    // Atualização otimista: mover visualmente imediatamente
+    const oldColumnId = card.column_id
+    card.column_id = toColumnId
+    card.position = newPosition
+
+    // Sincronizar com banco em background
+    const { error } = await supabase
+      .from('kanban_cards')
+      .update({
+        column_id: toColumnId,
+        position: newPosition,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cardId)
+
+    if (error) throw error
+
+    // Reposition cards in both columns
+    await repositionCardsInColumn(oldColumnId)
+    await repositionCardsInColumn(toColumnId)
+  } catch (error) {
+    console.error('Error moving card:', error)
+    // Rollback: restaurar estado original
+    card.column_id = originalState.column_id
+    card.position = originalState.position
+    showNotification('Erro ao mover tarefa. Tente novamente.', 'error')
+  }
 }
 
-// Reposition cards in a column for current kanban (simplified)
-const repositionCardsInColumn = (columnId) => {
-  const columnCards = cards.value
-    .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === columnId)
-    .sort((a, b) => a.position - b.position)
+// Reposition cards in a column
+const repositionCardsInColumn = async (columnId) => {
+  try {
+    const columnCards = cards.value
+      .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === columnId)
+      .sort((a, b) => a.position - b.position)
 
-  // Update positions
-  columnCards.forEach((card, index) => {
-    card.position = index
-    card.updated_at = new Date().toISOString()
-  })
+    // Update positions
+    const updates = columnCards.map((card, index) => ({
+      id: card.id,
+      position: index
+    }))
+
+    for (const update of updates) {
+      const { error } = await supabase
+        .from('kanban_cards')
+        .update({
+          position: update.position,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', update.id)
+
+      if (error) throw error
+    }
+
+    // Update local state
+    columnCards.forEach((card, index) => {
+      card.position = index
+      card.updated_at = new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Error repositioning cards:', error)
+  }
 }
 
 // Save card
@@ -935,37 +1326,54 @@ const saveCard = async () => {
 
     if (editingCard.value) {
       // Update existing card
+      const { error } = await supabase
+        .from('kanban_cards')
+        .update({
+          title: cardForm.value.title,
+          description: cardForm.value.description,
+          column_id: cardForm.value.column_id,
+          is_urgent: cardForm.value.is_urgent,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingCard.value.id)
+
+      if (error) throw error
+
+      // Update local state
       editingCard.value.title = cardForm.value.title
       editingCard.value.description = cardForm.value.description
-      editingCard.value.columnId = cardForm.value.columnId
-      editingCard.value.isUrgent = cardForm.value.isUrgent
+      editingCard.value.column_id = cardForm.value.column_id
+      editingCard.value.is_urgent = cardForm.value.is_urgent
       editingCard.value.updated_at = new Date().toISOString()
 
       // Reposition if column changed
-      if (editingCard.value.columnId !== cardForm.value.columnId) {
-        repositionCardsInColumn(editingCard.value.columnId)
-        repositionCardsInColumn(cardForm.value.columnId)
+      if (editingCard.value.column_id !== cardForm.value.column_id) {
+        await repositionCardsInColumn(editingCard.value.column_id)
+        await repositionCardsInColumn(cardForm.value.column_id)
       }
     } else {
       // Create new card
       const maxPosition = Math.max(
         ...cards.value
-          .filter(card => card.kanban_id === currentKanbanId.value && card.columnId === cardForm.value.columnId)
+          .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === cardForm.value.column_id)
           .map(card => card.position),
         -1
       )
 
-      const newCard = {
-        id: Date.now().toString(), // Simple ID generation
-        kanban_id: currentKanbanId.value,
-        columnId: cardForm.value.columnId,
-        title: cardForm.value.title,
-        description: cardForm.value.description,
-        isUrgent: cardForm.value.isUrgent,
-        position: maxPosition + 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
+      const { data: newCard, error } = await supabase
+        .from('kanban_cards')
+        .insert({
+          kanban_id: currentKanbanId.value,
+          column_id: cardForm.value.column_id,
+          title: cardForm.value.title,
+          description: cardForm.value.description,
+          is_urgent: cardForm.value.is_urgent,
+          position: maxPosition + 1
+        })
+        .select()
+        .single()
+
+      if (error) throw error
 
       cards.value.push(newCard)
     }
@@ -973,7 +1381,7 @@ const saveCard = async () => {
     closeCardModal()
   } catch (error) {
     console.error('Error saving card:', error)
-    alert('Erro ao salvar tarefa. Tente novamente.')
+    showNotification('Erro ao salvar tarefa. Tente novamente.', 'error')
   } finally {
     savingCard.value = false
   }
@@ -986,13 +1394,14 @@ const closeCardModal = () => {
   cardForm.value = {
     title: '',
     description: '',
-    columnId: 'todo',
-    isUrgent: false
+    column_id: null,
+    is_urgent: false
   }
 }
 
-// Load some example cards on mount
-onMounted(() => {
+// Carregar dados iniciais
+onMounted(async () => {
+  await loadKanbans()
 
   // Set up scroll indicators listeners
   const el = boardColumnsRef.value
@@ -1041,65 +1450,6 @@ onMounted(() => {
     }
   }
   document.addEventListener('click', closeDropdowns)
-
-  // Add some example cards
-  cards.value = [
-    {
-      id: '1',
-      kanban_id: 'default',
-      columnId: 'todo',
-      title: 'Configurar projeto',
-      description: 'Instalar dependências e configurar ambiente de desenvolvimento',
-      isUrgent: true,
-      position: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      kanban_id: 'default',
-      columnId: 'todo',
-      title: 'Criar layout inicial',
-      description: 'Desenvolver estrutura básica das páginas',
-      isUrgent: false,
-      position: 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '3',
-      kanban_id: 'default',
-      columnId: 'doing',
-      title: 'Implementar autenticação',
-      description: 'Configurar sistema de login e registro de usuários',
-      isUrgent: false,
-      position: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '4',
-      kanban_id: 'default',
-      columnId: 'done',
-      title: 'Definir requisitos',
-      description: 'Levantar requisitos com o cliente',
-      isUrgent: false,
-      position: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ]
-  // Add example cards for another kanban (work)
-  cards.value.push(
-    { id: 'w1', kanban_id: 'work', columnId: 'todo', title: 'Planejar sprint', description: 'Definir escopo da sprint', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'w2', kanban_id: 'work', columnId: 'doing', title: 'Revisar PRs', description: 'Revisão dos pull requests abertos', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'w3', kanban_id: 'work', columnId: 'done', title: 'Reunião diária', description: 'Daily standup concluída', isUrgent: false, position: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-  )
-})
-
-// Definir middleware de autenticação
-definePageMeta({
-  middleware: 'auth'
 })
 
 // Meta tags
@@ -1864,20 +2214,198 @@ useHead({
     right: 1rem;
     bottom: 1rem;
   }
-  
+
   .add-column-btn {
     width: 48px;
     height: 48px;
   }
-  
+
   .add-column-icon {
     width: 22px;
     height: 22px;
   }
-  
+
   /* Hide scroll indicators on mobile - touch scrolling is more intuitive */
   .scroll-indicator {
     display: none;
+  }
+}
+
+/* Sistema de Notificações */
+.notifications-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 400px;
+}
+
+.notification {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  margin-bottom: 0.75rem;
+  pointer-events: all;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
+  transform-origin: top right;
+}
+
+.notification--success {
+  border-left: 4px solid #10b981;
+}
+
+.notification--error {
+  border-left: 4px solid #ef4444;
+}
+
+.notification--warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.notification--info {
+  border-left: 4px solid #3b82f6;
+}
+
+.notification--syncing {
+  opacity: 0.8;
+  border-left: 4px solid #6b7280;
+}
+
+.notification__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.notification__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.notification--success .notification__icon {
+  color: #10b981;
+}
+
+.notification--error .notification__icon {
+  color: #ef4444;
+}
+
+.notification--warning .notification__icon {
+  color: #f59e0b;
+}
+
+.notification--info .notification__icon {
+  color: #3b82f6;
+}
+
+.notification--syncing .notification__icon {
+  color: #6b7280;
+}
+
+.notification__message {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.notification__sync {
+  display: flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.notification__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #6b7280;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.notification__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+  margin: -0.25rem;
+  padding: 0;
+}
+
+.notification__close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #6b7280;
+}
+
+.notification__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Transições de notificação */
+.notification-enter-active {
+  transition: all 250ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.notification-leave-active {
+  transition: all 200ms cubic-bezier(.5, 0, .75, 0);
+}
+
+.notification-enter-from {
+  opacity: 0;
+  transform: translateX(100%) scale(0.9);
+}
+
+.notification-leave-to {
+  opacity: 0;
+  transform: translateX(100%) scale(0.95);
+}
+
+.notification-move {
+  transition: transform 250ms cubic-bezier(.22, 1, .36, 1);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive para notificações */
+@media (max-width: 640px) {
+  .notifications-container {
+    top: auto;
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: none;
+  }
+
+  .notification {
+    transform-origin: bottom center;
+  }
+
+  .notification-enter-from {
+    transform: translateY(100%) scale(0.9);
+  }
+
+  .notification-leave-to {
+    transform: translateY(100%) scale(0.95);
   }
 }
 

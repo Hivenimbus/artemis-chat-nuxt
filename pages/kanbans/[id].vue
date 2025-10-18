@@ -249,7 +249,7 @@ const loadKanban = async () => {
       .from('kanbans')
       .select('*')
       .eq('id', route.params.id)
-      .eq('user_id', user.value.id)
+      .eq('empresa_id', user.value.empresa_id)
       .single()
 
     if (kanbanError) {

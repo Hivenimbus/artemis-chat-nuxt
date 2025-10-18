@@ -123,9 +123,26 @@ const toggleMoveMenu = () => {
   showMoveMenu.value = !showMoveMenu.value
 }
 
-// Move to column
+// Move to column com atualização otimista
 const moveToColumn = (columnId) => {
-  emit('move-card', columnId)
+  // Atualização otimista: atualizar visualmente imediatamente
+  const originalColumnId = props.card.column_id
+  const originalPosition = props.card.position
+
+  // Atualizar localmente imediatamente para feedback visual
+  props.card.column_id = columnId
+
+  // Emitir evento para sincronizar com banco
+  emit('move-card', {
+    cardId: props.card.id,
+    fromColumnId: originalColumnId,
+    toColumnId: columnId,
+    originalData: {
+      column_id: originalColumnId,
+      position: originalPosition
+    }
+  })
+
   showMoveMenu.value = false
 }
 

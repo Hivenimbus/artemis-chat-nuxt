@@ -180,33 +180,59 @@ const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
 
-// Cards computados simples - sem complexidade
+// Cards computados com atualização otimista
 const columnCards = computed({
   get: () => props.cards,
   set: (newCards) => {
     console.log(`📝 Column ${props.column.id}: cards updated`)
     // Para colunas vazias, atualizar posições
     if (newCards.length > 0) {
-      newCards.forEach((card, index) => {
-        if (card.columnId !== props.column.id) {
-          // Card foi movido para esta coluna
-          emit('card-moved', {
-            cardId: card.id,
-            fromColumnId: card.columnId,
-            toColumnId: props.column.id,
-            newIndex: index,
-            oldIndex: null
+      // Criar cópia para rollback se necessário
+      const originalCards = [...props.cards]
+
+      try {
+        // Atualização otimista: atualizar UI imediatamente
+        const updates = []
+
+        newCards.forEach((card, index) => {
+          const originalCard = originalCards.find(c => c.id === card.id)
+          const needsUpdate = card.column_id !== props.column.id || card.position !== index
+
+          if (needsUpdate) {
+            const update = {
+              cardId: card.id,
+              fromColumnId: card.column_id,
+              toColumnId: props.column.id,
+              newIndex: index,
+              oldIndex: originalCard?.position
+            }
+
+            // Se mudou de coluna, emitir evento
+            if (card.column_id !== props.column.id) {
+              emit('card-moved', update)
+            }
+
+            // Atualizar localmente imediatamente
+            card.column_id = props.column.id
+            card.position = index
+            card.updated_at = new Date().toISOString()
+
+            updates.push(update)
+          }
+        })
+
+        // Emitir eventos de reordenação se houver mudanças
+        if (updates.length > 0) {
+          emit('cards-reordered', {
+            columnId: props.column.id,
+            updates
           })
-          // Atualizar localmente para evitar conflitos
-          card.columnId = props.column.id
-          card.position = index
-          card.updated_at = new Date().toISOString()
-        } else {
-          // Apenas reordenação na mesma coluna
-          card.position = index
-          card.updated_at = new Date().toISOString()
         }
-      })
+      } catch (error) {
+        console.error('Error in optimistic update:', error)
+        // Rollback para estado original
+        props.cards.splice(0, props.cards.length, ...originalCards)
+      }
     }
   }
 })
@@ -282,39 +308,54 @@ const currentColumnIndex = computed(() => {
 const canMoveLeft = computed(() => currentColumnIndex.value > 0)
 const canMoveRight = computed(() => currentColumnIndex.value < props.columns.length - 1 && currentColumnIndex.value !== -1)
 
-// Column management functions
+// Column management functions com atualização otimista
 const startRename = () => {
   const newName = prompt('Novo nome da coluna:', props.column.title)
   if (newName && newName.trim()) {
-    emit('rename-column', { columnId: props.column.id, newTitle: newName.trim() })
+    // Atualização otimista: atualizar UI imediatamente
+    const originalTitle = props.column.title
+    props.column.title = newName.trim()
+
+    // Emitir evento para sincronizar com banco
+    emit('rename-column', {
+      columnId: props.column.id,
+      newTitle: newName.trim(),
+      originalTitle // Para rollback se necessário
+    })
   }
   showOptions.value = false
 }
 
 const deleteColumn = () => {
   if (confirm(`Tem certeza que deseja excluir a coluna "${props.column.title}"? Todos os cartões serão movidos para "Para Fazer".`)) {
-    emit('delete-column', props.column.id)
+    // Atualização otimista: remover visualmente imediatamente
+    const originalColumn = { ...props.column }
+    emit('delete-column', props.column.id, originalColumn) // Passar original para rollback
   }
   showOptions.value = false
 }
 
-// Move column left (backwards)
+// Move column left (backwards) com atualização otimista
 const moveColumnLeft = () => {
   if (canMoveLeft.value) {
+    // Atualização otimista: mover visualmente imediatamente
     emit('move-column', {
       columnId: props.column.id,
-      direction: 'left'
+      direction: 'left',
+      optimistic: true
     })
     showOptions.value = false
   }
 }
 
-// Move column right (forward)
+// Move column right (forward) com atualização otimista
 const moveColumnRight = () => {
   if (canMoveRight.value) {
+    // Atualização otimista: mover visualmente imediatamente
     emit('move-column', {
       columnId: props.column.id,
-      direction: 'right'
+      direction: 'right',
+      optimistic: true
     })
     showOptions.value = false
   }
@@ -347,16 +388,36 @@ const toggleColorPicker = () => {
   showIconPicker.value = false
 }
 
-// Update column icon
+// Update column icon com atualização otimista
 const updateIcon = (iconValue) => {
-  emit('update-column-icon', { columnId: props.column.id, icon: iconValue })
+  // Atualização otimista: atualizar UI imediatamente
+  const originalIcon = props.column.icon
+  props.column.icon = iconValue
+
+  // Emitir evento para sincronizar com banco
+  emit('update-column-icon', {
+    columnId: props.column.id,
+    icon: iconValue,
+    originalIcon // Para rollback se necessário
+  })
+
   showIconPicker.value = false
   showOptions.value = false
 }
 
-// Update column color
+// Update column color com atualização otimista
 const updateColor = (colorValue) => {
-  emit('update-column-color', { columnId: props.column.id, color: colorValue })
+  // Atualização otimista: atualizar UI imediatamente
+  const originalColor = props.column.color
+  props.column.color = colorValue
+
+  // Emitir evento para sincronizar com banco
+  emit('update-column-color', {
+    columnId: props.column.id,
+    color: colorValue,
+    originalColor // Para rollback se necessário
+  })
+
   showColorPicker.value = false
   showOptions.value = false
 }
