@@ -5,6 +5,7 @@
       'kan-card--urgent': card.isUrgent
     }"
     :data-card-id="card.id"
+    draggable="true"
   >
     <!-- Card Content -->
     <div class="kan-card__content">
@@ -49,7 +50,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </button>
-      
+
       <!-- Move Card Dropdown -->
       <div class="kan-card__move" ref="moveMenuRef" v-if="availableColumns.length > 0">
         <button
@@ -64,7 +65,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
         </button>
-        
+
         <!-- Dropdown Menu -->
         <Transition name="fade-scale">
           <div v-if="showMoveMenu" class="kan-card__move-menu" role="menu" @click.stop>
@@ -105,7 +106,7 @@ const props = defineProps({
   }
 })
 
-// Emits
+// Emits - simplificado
 const emit = defineEmits(['edit-card', 'delete-card', 'move-card'])
 
 // State
@@ -195,8 +196,6 @@ onBeforeUnmount(() => {
   outline: 2px solid rgb(var(--ring));
   outline-offset: 2px;
 }
-
-/* Urgent Card Variant - removed border, keeping only badge */
 
 /* Card Content */
 .kan-card__content {
@@ -376,7 +375,6 @@ onBeforeUnmount(() => {
   transform: scale(0.95) translateY(-4px);
   opacity: 0;
 }
-
 
 /* Responsive */
 @media (max-width: 640px) {

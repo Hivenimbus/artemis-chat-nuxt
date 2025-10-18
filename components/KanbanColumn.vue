@@ -9,7 +9,7 @@
         <h2 class="kan-col__title">{{ column.title }}</h2>
         <span class="kan-col__badge">{{ cards.length }}</span>
       </div>
-      
+
       <!-- Column Options Menu -->
       <div class="kan-col__options">
         <button class="kan-col__options-btn" @click="showOptions = !showOptions" :aria-expanded="showOptions ? 'true' : 'false'">
@@ -17,7 +17,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
           </svg>
         </button>
-        
+
         <!-- Options Dropdown -->
         <div v-if="showOptions" class="kan-col__options-dropdown">
           <button class="kan-col__option" @click="startRename">
@@ -26,7 +26,7 @@
             </svg>
             Renomear coluna
           </button>
-          
+
           <!-- Icon Picker -->
           <div class="kan-col__option-wrapper">
             <button class="kan-col__option" @click.stop="toggleIconPicker">
@@ -53,7 +53,7 @@
               </button>
             </div>
           </div>
-          
+
           <!-- Color Picker -->
           <div class="kan-col__option-wrapper">
             <button class="kan-col__option" @click.stop="toggleColorPicker">
@@ -78,9 +78,9 @@
               </button>
             </div>
           </div>
-          
-          <button 
-            class="kan-col__option" 
+
+          <button
+            class="kan-col__option"
             @click="moveColumnLeft"
             :disabled="!canMoveLeft"
           >
@@ -89,8 +89,8 @@
             </svg>
             Mover para trás
           </button>
-          <button 
-            class="kan-col__option" 
+          <button
+            class="kan-col__option"
             @click="moveColumnRight"
             :disabled="!canMoveRight"
           >
@@ -119,9 +119,8 @@
         ghost-class="kan-card--ghost"
         drag-class="kan-card--dragging"
         class="kan-col__cards-list"
-        @add="handleCardAdd"
-        @remove="handleCardRemove"
-        @end="handleDragEnd"
+        @add="handleCardAdded"
+        @remove="handleCardRemoved"
       >
         <KanbanCard
           v-for="card in columnCards"
@@ -139,7 +138,7 @@
       <button
         @click="$emit('add-card', column.id)"
         class="kan-col__add-btn"
-        :aria-label="`Adicionar cart\u00e3o em ${column.title}`"
+        :aria-label="`Adicionar cartão em ${column.title}`"
       >
         <svg class="kan-col__add-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -155,7 +154,7 @@
 import { VueDraggable } from 'vue-draggable-plus'
 
 // Import all needed Vue functions
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 
 // Props
 const props = defineProps({
@@ -170,169 +169,76 @@ const props = defineProps({
   columns: {
     type: Array,
     default: () => []
-  },
-  dragState: {
-    type: Object,
-    required: true
   }
 })
 
-// Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'update-cards', 'card-moved', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color', 'update-drag-state', 'find-card-column'])
+// Emits - simplificado
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-moved', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
 
 // State
 const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
 
-// Create a computed property for cards in this column
+// Cards computados simples - sem complexidade
 const columnCards = computed({
   get: () => props.cards,
   set: (newCards) => {
-    const timestamp = Date.now()
-    console.log(`🔄 [${timestamp}] columnCards setter called for column:`, props.column.id, 'newCards:', newCards.map(c => c.id))
-
-    // SIMPLIFIED BLOCKING: Only essential blocks to prevent conflicts
-    const isEmptyColumn = props.cards.length === 0
-    const isFirstCardInEmptyColumn = isEmptyColumn && newCards.length === 1
-    const isReordering = props.cards.length === newCards.length &&
-                        JSON.stringify(props.cards.map(c => c.id).sort()) === JSON.stringify(newCards.map(c => c.id).sort())
-
-    // PRIORITY 1: Always allow first card in empty column
-    if (isFirstCardInEmptyColumn) {
-      console.log(`✅ [${timestamp}] FIRST CARD IN EMPTY COLUMN - allowing update`)
-      nextTick(() => {
-        emit('update-cards', newCards)
+    console.log(`📝 Column ${props.column.id}: cards updated`)
+    // Para colunas vazias, atualizar posições
+    if (newCards.length > 0) {
+      newCards.forEach((card, index) => {
+        if (card.columnId !== props.column.id) {
+          // Card foi movido para esta coluna
+          emit('card-moved', {
+            cardId: card.id,
+            fromColumnId: card.columnId,
+            toColumnId: props.column.id,
+            newIndex: index,
+            oldIndex: null
+          })
+          // Atualizar localmente para evitar conflitos
+          card.columnId = props.column.id
+          card.position = index
+          card.updated_at = new Date().toISOString()
+        } else {
+          // Apenas reordenação na mesma coluna
+          card.position = index
+          card.updated_at = new Date().toISOString()
+        }
       })
-      return
     }
-
-    // PRIORITY 2: Allow reordering within same column (but not during active drag)
-    if (isReordering && !props.dragState.isDragging) {
-      console.log(`✅ [${timestamp}] REORDERING - allowing update`)
-      nextTick(() => {
-        emit('update-cards', newCards)
-      })
-      return
-    }
-
-    // BLOCK: Prevent all other operations during active drag
-    if (props.dragState.isDragging) {
-      console.log(`🚫 [${timestamp}] BLOCKING: Active drag in progress`)
-      return
-    }
-
-    // BLOCK: Prevent cross-column moves through v-model (handled manually)
-    if (!isReordering) {
-      console.log(`🚫 [${timestamp}] BLOCKING: Cross-column move detected`)
-      return
-    }
-
-    console.log(`⚠️ [${timestamp}] Not proceeding with update`)
   }
 })
 
-// Handle card added to this column
-const handleCardAdd = (event) => {
-  const timestamp = Date.now()
+// Handle card added - simplificado
+const handleCardAdded = (event) => {
   const { item, newIndex } = event
   const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
 
-  console.log(`🟢 [${timestamp}] Card ADDED to column ${props.column.id}:`, {
-    cardId,
-    newIndex,
-    fromColumnId: props.dragState.fromColumnId,
-    isThisColumnEmpty: props.cards.length === 0
-  })
+  console.log(`➕ Card ${cardId} added to ${props.column.id} at index ${newIndex}`)
 
   if (!cardId) {
-    console.error(`❌ [${timestamp}] No cardId found in drag event`)
+    console.error('❌ No cardId found in drag event')
     return
   }
-
-  // SIMPLIFIED EMPTY COLUMN HANDLING
-  const isTargetColumnEmpty = props.cards.length === 0
-  let fromColumnId = props.dragState.fromColumnId
-
-  // SIMPLE FALLBACK: Find fromColumnId if missing
-  if (!fromColumnId) {
-    // Try card attributes first
-    fromColumnId = item.getAttribute('data-from-column') || item.dataset.fromColumn
-
-    if (!fromColumnId) {
-      // Use find-card-column to locate the card
-      emit('find-card-column', {
-        cardId,
-        targetColumnId: props.column.id,
-        processImmediately: isTargetColumnEmpty,
-        isTargetColumnEmpty
-      })
-      return
-    }
-  }
-
-  // Priority: Always process empty column moves immediately
-  if (isTargetColumnEmpty) {
-    console.log(`🎯 [${timestamp}] EMPTY COLUMN: Processing immediately`)
-  }
-
-  // Emit the move event
-  emit('card-moved', {
-    cardId,
-    fromColumnId,
-    toColumnId: props.column.id,
-    newIndex,
-    oldIndex: null,
-    wasEmptyColumn: isTargetColumnEmpty
-  })
-
-  // Simplified drag state clearing
-  nextTick(() => {
-    emit('update-drag-state', {
-      cardId: null,
-      fromColumnId: null,
-      toColumnId: null
-    })
-  })
 }
 
-// Handle card removed from this column
-const handleCardRemove = (event) => {
-  const timestamp = Date.now()
-  const { item, oldIndex } = event
+// Handle card removed - simplificado
+const handleCardRemoved = (event) => {
+  const { item } = event
   const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
 
-  console.log(`🔴 [${timestamp}] Card REMOVED from column ${props.column.id}:`, {
-    cardId,
-    oldIndex,
-    currentDragState: props.dragState,
-    cardsRemaining: props.cards.length
-  })
-
-  if (cardId) {
-    // Store the source column for when the card is added elsewhere
-    // IMPORTANT: Update drag state BEFORE the card is actually moved
-    const newDragState = {
-      cardId,
-      fromColumnId: props.column.id,
-      toColumnId: null
-    }
-
-    console.log(`📤 [${timestamp}] Updating drag state on card removal:`, newDragState)
-    emit('update-drag-state', newDragState)
-
-    // Add a safeguard to ensure drag state is properly set
-    nextTick(() => {
-      console.log(`✅ [${Date.now()}] Drag state verification after card removal:`, props.dragState)
-    })
-  } else {
-    console.warn(`⚠️ [${timestamp}] No cardId found in card removal event`)
-  }
+  console.log(`➖ Card ${cardId} removed from ${props.column.id}`)
 }
 
-// Handle drag end event from VueDraggable
-const handleDragEnd = (event) => {
-  console.log('Drag ended:', event)
+// Handle move card via dropdown
+const handleMoveCard = (cardId, toColumnId) => {
+  emit('move-card', {
+    cardId,
+    fromColumnId: props.column.id,
+    toColumnId
+  })
 }
 
 // Icon paths mapping
@@ -390,15 +296,6 @@ const deleteColumn = () => {
     emit('delete-column', props.column.id)
   }
   showOptions.value = false
-}
-
-// Handle move card via dropdown
-const handleMoveCard = (cardId, toColumnId) => {
-  emit('move-card', {
-    cardId,
-    fromColumnId: props.column.id,
-    toColumnId
-  })
 }
 
 // Move column left (backwards)
@@ -498,7 +395,7 @@ const updateColor = (colorValue) => {
 
   --col-500: var(--todo-500);
   --col-400: var(--todo-400);
-  
+
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
