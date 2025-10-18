@@ -154,6 +154,9 @@
 // Import VueDraggablePlus
 import { VueDraggable } from 'vue-draggable-plus'
 
+// Import all needed Vue functions
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+
 // Props
 const props = defineProps({
   column: {
@@ -167,11 +170,15 @@ const props = defineProps({
   columns: {
     type: Array,
     default: () => []
+  },
+  dragState: {
+    type: Object,
+    required: true
   }
 })
 
 // Emits
-const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'update-cards', 'card-moved', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color'])
+const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-drop', 'update-cards', 'card-moved', 'rename-column', 'delete-column', 'move-card', 'move-column', 'update-column-icon', 'update-column-color', 'update-drag-state', 'find-card-column'])
 
 // State
 const showOptions = ref(false)
@@ -182,62 +189,144 @@ const showColorPicker = ref(false)
 const columnCards = computed({
   get: () => props.cards,
   set: (newCards) => {
-    // Only emit update if this is a reordering within the same column
-    // Cross-column moves are handled by @add and @remove events
-    const currentCardIds = props.cards.map(c => c.id).sort()
-    const newCardIds = newCards.map(c => c.id).sort()
+    const timestamp = Date.now()
+    console.log(`🔄 [${timestamp}] columnCards setter called for column:`, props.column.id, 'newCards:', newCards.map(c => c.id))
 
-    // If the cards are the same (just reordered), emit update event
-    if (JSON.stringify(currentCardIds) === JSON.stringify(newCardIds)) {
-      emit('update-cards', newCards)
+    // SIMPLIFIED BLOCKING: Only essential blocks to prevent conflicts
+    const isEmptyColumn = props.cards.length === 0
+    const isFirstCardInEmptyColumn = isEmptyColumn && newCards.length === 1
+    const isReordering = props.cards.length === newCards.length &&
+                        JSON.stringify(props.cards.map(c => c.id).sort()) === JSON.stringify(newCards.map(c => c.id).sort())
+
+    // PRIORITY 1: Always allow first card in empty column
+    if (isFirstCardInEmptyColumn) {
+      console.log(`✅ [${timestamp}] FIRST CARD IN EMPTY COLUMN - allowing update`)
+      nextTick(() => {
+        emit('update-cards', newCards)
+      })
+      return
     }
-  }
-})
 
-// Store current drag state
-const dragState = ref({
-  cardId: null,
-  fromColumnId: null,
-  toColumnId: null
+    // PRIORITY 2: Allow reordering within same column (but not during active drag)
+    if (isReordering && !props.dragState.isDragging) {
+      console.log(`✅ [${timestamp}] REORDERING - allowing update`)
+      nextTick(() => {
+        emit('update-cards', newCards)
+      })
+      return
+    }
+
+    // BLOCK: Prevent all other operations during active drag
+    if (props.dragState.isDragging) {
+      console.log(`🚫 [${timestamp}] BLOCKING: Active drag in progress`)
+      return
+    }
+
+    // BLOCK: Prevent cross-column moves through v-model (handled manually)
+    if (!isReordering) {
+      console.log(`🚫 [${timestamp}] BLOCKING: Cross-column move detected`)
+      return
+    }
+
+    console.log(`⚠️ [${timestamp}] Not proceeding with update`)
+  }
 })
 
 // Handle card added to this column
 const handleCardAdd = (event) => {
+  const timestamp = Date.now()
   const { item, newIndex } = event
   const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
 
-  console.log('Card added to column', props.column.id, { cardId, newIndex })
+  console.log(`🟢 [${timestamp}] Card ADDED to column ${props.column.id}:`, {
+    cardId,
+    newIndex,
+    fromColumnId: props.dragState.fromColumnId,
+    isThisColumnEmpty: props.cards.length === 0
+  })
 
-  if (cardId) {
-    // Update drag state
-    dragState.value.cardId = cardId
-    dragState.value.toColumnId = props.column.id
-
-    // Emit the move event with complete information
-    emit('card-moved', {
-      cardId,
-      fromColumnId: dragState.value.fromColumnId,
-      toColumnId: props.column.id,
-      newIndex,
-      oldIndex: null
-    })
-
-    // Reset drag state
-    dragState.value = { cardId: null, fromColumnId: null, toColumnId: null }
+  if (!cardId) {
+    console.error(`❌ [${timestamp}] No cardId found in drag event`)
+    return
   }
+
+  // SIMPLIFIED EMPTY COLUMN HANDLING
+  const isTargetColumnEmpty = props.cards.length === 0
+  let fromColumnId = props.dragState.fromColumnId
+
+  // SIMPLE FALLBACK: Find fromColumnId if missing
+  if (!fromColumnId) {
+    // Try card attributes first
+    fromColumnId = item.getAttribute('data-from-column') || item.dataset.fromColumn
+
+    if (!fromColumnId) {
+      // Use find-card-column to locate the card
+      emit('find-card-column', {
+        cardId,
+        targetColumnId: props.column.id,
+        processImmediately: isTargetColumnEmpty,
+        isTargetColumnEmpty
+      })
+      return
+    }
+  }
+
+  // Priority: Always process empty column moves immediately
+  if (isTargetColumnEmpty) {
+    console.log(`🎯 [${timestamp}] EMPTY COLUMN: Processing immediately`)
+  }
+
+  // Emit the move event
+  emit('card-moved', {
+    cardId,
+    fromColumnId,
+    toColumnId: props.column.id,
+    newIndex,
+    oldIndex: null,
+    wasEmptyColumn: isTargetColumnEmpty
+  })
+
+  // Simplified drag state clearing
+  nextTick(() => {
+    emit('update-drag-state', {
+      cardId: null,
+      fromColumnId: null,
+      toColumnId: null
+    })
+  })
 }
 
 // Handle card removed from this column
 const handleCardRemove = (event) => {
+  const timestamp = Date.now()
   const { item, oldIndex } = event
   const cardId = item.dataset.cardId || item.getAttribute('data-card-id')
 
-  console.log('Card removed from column', props.column.id, { cardId, oldIndex })
+  console.log(`🔴 [${timestamp}] Card REMOVED from column ${props.column.id}:`, {
+    cardId,
+    oldIndex,
+    currentDragState: props.dragState,
+    cardsRemaining: props.cards.length
+  })
 
   if (cardId) {
     // Store the source column for when the card is added elsewhere
-    dragState.value.cardId = cardId
-    dragState.value.fromColumnId = props.column.id
+    // IMPORTANT: Update drag state BEFORE the card is actually moved
+    const newDragState = {
+      cardId,
+      fromColumnId: props.column.id,
+      toColumnId: null
+    }
+
+    console.log(`📤 [${timestamp}] Updating drag state on card removal:`, newDragState)
+    emit('update-drag-state', newDragState)
+
+    // Add a safeguard to ensure drag state is properly set
+    nextTick(() => {
+      console.log(`✅ [${Date.now()}] Drag state verification after card removal:`, props.dragState)
+    })
+  } else {
+    console.warn(`⚠️ [${timestamp}] No cardId found in card removal event`)
   }
 }
 

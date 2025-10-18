@@ -86,6 +86,9 @@
 </template>
 
 <script setup>
+// Import needed Vue functions
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+
 // Props
 const props = defineProps({
   card: {
@@ -116,14 +119,6 @@ const availableColumns = computed(() => {
 
 // Toggle move menu
 const toggleMoveMenu = () => {
-  if (!showMoveMenu.value) {
-    // Se estamos abrindo o dropdown, notificar outros dropdowns para fechar
-    const event = new CustomEvent('close-other-dropdowns', {
-      detail: { cardId: props.card.id }
-    })
-    document.dispatchEvent(event)
-  }
-
   showMoveMenu.value = !showMoveMenu.value
 }
 
@@ -140,44 +135,12 @@ const handleClickOutside = (event) => {
   }
 }
 
-// Global event handler for closing other dropdowns
-const handleGlobalDropdownClose = (event) => {
-  if (event.detail && event.detail.cardId !== props.card.id) {
-    showMoveMenu.value = false
-    // Restaurar scroll do body
-    document.body.style.overflow = ''
-    // Resetar dropdownStyle para valores padrão
-    dropdownStyle.value = {
-      position: 'fixed',
-      top: '0px',
-      left: '0px',
-      zIndex: 9999
-    }
-  }
-}
-
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-<<<<<<< HEAD
-  window.addEventListener('resize', handleResize)
-  // Adicionar listener para eventos globais de dropdown
-  document.addEventListener('close-other-dropdowns', handleGlobalDropdownClose)
-=======
->>>>>>> parent of 0c2c4b7 (ajustando dropdown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
-<<<<<<< HEAD
-  window.removeEventListener('resize', handleResize)
-  // Remover listener para eventos globais de dropdown
-  document.removeEventListener('close-other-dropdowns', handleGlobalDropdownClose)
-  // Garantir que o scroll seja restaurado se o componente for destruído
-  if (showMoveMenu.value) {
-    document.body.style.overflow = ''
-  }
-=======
->>>>>>> parent of 0c2c4b7 (ajustando dropdown)
 })
 </script>
 

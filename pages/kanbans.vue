@@ -68,6 +68,7 @@
               :column="column"
               :columns="columns"
               :cards="getColumnCards(column.id)"
+              :drag-state="dragState"
               @add-card="handleAddCard"
               @edit-card="handleEditCard"
               @delete-card="handleDeleteCard"
@@ -80,6 +81,8 @@
               @delete-column="handleDeleteColumn"
               @update-column-icon="handleUpdateColumnIcon"
               @update-column-color="handleUpdateColumnColor"
+              @update-drag-state="handleUpdateDragState"
+              @find-card-column="handleFindCardColumn"
             />
           </div>
         </div>
@@ -448,7 +451,8 @@
 const columns = ref([
   { id: 'todo', title: 'Para Fazer', position: 0 },
   { id: 'doing', title: 'Fazendo', position: 1 },
-  { id: 'done', title: 'Concluído', position: 2 }
+  { id: 'done', title: 'Concluído', position: 2 },
+  { id: 'testing', title: 'Teste (Vazia)', position: 3 }
 ])
 
 const kanbans = ref([
@@ -496,6 +500,15 @@ const cardForm = ref({
   description: '',
   columnId: 'todo',
   isUrgent: false
+})
+
+// Centralized drag state to track card movements between columns
+const dragState = ref({
+  cardId: null,
+  fromColumnId: null,
+  toColumnId: null,
+  isDragging: false,
+  dragStartTime: null
 })
 
 // Kanban modal state
@@ -867,66 +880,261 @@ const validateCardIntegrity = () => {
 
 // Handle card moved between columns
 const handleCardMoved = (moveData) => {
-  console.log('Card moved:', moveData)
+  const timestamp = Date.now()
+  console.log(`🎯 [${timestamp}] CARD MOVED EVENT:`, moveData)
 
-  const { cardId, fromColumnId, toColumnId, newIndex } = moveData
+  const { cardId, fromColumnId, toColumnId, newIndex, wasEmptyColumn } = moveData
 
-  if (!cardId || !fromColumnId || !toColumnId) {
-    console.error('Invalid move data:', moveData)
+  // Basic validation
+  if (!cardId || !toColumnId) {
+    console.error('❌ Invalid move data:', moveData)
     return
   }
 
-  // Validate card exists before moving
-  const card = cards.value.find(c => c.id === cardId)
-  if (!card) {
-    console.error('Card not found:', cardId)
-    // Try to recover by finding the card in any column
-    const allColumnsCards = columns.value.flatMap(col => getColumnCards(col.id))
-    const foundCard = allColumnsCards.find(c => c.id === cardId)
-    if (foundCard) {
-      console.log('Recovering lost card:', foundCard)
-      cards.value.push({ ...foundCard })
+  // Validate target column exists
+  const targetColumn = columns.value.find(c => c.id === toColumnId)
+  if (!targetColumn) {
+    console.error('❌ Target column does not exist:', toColumnId)
+    return
+  }
+
+  // Handle missing fromColumnId
+  let effectiveFromColumnId = fromColumnId
+  if (!fromColumnId) {
+    const card = cards.value.find(c => c.id === cardId)
+    if (card) {
+      effectiveFromColumnId = card.columnId
     } else {
-      console.error('Card completely lost:', cardId)
+      console.error('❌ Cannot determine fromColumnId and card not found:', cardId)
       return
     }
   }
 
-  console.log(`Moving card ${cardId} from ${fromColumnId} to ${toColumnId}`)
-
-  // Update card's column and position
-  const targetCard = cards.value.find(c => c.id === cardId)
-  if (targetCard) {
-    targetCard.columnId = toColumnId
-    targetCard.position = newIndex || 0
-    targetCard.updated_at = new Date().toISOString()
+  // Prevent unnecessary moves
+  if (effectiveFromColumnId === toColumnId) {
+    console.log('⏭️ Card moved to same column, skipping')
+    return
   }
 
-  // Reposition cards in both columns
-  repositionCardsInColumn(fromColumnId)
-  repositionCardsInColumn(toColumnId)
+  // Find the card
+  let targetCard = cards.value.find(c => c.id === cardId)
+  if (!targetCard) {
+    console.error('❌ Card not found:', cardId)
+    return
+  }
 
-  // Validate integrity after operation
-  setTimeout(() => {
-    validateCardIntegrity()
-  }, 100)
+  // Determine if moving to empty column
+  const isMovingToEmptyColumn = wasEmptyColumn || getColumnCards(toColumnId).length === 0
+
+  console.log(`🚀 [${timestamp}] Moving ${cardId} from ${effectiveFromColumnId} to ${toColumnId}`, {
+    isMovingToEmptyColumn,
+    newIndex
+  })
+
+  // Update card properties
+  const oldColumnId = targetCard.columnId
+  targetCard.columnId = toColumnId
+  targetCard.position = newIndex !== undefined ? newIndex : 0
+  targetCard.updated_at = new Date().toISOString()
+
+  // Reposition cards with simplified timing
+  nextTick(() => {
+    repositionCardsInColumn(effectiveFromColumnId)
+    repositionCardsInColumn(toColumnId)
+
+    // Quick validation for empty columns
+    if (isMovingToEmptyColumn) {
+      setTimeout(() => {
+        if (validateCardIntegrity()) {
+          console.log(`✅ [${Date.now()}] Empty column move successful`)
+        } else {
+          console.error(`❌ [${Date.now()}] Move validation failed`)
+        }
+      }, 100) // Reduced delay
+    }
+  })
+}
+
+// Handle update drag state
+const handleUpdateDragState = (newState) => {
+  console.log('🔄 UPDATING DRAG STATE:', {
+    currentState: dragState.value,
+    newState: newState,
+    merged: { ...dragState.value, ...newState }
+  })
+
+  // Enhanced drag state management with lifecycle tracking
+  const previousState = { ...dragState.value }
+  dragState.value = { ...dragState.value, ...newState }
+
+  // Track drag lifecycle
+  if (newState.cardId && !previousState.isDragging) {
+    // Drag operation starting
+    dragState.value.isDragging = true
+    dragState.value.dragStartTime = Date.now()
+    console.log('🚀 DRAG OPERATION STARTED:', {
+      cardId: newState.cardId,
+      fromColumnId: newState.fromColumnId,
+      startTime: dragState.value.dragStartTime
+    })
+  } else if (!newState.cardId && previousState.isDragging) {
+    // Drag operation ending
+    const dragDuration = Date.now() - (previousState.dragStartTime || 0)
+    dragState.value.isDragging = false
+    dragState.value.dragStartTime = null
+    console.log('✅ DRAG OPERATION COMPLETED:', {
+      duration: `${dragDuration}ms`,
+      finalState: dragState.value
+    })
+  }
+
+  console.log('✅ Drag state updated:', dragState.value)
+}
+
+// Handle find card column (for empty columns support)
+const handleFindCardColumn = ({ cardId, targetColumnId, processImmediately = false, isTargetColumnEmpty = false }) => {
+  const timestamp = Date.now()
+  console.log(`🔍 [${timestamp}] Finding card column for:`, {
+    cardId,
+    targetColumnId,
+    processImmediately,
+    isTargetColumnEmpty,
+    currentDragState: dragState.value
+  })
+
+  // Find the card in the main cards array
+  const card = cards.value.find(c => c.id === cardId)
+  if (!card) {
+    console.error(`❌ [${timestamp}] Card not found:`, cardId)
+    return
+  }
+
+  const fromColumnId = card.columnId
+  console.log(`✅ [${timestamp}] Found card ${cardId} in column: ${fromColumnId}`)
+
+  // ENHANCED DRAG STATE: Update with complete information for empty columns
+  const newDragState = {
+    cardId,
+    fromColumnId,
+    toColumnId: targetColumnId,
+    isDragging: true,
+    dragStartTime: dragState.value.dragStartTime || Date.now()
+  }
+
+  console.log(`📤 [${timestamp}] Updating drag state for empty column move:`, newDragState)
+  dragState.value = newDragState
+
+  // IMMEDIATE PROCESSING: For empty columns, process immediately to avoid timing issues
+  if (processImmediately || isTargetColumnEmpty) {
+    console.log(`🚀 [${timestamp}] IMMEDIATE PROCESSING: Moving card to empty column`)
+
+    // Process the move immediately with enhanced data
+    const moveData = {
+      cardId,
+      fromColumnId,
+      toColumnId: targetColumnId,
+      newIndex: 0,
+      oldIndex: null,
+      wasEmptyColumn: isTargetColumnEmpty,
+      immediateProcessing: true
+    }
+
+    console.log(`📤 [${timestamp}] Emitting immediate card-moved event:`, moveData)
+
+    // Use setTimeout with 0 delay to ensure this runs after current event cycle
+    setTimeout(() => {
+      handleCardMoved(moveData)
+    }, 0)
+  } else {
+    // Standard processing for non-immediate cases
+    const moveData = {
+      cardId,
+      fromColumnId,
+      toColumnId: targetColumnId,
+      newIndex: 0,
+      oldIndex: null
+    }
+
+    console.log(`📤 [${timestamp}] Emitting standard card-moved event:`, moveData)
+    handleCardMoved(moveData)
+  }
 }
 
 // Handle update cards from VueDraggablePlus (reordering within same column)
 const handleUpdateCards = (updatedCards) => {
-  console.log('Cards updated:', updatedCards)
+  const timestamp = Date.now()
+  console.log(`📝 [${timestamp}] UPDATE CARDS EVENT (reordering within same column):`, updatedCards.map(c => c.id))
+  console.log('📊 Current drag state during update:', dragState.value)
 
-  const columnId = updatedCards[0]?.columnId
-  if (!columnId) return
+  if (!updatedCards || updatedCards.length === 0) {
+    console.warn(`⚠️ [${timestamp}] No updatedCards provided, skipping reordering`)
+    return
+  }
+
+  // Get columnId from the first card that has a columnId
+  let columnId = null
+  for (const card of updatedCards) {
+    if (card.columnId) {
+      columnId = card.columnId
+      break
+    }
+  }
+
+  if (!columnId) {
+    console.warn(`⚠️ [${timestamp}] No columnId found in updatedCards, skipping reordering`)
+    return
+  }
+
+  // ENHANCED BLOCKING: Multiple checks for drag operation conflicts
+  const blockingReasons = []
+
+  // Block 1: Active drag operation with card ID
+  if (dragState.value.cardId) {
+    blockingReasons.push('Active drag operation (cardId present)')
+  }
+
+  // Block 2: Drag flag is active
+  if (dragState.value.isDragging) {
+    blockingReasons.push('Drag flag is active')
+  }
+
+  // Block 3: Cross-column move in progress
+  if (dragState.value.fromColumnId !== dragState.value.toColumnId) {
+    blockingReasons.push('Cross-column move in progress')
+  }
+
+  // Block 4: Recent drag start (within cooldown period)
+  if (dragState.value.dragStartTime && (Date.now() - dragState.value.dragStartTime < 500)) {
+    blockingReasons.push('Recent drag start (cooldown period)')
+  }
+
+  // Apply blocking if any reasons exist
+  if (blockingReasons.length > 0) {
+    console.log(`🚫 [${timestamp}] BLOCKING reordering for column ${columnId}:`)
+    console.log('   📋 Blocking reasons:', blockingReasons.join(', '))
+    console.log('   🎯 Action: Preventing VueDraggable reordering conflicts')
+    return
+  }
+
+  console.log(`✅ [${timestamp}] SAFE PROCEEDING: Processing reordering for column ${columnId}`)
 
   // Update positions for cards in this column
   updatedCards.forEach((updatedCard, index) => {
     const card = cards.value.find(c => c.id === updatedCard.id)
     if (card) {
+      const oldPosition = card.position
       card.position = index
       card.updated_at = new Date().toISOString()
+
+      if (oldPosition !== index) {
+        console.log(`📍 [${timestamp}] Card ${updatedCard.id} position changed: ${oldPosition} → ${index}`)
+      }
+    } else {
+      console.warn(`⚠️ [${timestamp}] Card not found for reordering:`, updatedCard.id)
     }
   })
+
+  console.log(`✅ [${timestamp}] Reordering completed for column ${columnId}`)
 }
 
 // Handle card drop (simplified for VueDraggablePlus)
@@ -980,6 +1188,20 @@ const repositionCardsInColumn = (columnId) => {
 
   console.log(`Repositioning ${columnCards.length} cards in column ${columnId}`)
 
+  // Check if repositioning is needed to avoid unnecessary updates
+  let needsUpdate = false
+  columnCards.forEach((card, index) => {
+    if (card.position !== index) {
+      needsUpdate = true
+    }
+  })
+
+  if (!needsUpdate) {
+    console.log(`No repositioning needed for column ${columnId}`)
+    return
+  }
+
+  // Update positions
   columnCards.forEach((card, index) => {
     card.position = index
     card.updated_at = new Date().toISOString()

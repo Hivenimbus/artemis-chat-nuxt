@@ -16,7 +16,9 @@
       "mcp__supabase-NOVO__get_project_url",
       "mcp__supabase-NOVO__get_anon_key",
       "mcp__supabase-NOVO__list_tables",
-      "mcp__supabase-NOVO__get_logs"
+      "mcp__supabase-NOVO__get_logs",
+      "Bash(npm run dev)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
