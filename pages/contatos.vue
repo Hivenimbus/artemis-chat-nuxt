@@ -100,6 +100,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                           </svg>
                           {{ formatDate(contact.lastContact) }}
+                          <NuxtLink
+                            :to="`/contatos/${contact.id}`"
+                            class="ml-2 text-blue-600 hover:text-blue-900 text-xs sm:text-sm font-medium transition-colors"
+                          >
+                            ver mais
+                          </NuxtLink>
                         </span>
                       </div>
                       <div class="mt-2 flex flex-wrap gap-1">
