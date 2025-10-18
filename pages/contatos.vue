@@ -45,7 +45,10 @@
             </div>
 
             <div class="mt-0 sm:mt-0">
-              <button class="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+              <button
+                @click="showCreateModal = true"
+                class="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
                 <svg class="-ml-1 mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                 </svg>
@@ -343,6 +346,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Criação de Contato -->
+    <ContactCreateModal
+      v-if="showCreateModal"
+      @save="handleCreateContact"
+      @close="showCreateModal = false"
+    />
   </div>
 </template>
 
@@ -686,6 +696,9 @@ const expandedContacts = ref([])
 // Estado de feedback de atualização
 const updateSuccess = ref(null)
 
+// Estado do modal de criação
+const showCreateModal = ref(false)
+
 // Computados
 const filteredContacts = computed(() => {
   let result = contacts.value
@@ -826,6 +839,42 @@ const updateContact = (contactId) => {
       expandedContacts.value.splice(expandedIndex, 1)
     }
   }
+}
+
+// Método de criação de contato
+const handleCreateContact = (contactData) => {
+  // Gerar ID único (em um app real, isso viria do backend)
+  const newId = Math.max(...contacts.value.map(c => c.id)) + 1
+
+  // Criar novo contato com os dados do formulário
+  const newContact = {
+    id: newId,
+    name: contactData.name + (contactData.lastName ? ' ' + contactData.lastName : ''),
+    email: contactData.email,
+    phone: contactData.phone,
+    status: contactData.status,
+    tags: contactData.tags,
+    lastContact: contactData.lastContact,
+    lastName: contactData.lastName || '',
+    city: contactData.city || '',
+    country: contactData.country || '',
+    biography: contactData.biography || '',
+    company: contactData.company || ''
+  }
+
+  // Adicionar ao início da lista
+  contacts.value.unshift(newContact)
+
+  // Fechar modal
+  showCreateModal.value = false
+
+  // Mostrar feedback de sucesso
+  updateSuccess.value = `Contato "${newContact.name}" criado com sucesso!`
+
+  // Remover o feedback após 3 segundos
+  setTimeout(() => {
+    updateSuccess.value = null
+  }, 3000)
 }
 
 // Métodos de paginação
