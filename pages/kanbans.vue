@@ -497,7 +497,7 @@ definePageMeta({
 })
 
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { userData } = useUser()
 
 // State para o kanban
 const columns = ref([])
@@ -825,7 +825,7 @@ const saveKanban = async () => {
   try {
     savingKanban.value = true
 
-    if (!user.value?.empresa_id) {
+    if (!userData.value?.empresa_id) {
       throw new Error('Usuário não vinculado a uma empresa')
     }
 
@@ -835,8 +835,8 @@ const saveKanban = async () => {
       .insert({
         title: kanbanForm.value.name.trim(),
         description: null,
-        empresa_id: user.value.empresa_id,
-        created_by: user.value.id
+        empresa_id: userData.value.empresa_id,
+        created_by: userData.value.id
       })
       .select()
       .single()
