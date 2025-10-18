@@ -101,7 +101,7 @@
                           </svg>
                           {{ formatDate(contact.lastContact) }}
                           <NuxtLink
-                            :to="`/contatos/${contact.id}`"
+                            :to="`/contato/${contact.id}`"
                             class="ml-2 text-blue-600 hover:text-blue-900 text-xs sm:text-sm font-medium transition-colors"
                           >
                             ver mais
