@@ -298,7 +298,24 @@ const tagsDropdownPosition = ref({ top: 0, left: 0, width: 0 })
 const tagsButtonRef = ref(null)
 
 // Tags disponíveis
-const availableTags = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+const availableTags = ref([])
+
+// Carregar etiquetas disponíveis
+const loadEtiquetas = async () => {
+  try {
+    const { fetchEtiquetas } = useContatos()
+    availableTags.value = await fetchEtiquetas()
+  } catch (err) {
+    console.error('Erro ao carregar etiquetas:', err)
+    // Usar tags padrão em caso de erro
+    availableTags.value = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+  }
+}
+
+// Carregar etiquetas quando o componente for montado
+onMounted(() => {
+  loadEtiquetas()
+})
 
 // Form data
 const formData = ref({

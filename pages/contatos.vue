@@ -63,7 +63,35 @@
         <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Container da lista com scroll customizado -->
           <div class="flex-1 p-2 sm:p-4 custom-scrollbar-container rounded-b-lg">
-            <div class="space-y-2 sm:space-y-3">
+            <!-- Estado de Loading -->
+            <div v-if="loading" class="flex items-center justify-center py-12">
+              <div class="flex flex-col items-center space-y-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="text-sm text-gray-500">Carregando contatos...</span>
+              </div>
+            </div>
+
+            <!-- Estado de Erro -->
+            <div v-else-if="error" class="flex items-center justify-center py-12">
+              <div class="flex flex-col items-center space-y-4 text-center">
+                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+                <div>
+                  <h3 class="text-sm font-medium text-gray-900">Erro ao carregar contatos</h3>
+                  <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
+                </div>
+                <button
+                  @click="loadContatos"
+                  class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+
+            <!-- Lista de Contatos -->
+            <div v-else-if="contacts.length > 0" class="space-y-2 sm:space-y-3">
               <div
                 v-for="contact in paginatedContacts"
                 :key="contact.id"
@@ -287,14 +315,39 @@
                 </div>
               </div>
             </div>
+
+            <!-- Estado Vazio -->
+            <div v-else class="flex items-center justify-center py-12">
+              <div class="flex flex-col items-center space-y-4 text-center">
+                <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <div>
+                  <h3 class="text-sm font-medium text-gray-900">Nenhum contato encontrado</h3>
+                  <p class="mt-1 text-sm text-gray-500">
+                    {{ searchTerm ? 'Tente uma busca diferente' : 'Comece criando seu primeiro contato' }}
+                  </p>
+                </div>
+                <button
+                  v-if="!searchTerm"
+                  @click="showCreateModal = true"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                  </svg>
+                  Novo Contato
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Paginação (fora do container de scroll) -->
           <div class="border-t border-gray-200 bg-white px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 flex-shrink-0 rounded-b-lg">
             <!-- Informações de contatos exibidos -->
             <div class="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
-              <span v-if="filteredContacts.length > 0">
-                Mostrando {{ startItem }}-{{ endItem }} de {{ filteredContacts.length }} contatos
+              <span v-if="totalItems > 0">
+                Mostrando {{ startItem }}-{{ endItem }} de {{ totalItems }} contatos
               </span>
               <span v-else>
                 Nenhum contato encontrado
@@ -364,354 +417,19 @@
 </template>
 
 <script setup>
-// Dados mockados para demonstração
-const contacts = ref([
-  {
-    id: 1,
-    name: 'João Silva',
-    email: 'joao.silva@email.com',
-    phone: '11999999999',
-    status: 'active',
-    tags: ['VIP', 'Cliente'],
-    lastContact: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
-    lastName: 'Silva',
-    city: 'São Paulo',
-    country: 'Brasil',
-    biography: 'Gerente de projetos com mais de 10 anos de experiência em tecnologia.',
-    company: 'Tech Solutions Ltda',
-    address: 'Rua das Flores, 123, apto 45'
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    email: 'maria.santos@email.com',
-    phone: '21988888888',
-    status: 'pending',
-    tags: ['Novo Lead'],
-    lastContact: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
-    lastName: 'Santos',
-    city: 'Rio de Janeiro',
-    country: 'Brasil',
-    biography: 'Especialista em marketing digital e redes sociais.',
-    company: 'Marketing Digital Agency',
-    address: 'Avenida Atlântica, 456, sala 201'
-  },
-  {
-    id: 3,
-    name: 'Pedro Oliveira',
-    email: 'pedro.oliveira@email.com',
-    phone: '31977777777',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 30 * 60 * 1000), // 30 minutos atrás
-    lastName: 'Oliveira',
-    city: 'Belo Horizonte',
-    country: 'Brasil',
-    biography: 'Desenvolvedor full-stack com foco em aplicações web.',
-    company: 'DevWorks',
-    address: 'Rua Afonso Pena, 789, conjunto 12'
-  },
-  {
-    id: 4,
-    name: 'Ana Costa',
-    email: 'ana.costa@email.com',
-    phone: '11966666666',
-    status: 'inactive',
-    tags: ['Inativo'],
-    lastContact: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 dias atrás
-    lastName: 'Costa',
-    city: 'Salvador',
-    country: 'Brasil',
-    biography: 'Designer gráfico com experiência em branding.',
-    company: 'Creative Studio',
-    address: 'Praça da Sé, 100, centro'
-  },
-  {
-    id: 5,
-    name: 'Carlos Ferreira',
-    email: 'carlos.ferreira@email.com',
-    phone: '11955555555',
-    status: 'active',
-    tags: ['VIP', 'Empresa'],
-    lastContact: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 horas atrás
-    lastName: 'Ferreira',
-    city: 'Brasília',
-    country: 'Brasil',
-    biography: 'Consultor de negócios especializado em transformação digital.',
-    company: 'Business Consulting Group',
-    address: 'Setor de Clubes Esportivos Sul, 2000'
-  },
-  {
-    id: 6,
-    name: 'Fernanda Lima',
-    email: 'fernanda.lima@email.com',
-    phone: '11944444444',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
-    lastName: 'Lima',
-    city: 'Porto Alegre',
-    country: 'Brasil',
-    biography: 'Advogada especializada em direito empresarial.',
-    company: 'Law & Associates',
-    address: 'Rua Augusta, 1500, conj. 205'
-  },
-  {
-    id: 7,
-    name: 'Roberto Almeida',
-    email: 'roberto.almeida@email.com',
-    phone: '11933333333',
-    status: 'pending',
-    tags: ['Novo Lead', 'Empresa'],
-    lastContact: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 dias atrás
-    lastName: 'Almeida',
-    city: 'Curitiba',
-    country: 'Brasil',
-    biography: 'Engenheiro de software com experiência em cloud computing.',
-    company: 'CloudTech Solutions',
-    address: 'Alameda Santos, 2233, 14º andar'
-  },
-  {
-    id: 8,
-    name: 'Juliana Martins',
-    email: 'juliana.martins@email.com',
-    phone: '11922222222',
-    status: 'active',
-    tags: ['VIP'],
-    lastContact: new Date(Date.now() - 45 * 60 * 1000), // 45 minutos atrás
-    lastName: 'Martins',
-    city: 'Recife',
-    country: 'Brasil',
-    biography: 'Gerente de produtos especializada em SaaS.',
-    company: 'Product Innovations Inc',
-    address: 'Avenida Brigadeiro Faria Lima, 3477, 12º andar'
-  },
-  {
-    id: 9,
-    name: 'Lucas Pereira',
-    email: 'lucas.pereira@email.com',
-    phone: '11911111111',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 dias atrás
-    lastName: 'Pereira',
-    city: 'Fortaleza',
-    country: 'Brasil',
-    biography: 'Analista financeiro com experiência em investimentos.',
-    company: 'Financial Services Ltd',
-    address: 'Rua XV de Novembro, 3000, 5º andar'
-  },
-  {
-    id: 10,
-    name: 'Camila Souza',
-    email: 'camila.souza@email.com',
-    phone: '11900000000',
-    status: 'pending',
-    tags: ['Novo Lead'],
-    lastContact: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
-    lastName: 'Souza',
-    city: 'Manaus',
-    country: 'Brasil',
-    biography: 'Coordenadora de projetos sociais.',
-    company: 'Community Development NGO',
-    address: 'Rua da Consolação, 200, térreo'
-  },
-  {
-    id: 11,
-    name: 'Gustavo Mendes',
-    email: 'gustavo.mendes@email.com',
-    phone: '11999998888',
-    status: 'active',
-    tags: ['Empresa'],
-    lastContact: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 horas atrás
-    lastName: 'Mendes',
-    city: 'São Paulo',
-    country: 'Brasil',
-    biography: 'CTO de empresa de tecnologia.',
-    company: 'Innovation Tech',
-    address: 'Rua Haddock Lobo, 595, 10º andar'
-  },
-  {
-    id: 12,
-    name: 'Patricia Oliveira',
-    email: 'patricia.oliveira@email.com',
-    phone: '11999997777',
-    status: 'inactive',
-    tags: ['Inativo'],
-    lastContact: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 dias atrás
-    lastName: 'Oliveira',
-    city: 'Campinas',
-    country: 'Brasil',
-    biography: 'Analista de sistemas.',
-    company: 'Data Corp',
-    address: 'Avenida Paulista, 1000, 22º andar'
-  },
-  {
-    id: 13,
-    name: 'Ricardo Dias',
-    email: 'ricardo.dias@email.com',
-    phone: '11999996666',
-    status: 'active',
-    tags: ['VIP', 'Empresa'],
-    lastContact: new Date(Date.now() - 90 * 60 * 1000), // 1.5 horas atrás
-    lastName: 'Dias',
-    city: 'São Paulo',
-    country: 'Brasil',
-    biography: 'Diretor executivo.',
-    company: 'Executive Solutions',
-    address: 'Rua Fidencio Ramos, 220, 15º andar'
-  },
-  {
-    id: 14,
-    name: 'Mariana Costa',
-    email: 'mariana.costa@email.com',
-    phone: '11999995555',
-    status: 'pending',
-    tags: ['Novo Lead', 'VIP'],
-    lastContact: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 horas atrás
-    lastName: 'Costa',
-    city: 'Rio de Janeiro',
-    country: 'Brasil',
-    biography: 'Consultora de negócios.',
-    company: 'Business Strategy'
-  },
-  {
-    id: 15,
-    name: 'Bruno Santos',
-    email: 'bruno.santos@email.com',
-    phone: '11999994444',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
-    lastName: 'Santos',
-    city: 'Belém',
-    country: 'Brasil',
-    biography: 'Gerente de vendas.',
-    company: 'Sales Excellence'
-  },
-  {
-    id: 16,
-    name: 'Carolina Rocha',
-    email: 'carolina.rocha@email.com',
-    phone: '11999993333',
-    status: 'active',
-    tags: ['VIP'],
-    lastContact: new Date(Date.now() - 15 * 60 * 1000), // 15 minutos atrás
-    lastName: 'Rocha',
-    city: 'São Luís',
-    country: 'Brasil',
-    biography: 'CEO de startup.',
-    company: 'Startup Innovations'
-  },
-  {
-    id: 17,
-    name: 'Felipe Fernandes',
-    email: 'felipe.fernandes@email.com',
-    phone: '11999992222',
-    status: 'pending',
-    tags: ['Novo Lead'],
-    lastContact: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 horas atrás
-    lastName: 'Fernandes',
-    city: 'Goiânia',
-    country: 'Brasil',
-    biography: 'Desenvolvedor mobile.',
-    company: 'Mobile Solutions'
-  },
-  {
-    id: 18,
-    name: 'Tatiana Alves',
-    email: 'tatiana.alves@email.com',
-    phone: '11999991111',
-    status: 'active',
-    tags: ['Cliente', 'Empresa'],
-    lastContact: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 dias atrás
-    lastName: 'Alves',
-    city: 'Florianópolis',
-    country: 'Brasil',
-    biography: 'Arquiteta de software.',
-    company: 'Software Architecture'
-  },
-  {
-    id: 19,
-    name: 'Marcos Paulo',
-    email: 'marcos.paulo@email.com',
-    phone: '11999990000',
-    status: 'inactive',
-    tags: ['Inativo'],
-    lastContact: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000), // 21 dias atrás
-    lastName: 'Paulo',
-    city: 'Vitória',
-    country: 'Brasil',
-    biography: 'Analista de qualidade.',
-    company: 'Quality Assurance'
-  },
-  {
-    id: 20,
-    name: 'Isabela Gomes',
-    email: 'isabela.gomes@email.com',
-    phone: '11999989999',
-    status: 'active',
-    tags: ['VIP'],
-    lastContact: new Date(Date.now() - 60 * 60 * 1000), // 1 hora atrás
-    lastName: 'Gomes',
-    city: 'Natal',
-    country: 'Brasil',
-    biography: 'Gerente de projetos.',
-    company: 'Project Management',
-    address: 'Avenida Presidente Médici, 1500, Tirol'
-  },
-  {
-    id: 21,
-    name: 'Daniel Barbosa',
-    email: 'daniel.barbosa@email.com',
-    phone: '11999989988',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 dias atrás
-    lastName: 'Barbosa',
-    city: 'Maceió',
-    country: 'Brasil',
-    biography: 'Consultor financeiro.',
-    company: 'Financial Consulting',
-    address: 'Rua da Constituição, 1235, Centro'
-  },
-  {
-    id: 22,
-    name: 'Larissa Castro',
-    email: 'larissa.castro@email.com',
-    phone: '11999989977',
-    status: 'pending',
-    tags: ['Novo Lead', 'Empresa'],
-    lastContact: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 horas atrás
-    lastName: 'Castro',
-    city: 'João Pessoa',
-    country: 'Brasil',
-    biography: 'Especialista em RH.',
-    company: 'HR Solutions',
-    address: 'Avenida General Edson Ramalho, 382, Manaíra'
-  },
-  {
-    id: 23,
-    name: 'Thiago Nogueira',
-    email: 'thiago.nogueira@email.com',
-    phone: '11999989966',
-    status: 'active',
-    tags: ['VIP', 'Cliente'],
-    lastContact: new Date(Date.now() - 75 * 60 * 1000), // 1.25 horas atrás
-    lastName: 'Nogueira',
-    city: 'Aracaju',
-    country: 'Brasil',
-    biography: 'Empreendedor digital.',
-    company: 'Digital Business',
-    address: 'Rua São Paulo, 580, Salgado Filho'
-  }
-])
+// Composables
+const { fetchContatos, createContato, updateContato, fetchEtiquetas } = useContatos()
 
+// Estado de dados
+const contacts = ref([])
 const searchTerm = ref('')
+const availableTags = ref([])
 
 // Paginação
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
+const totalItems = ref(0)
+const totalPages = ref(0)
 
 // Estado de expansão dos cards
 const expandedContacts = ref([])
@@ -725,50 +443,69 @@ const showCreateModal = ref(false)
 // Estado de edição de tags nos cards
 const editingContactTags = ref(null)
 
-// Tags disponíveis para edição
-const availableTags = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+// Estado de loading
+const loading = ref(false)
+const error = ref(null)
 
 // Computados
 const filteredContacts = computed(() => {
-  let result = contacts.value
-
-  if (searchTerm.value) {
-    const search = searchTerm.value.toLowerCase()
-    result = result.filter(contact =>
-      contact.name.toLowerCase().includes(search) ||
-      contact.email.toLowerCase().includes(search) ||
-      contact.phone.includes(search)
-    )
-  }
-
-  return result
+  // A filtragem agora é feita no backend via API
+  return contacts.value
 })
 
 const paginatedContacts = computed(() => {
-  const result = filteredContacts.value
-  const startIndex = (currentPage.value - 1) * itemsPerPage.value
-  const endIndex = startIndex + itemsPerPage.value
-  return result.slice(startIndex, endIndex)
-})
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredContacts.value.length / itemsPerPage.value)
+  // Paginação agora é feita no backend via API
+  return contacts.value
 })
 
 const startItem = computed(() => {
-  return filteredContacts.value.length === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1
+  return totalItems.value === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1
 })
 
 const endItem = computed(() => {
   const end = currentPage.value * itemsPerPage.value
-  return end > filteredContacts.value.length ? filteredContacts.value.length : end
+  return end > totalItems.value ? totalItems.value : end
 })
 
 const vipContactsCount = computed(() =>
   contacts.value.filter(c => c.tags.includes('VIP')).length
 )
 
-// Métodos
+// Métodos de busca e carregamento
+const loadContatos = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    const result = await fetchContatos({
+      page: currentPage.value,
+      limit: itemsPerPage.value,
+      search: searchTerm.value
+    })
+
+    contacts.value = result.contatos
+    totalItems.value = result.pagination.totalItems
+    totalPages.value = result.pagination.totalPages
+
+  } catch (err) {
+    console.error('Erro ao carregar contatos:', err)
+    error.value = err.message || 'Erro ao carregar contatos'
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadEtiquetas = async () => {
+  try {
+    availableTags.value = await fetchEtiquetas()
+  } catch (err) {
+    console.error('Erro ao carregar etiquetas:', err)
+    // Usar tags padrão em caso de erro
+    availableTags.value = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+  }
+}
+
+// Métodos utilitários
 const getInitials = (name) => {
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 }
@@ -784,16 +521,15 @@ const formatPhone = (phone) => {
 
 const formatDate = (date) => {
   const now = new Date()
-  const diff = now - date
+  const diff = now - new Date(date)
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
   if (days === 0) return 'Hoje'
   if (days === 1) return 'Ontem'
   if (days < 7) return `Há ${days} dias`
 
-  return date.toLocaleDateString('pt-BR')
+  return new Date(date).toLocaleDateString('pt-BR')
 }
-
 
 const getTagColor = (tag) => {
   const colors = {
@@ -817,13 +553,36 @@ const toggleContactExpansion = (contactId) => {
 }
 
 // Método de atualização de contato
-const updateContact = (contactId) => {
-  // Encontrar o contato no array
-  const contactIndex = contacts.value.findIndex(c => c.id === contactId)
+const updateContact = async (contactId) => {
+  try {
+    // Encontrar o contato no array
+    const contactIndex = contacts.value.findIndex(c => c.id === contactId)
 
-  if (contactIndex !== -1) {
-    // Simular atualização (em um app real, isso seria uma chamada de API)
-    const updatedContact = { ...contacts.value[contactIndex] }
+    if (contactIndex === -1) {
+      throw new Error('Contato não encontrado')
+    }
+
+    const contactData = contacts.value[contactIndex]
+
+    // Preparar dados para API
+    const updateData = {
+      nome: contactData.name,
+      sobrenome: contactData.lastName,
+      email: contactData.email,
+      telefone: contactData.phone,
+      cidade: contactData.city,
+      pais: contactData.country,
+      biografia: contactData.biography,
+      empresa: contactData.company,
+      endereco: contactData.address,
+      tags: contactData.tags
+    }
+
+    // Chamar API de atualização
+    const updatedContact = await updateContato(contactId, updateData)
+
+    // Atualizar contato no array local
+    contacts.value[contactIndex] = updatedContact
 
     // Mostrar feedback de sucesso
     updateSuccess.value = `Contato "${updatedContact.name}" atualizado com sucesso!`
@@ -838,46 +597,57 @@ const updateContact = (contactId) => {
     if (expandedIndex > -1) {
       expandedContacts.value.splice(expandedIndex, 1)
     }
+
+  } catch (err) {
+    console.error('Erro ao atualizar contato:', err)
+    error.value = err.message || 'Erro ao atualizar contato'
   }
 }
 
 // Método de criação de contato
-const handleCreateContact = (contactData) => {
-  // Gerar ID único (em um app real, isso viria do backend)
-  const newId = Math.max(...contacts.value.map(c => c.id)) + 1
+const handleCreateContact = async (contactData) => {
+  try {
+    // Preparar dados para API
+    const newContactData = {
+      nome: contactData.name,
+      sobrenome: contactData.lastName,
+      email: contactData.email,
+      telefone: contactData.phone,
+      cidade: contactData.city,
+      pais: contactData.country,
+      biografia: contactData.biography,
+      empresa: contactData.company,
+      endereco: contactData.address,
+      tags: contactData.tags
+    }
 
-  // Criar novo contato com os dados do formulário
-  const newContact = {
-    id: newId,
-    name: contactData.name + (contactData.lastName ? ' ' + contactData.lastName : ''),
-    email: contactData.email,
-    phone: contactData.phone,
-    tags: contactData.tags,
-    lastName: contactData.lastName || '',
-    city: contactData.city || '',
-    country: contactData.country || '',
-    biography: contactData.biography || '',
-    company: contactData.company || '',
-    address: contactData.address || ''
+    // Chamar API de criação
+    const newContact = await createContato(newContactData)
+
+    // Adicionar ao início da lista
+    contacts.value.unshift(newContact)
+    totalItems.value++
+
+    // Fechar modal
+    showCreateModal.value = false
+
+    // Mostrar feedback de sucesso
+    updateSuccess.value = `Contato "${newContact.name}" criado com sucesso!`
+
+    // Remover o feedback após 3 segundos
+    setTimeout(() => {
+      updateSuccess.value = null
+    }, 3000)
+
+  } catch (err) {
+    console.error('Erro ao criar contato:', err)
+    error.value = err.message || 'Erro ao criar contato'
+    throw err // Propagar erro para o modal tratar
   }
-
-  // Adicionar ao início da lista
-  contacts.value.unshift(newContact)
-
-  // Fechar modal
-  showCreateModal.value = false
-
-  // Mostrar feedback de sucesso
-  updateSuccess.value = `Contato "${newContact.name}" criado com sucesso!`
-
-  // Remover o feedback após 3 segundos
-  setTimeout(() => {
-    updateSuccess.value = null
-  }, 3000)
 }
 
 // Métodos de edição de tags
-const toggleTagsEdit = (contactId) => {
+const toggleTagsEdit = async (contactId) => {
   if (editingContactTags.value === contactId) {
     editingContactTags.value = null
   } else {
@@ -885,16 +655,43 @@ const toggleTagsEdit = (contactId) => {
   }
 }
 
-const updateContactTags = (contactId, newTags) => {
-  // Encontrar o contato no array
-  const contactIndex = contacts.value.findIndex(c => c.id === contactId)
+const updateContactTags = async (contactId, newTags) => {
+  try {
+    // Encontrar o contato no array
+    const contactIndex = contacts.value.findIndex(c => c.id === contactId)
 
-  if (contactIndex !== -1) {
-    // Atualizar as tags
-    contacts.value[contactIndex].tags = newTags
+    if (contactIndex === -1) {
+      throw new Error('Contato não encontrado')
+    }
+
+    const contactData = contacts.value[contactIndex]
+
+    // Preparar dados para API (apenas tags)
+    const updateData = {
+      nome: contactData.name,
+      sobrenome: contactData.lastName,
+      email: contactData.email,
+      telefone: contactData.phone,
+      cidade: contactData.city,
+      pais: contactData.country,
+      biografia: contactData.biography,
+      empresa: contactData.company,
+      endereco: contactData.address,
+      tags: newTags
+    }
+
+    // Chamar API de atualização
+    const updatedContact = await updateContato(contactId, updateData)
+
+    // Atualizar contato no array local
+    contacts.value[contactIndex] = updatedContact
 
     // Sair do modo de edição
     editingContactTags.value = null
+
+  } catch (err) {
+    console.error('Erro ao atualizar tags do contato:', err)
+    error.value = err.message || 'Erro ao atualizar tags'
   }
 }
 
@@ -917,9 +714,21 @@ const nextPage = () => {
   }
 }
 
-// Resetar paginação quando a busca mudar
+// Watchers
 watch(searchTerm, () => {
   currentPage.value = 1
+}, { debounce: 300 })
+
+watch([currentPage, searchTerm], () => {
+  loadContatos()
+})
+
+// Carregar dados iniciais
+onMounted(async () => {
+  await Promise.all([
+    loadEtiquetas(),
+    loadContatos()
+  ])
 })
 
 // Definir middleware de autenticação

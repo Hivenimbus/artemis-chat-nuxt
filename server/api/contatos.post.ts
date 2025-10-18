@@ -1,0 +1,230 @@
+import { serverSupabaseClient } from '#supabase/server'
+
+export default defineEventHandler(async (event) => {
+  try {
+    console.log('API /api/contatos (POST): Iniciando requisição')
+
+    // Obter usuário autenticado
+    const client = await serverSupabaseClient(event)
+    const { data: { user }, error: userError } = await client.auth.getUser()
+
+    if (userError || !user) {
+      console.error('API /api/contatos (POST): Erro de autenticação:', userError)
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Usuário não autenticado'
+      })
+    }
+
+    // Buscar dados completos do usuário na tabela users
+    const { data: userData, error } = await client
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (error) {
+      console.error('API /api/contatos (POST): Erro ao buscar dados do usuário:', error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao buscar dados do usuário'
+      })
+    }
+
+    if (!userData?.empresa_id) {
+      console.error('API /api/contatos (POST): Usuário não possui empresa vinculada')
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Usuário não está associado a nenhuma empresa'
+      })
+    }
+
+    // Obter corpo da requisição
+    const body = await readBody(event)
+
+    // Validar campos obrigatórios
+    const { nome, email, telefone, tags = [] } = body
+
+    if (!nome || !email || !telefone) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Campos obrigatórios: nome, email, telefone'
+      })
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Email inválido'
+      })
+    }
+
+    // Validar telefone (apenas números)
+    const cleanPhone = telefone.replace(/\D/g, '')
+    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Telefone inválido'
+      })
+    }
+
+    console.log('API /api/contatos (POST): Dados validados, criando contato')
+
+    // Iniciar transação
+    const { data: novoContato, error: contatoError } = await client
+      .from('contatos')
+      .insert({
+        nome: nome.trim(),
+        sobrenome: body.sobrenome?.trim() || null,
+        email: email.trim().toLowerCase(),
+        telefone: cleanPhone,
+        cidade: body.cidade?.trim() || null,
+        pais: body.pais?.trim() || null,
+        biografia: body.biografia?.trim() || null,
+        empresa: body.empresa?.trim() || null,
+        endereco: body.endereco?.trim() || null,
+        empresa_id: userData.empresa_id
+      })
+      .select()
+      .single()
+
+    if (contatoError) {
+      console.error('API /api/contatos (POST): Erro ao criar contato:', contatoError)
+
+      // Verificar se é erro de email duplicado
+      if (contatoError.code === '23505') {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Email já cadastrado'
+        })
+      }
+
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao criar contato'
+      })
+    }
+
+    console.log('API /api/contatos (POST): Contato criado:', novoContato.id)
+
+    // Associar etiquetas se fornecidas
+    if (tags && tags.length > 0) {
+      console.log('API /api/contatos (POST): Associando etiquetas:', tags)
+
+      // Buscar IDs das etiquetas pelo nome
+      const { data: etiquetasExistentes, error: etiquetasError } = await client
+        .from('etiquetas')
+        .select('id, nome')
+        .eq('empresa_id', userData.empresa_id)
+        .in('nome', tags)
+
+      if (etiquetasError) {
+        console.error('API /api/contatos (POST): Erro ao buscar etiquetas:', etiquetasError)
+        // Não falhar a criação do contato se der erro nas etiquetas
+      } else if (etiquetasExistentes && etiquetasExistentes.length > 0) {
+        // Criar associações com as etiquetas encontradas
+        const associacoesEtiquetas = etiquetasExistentes.map(etiqueta => ({
+          contato_id: novoContato.id,
+          etiqueta_id: etiqueta.id
+        }))
+
+        const { error: associacaoError } = await client
+          .from('contato_etiquetas')
+          .insert(associacoesEtiquetas)
+
+        if (associacaoError) {
+          console.error('API /api/contatos (POST): Erro ao associar etiquetas:', associacaoError)
+          // Não falhar a criação do contato se der erro nas associações
+        } else {
+          console.log('API /api/contatos (POST): Etiquetas associadas com sucesso')
+        }
+      }
+    }
+
+    // Buscar contato completo com etiquetas para retornar
+    const { data: contatoCompleto, error: buscaError } = await client
+      .from('contatos')
+      .select(`
+        id,
+        nome,
+        sobrenome,
+        email,
+        telefone,
+        cidade,
+        pais,
+        biografia,
+        empresa,
+        endereco,
+        empresa_id,
+        created_at,
+        updated_at,
+        contato_etiquetas (
+          etiqueta_id,
+          etiquetas (
+            id,
+            nome,
+            cor
+          )
+        )
+      `)
+      .eq('id', novoContato.id)
+      .single()
+
+    if (buscaError) {
+      console.error('API /api/contatos (POST): Erro ao buscar contato completo:', buscaError)
+      // Retornar contato básico se der erro na busca completa
+    }
+
+    // Formatar dados para o frontend
+    const contatoFormatado = contatoCompleto ? {
+      ...contatoCompleto,
+      tags: contatoCompleto.contato_etiquetas
+        ?.filter(ce => ce.etiquetas)
+        ?.map(ce => ce.etiquetas.nome) || [],
+      name: contatoCompleto.nome,
+      lastName: contatoCompleto.sobrenome || '',
+      phone: contatoCompleto.telefone,
+      country: contatoCompleto.pais || '',
+      company: contatoCompleto.empresa || '',
+      address: contatoCompleto.endereco || '',
+      city: contatoCompleto.cidade || '',
+      biography: contatoCompleto.biografia || '',
+      lastContact: contatoCompleto.created_at
+    } : {
+      ...novoContato,
+      tags: [],
+      name: novoContato.nome,
+      lastName: novoContato.sobrenome || '',
+      phone: novoContato.telefone,
+      country: novoContato.pais || '',
+      company: novoContato.empresa || '',
+      address: novoContato.endereco || '',
+      city: novoContato.cidade || '',
+      biography: novoContato.biografia || '',
+      lastContact: novoContato.created_at
+    }
+
+    console.log('API /api/contatos (POST): Contato criado com sucesso')
+
+    return {
+      success: true,
+      data: contatoFormatado
+    }
+
+  } catch (error) {
+    console.error('API /api/contatos (POST): Erro no handler:', error)
+
+    // Se já for um erro criado, retornar como está
+    if (error.statusCode) {
+      throw error
+    }
+
+    // Erro genérico
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Erro interno do servidor'
+    })
+  }
+})

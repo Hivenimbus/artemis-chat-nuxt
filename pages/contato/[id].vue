@@ -52,8 +52,43 @@
         </div>
       </div>
 
+      <!-- Estado de Loading -->
+      <div v-if="loading" class="flex items-center justify-center py-12">
+        <div class="flex flex-col items-center space-y-4">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <span class="text-sm text-gray-500">Carregando contato...</span>
+        </div>
+      </div>
+
+      <!-- Estado de Erro -->
+      <div v-else-if="error" class="flex items-center justify-center py-12">
+        <div class="flex flex-col items-center space-y-4 text-center">
+          <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+          </svg>
+          <div>
+            <h3 class="text-sm font-medium text-gray-900">Erro ao carregar contato</h3>
+            <p class="mt-1 text-sm text-gray-500">{{ error }}</p>
+          </div>
+          <div class="flex space-x-3">
+            <NuxtLink
+              to="/contatos"
+              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Voltar para Contatos
+            </NuxtLink>
+            <button
+              @click="loadContact"
+              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Conteúdo principal -->
-      <div v-if="contact" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div v-else-if="contact" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Coluna principal - Informações básicas -->
         <div class="lg:col-span-2 space-y-6">
           <!-- Card informações básicas -->
@@ -339,108 +374,55 @@
 // Componentes
 import TagEditor from '~/components/TagEditor.vue'
 
-// Dados mockados (mesmos dados da página de contatos)
-const mockContacts = [
-  {
-    id: 1,
-    name: 'João Silva',
-    email: 'joao.silva@email.com',
-    phone: '11999999999',
-    status: 'active',
-    tags: ['VIP', 'Cliente'],
-    lastContact: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    lastName: 'Silva',
-    city: 'São Paulo',
-    country: 'Brasil',
-    biography: 'Gerente de projetos com mais de 10 anos de experiência em tecnologia.',
-    company: 'Tech Solutions Ltda',
-    address: 'Rua das Flores, 123, Centro'
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    email: 'maria.santos@email.com',
-    phone: '21988888888',
-    status: 'pending',
-    tags: ['Novo Lead'],
-    lastContact: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    lastName: 'Santos',
-    city: 'Rio de Janeiro',
-    country: 'Brasil',
-    biography: 'Especialista em marketing digital e redes sociais.',
-    company: 'Marketing Digital Agency',
-    address: 'Avenida Atlântica, 2000, Copacabana'
-  },
-  {
-    id: 3,
-    name: 'Pedro Oliveira',
-    email: 'pedro.oliveira@email.com',
-    phone: '31977777777',
-    status: 'active',
-    tags: ['Cliente'],
-    lastContact: new Date(Date.now() - 30 * 60 * 1000),
-    lastName: 'Oliveira',
-    city: 'Belo Horizonte',
-    country: 'Brasil',
-    biography: 'Desenvolvedor full-stack com foco em aplicações web.',
-    company: 'DevWorks',
-    address: 'Rua Afonso Pena, 1500, Centro'
-  },
-  {
-    id: 4,
-    name: 'Ana Costa',
-    email: 'ana.costa@email.com',
-    phone: '11966666666',
-    status: 'inactive',
-    tags: ['Inativo'],
-    lastContact: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    lastName: 'Costa',
-    city: 'Salvador',
-    country: 'Brasil',
-    biography: 'Designer gráfico com experiência em branding.',
-    company: 'Creative Studio',
-    address: 'Rua da Bahia, 800, Pelourinho'
-  },
-  {
-    id: 5,
-    name: 'Carlos Ferreira',
-    email: 'carlos.ferreira@email.com',
-    phone: '11955555555',
-    status: 'active',
-    tags: ['VIP', 'Empresa'],
-    lastContact: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    lastName: 'Ferreira',
-    city: 'Brasília',
-    country: 'Brasil',
-    biography: 'Consultor de negócios especializado em transformação digital.',
-    company: 'Business Consulting Group',
-    address: 'Setor Comercial Sul, 700, Asa Sul'
-  }
-]
+// Composables
+const { fetchContatoById, updateContato, fetchEtiquetas } = useContatos()
 
+// Estado
 const route = useRoute()
 const contact = ref(null)
 const editMode = ref(false)
 const updateSuccess = ref(null)
+const loading = ref(false)
+const error = ref(null)
 
 // Tags
 const editingTags = ref(false)
-const availableTags = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
-
-// Buscar contato pelo ID
-const findContactById = (id) => {
-  return mockContacts.find(c => c.id === parseInt(id))
-}
+const availableTags = ref([])
 
 // Carregar contato
-onMounted(() => {
-  const contactId = route.params.id
-  contact.value = findContactById(contactId)
+const loadContact = async () => {
+  try {
+    loading.value = true
+    error.value = null
 
-  if (!contact.value) {
-    // Contato não encontrado - pode redirecionar ou mostrar mensagem
-    console.error('Contato não encontrado:', contactId)
+    const contactId = route.params.id
+    const data = await fetchContatoById(contactId)
+    contact.value = data
+
+  } catch (err) {
+    console.error('Erro ao carregar contato:', err)
+    error.value = err.message || 'Contato não encontrado'
+  } finally {
+    loading.value = false
   }
+}
+
+const loadEtiquetas = async () => {
+  try {
+    availableTags.value = await fetchEtiquetas()
+  } catch (err) {
+    console.error('Erro ao carregar etiquetas:', err)
+    // Usar tags padrão em caso de erro
+    availableTags.value = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+  }
+}
+
+// Carregar dados iniciais
+onMounted(async () => {
+  await Promise.all([
+    loadEtiquetas(),
+    loadContact()
+  ])
 })
 
 // Métodos utilitários (mesmos da página de contatos)
@@ -486,17 +468,47 @@ const toggleEditMode = () => {
   editMode.value = !editMode.value
 }
 
-const updateContact = () => {
-  // Simular atualização (em um app real, isso seria uma chamada de API)
-  updateSuccess.value = `Contato "${contact.value.name}" atualizado com sucesso!`
+const updateContact = async () => {
+  try {
+    if (!contact.value) {
+      throw new Error('Nenhum contato para atualizar')
+    }
 
-  // Remover o feedback após 3 segundos
-  setTimeout(() => {
-    updateSuccess.value = null
-  }, 3000)
+    // Preparar dados para API
+    const updateData = {
+      nome: contact.value.name,
+      sobrenome: contact.value.lastName,
+      email: contact.value.email,
+      telefone: contact.value.phone,
+      cidade: contact.value.city,
+      pais: contact.value.country,
+      biografia: contact.value.biography,
+      empresa: contact.value.company,
+      endereco: contact.value.address,
+      tags: contact.value.tags
+    }
 
-  // Sair do modo de edição
-  editMode.value = false
+    // Chamar API de atualização
+    const updatedContact = await updateContato(contact.value.id, updateData)
+
+    // Atualizar contato local
+    contact.value = updatedContact
+
+    // Mostrar feedback de sucesso
+    updateSuccess.value = `Contato "${updatedContact.name}" atualizado com sucesso!`
+
+    // Remover o feedback após 3 segundos
+    setTimeout(() => {
+      updateSuccess.value = null
+    }, 3000)
+
+    // Sair do modo de edição
+    editMode.value = false
+
+  } catch (err) {
+    console.error('Erro ao atualizar contato:', err)
+    error.value = err.message || 'Erro ao atualizar contato'
+  }
 }
 
 // Métodos de edição de tags
@@ -504,17 +516,42 @@ const toggleTagsEdit = () => {
   editingTags.value = !editingTags.value
 }
 
-const updateContactTags = (newTags) => {
-  // Atualizar as tags do contato
-  if (contact.value) {
-    contact.value.tags = newTags
+const updateContactTags = async (newTags) => {
+  try {
+    if (!contact.value) {
+      throw new Error('Nenhum contato para atualizar')
+    }
+
+    // Preparar dados para API (apenas tags)
+    const updateData = {
+      nome: contact.value.name,
+      sobrenome: contact.value.lastName,
+      email: contact.value.email,
+      telefone: contact.value.phone,
+      cidade: contact.value.city,
+      pais: contact.value.country,
+      biografia: contact.value.biography,
+      empresa: contact.value.company,
+      endereco: contact.value.address,
+      tags: newTags
+    }
+
+    // Chamar API de atualização
+    const updatedContact = await updateContato(contact.value.id, updateData)
+
+    // Atualizar contato local
+    contact.value = updatedContact
+
+    // Sair do modo de edição de tags
+    editingTags.value = false
+
+    // Não mostrar mensagem de sucesso para evitar poluição visual
+    // O feedback visual é a própria atualização das tags
+
+  } catch (err) {
+    console.error('Erro ao atualizar tags do contato:', err)
+    error.value = err.message || 'Erro ao atualizar tags'
   }
-
-  // Sair do modo de edição de tags
-  editingTags.value = false
-
-  // Não mostrar mensagem de sucesso para evitar poluição visual
-  // O feedback visual é a própria atualização das tags
 }
 
 // Meta tags da página
