@@ -54,15 +54,14 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                Email *
+                Email
               </label>
               <input
                 v-model="formData.email"
                 type="email"
-                required
                 :disabled="loading"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="email@exemplo.com"
+                placeholder="email@exemplo.com (opcional)"
               />
               <p v-if="errors.email" class="mt-1 text-sm text-red-600">
                 {{ errors.email }}
@@ -415,13 +414,10 @@ const validateForm = () => {
     isValid = false
   }
 
-  // Validate email
-  if (!formData.value.email) {
-    errors.value.email = 'Email é obrigatório'
-    isValid = false
-  } else {
+  // Validate email (apenas se fornecido)
+  if (formData.value.email && formData.value.email.trim()) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.value.email)) {
+    if (!emailRegex.test(formData.value.email.trim())) {
       errors.value.email = 'Email inválido'
       isValid = false
     }

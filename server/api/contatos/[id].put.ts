@@ -64,20 +64,22 @@ export default defineEventHandler(async (event) => {
     // Validar campos obrigatórios
     const { nome, email, telefone, tags = [] } = body
 
-    if (!nome || !email || !telefone) {
+    if (!nome || !telefone) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Campos obrigatórios: nome, email, telefone'
+        statusMessage: 'Campos obrigatórios: nome, telefone'
       })
     }
 
-    // Validar formato do email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email inválido'
-      })
+    // Validar formato do email apenas se fornecido
+    if (email && email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email.trim())) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Email inválido'
+        })
+      }
     }
 
     // Validar telefone (apenas números)
@@ -122,22 +124,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o email foi alterado e se já existe
-    if (contatoExistente.email.toLowerCase() !== email.toLowerCase()) {
-      const { data: emailExistente, error: emailError } = await client
-        .from('contatos')
-        .select('id')
-        .eq('email', email.toLowerCase())
-        .eq('empresa_id', userData.empresa_id)
-        .single()
-
-      if (!emailError && emailExistente) {
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Email já cadastrado para outro contato'
-        })
-      }
-    }
+    // Não é necessário verificar duplicidade de email já que agora é opcional
 
     // Atualizar dados do contato
     const { data: contatoAtualizado, error: atualizacaoError } = await client
@@ -145,7 +132,7 @@ export default defineEventHandler(async (event) => {
       .update({
         nome: nome.trim(),
         sobrenome: body.sobrenome?.trim() || null,
-        email: email.trim().toLowerCase(),
+        email: email?.trim().toLowerCase() || null,
         telefone: cleanPhone,
         cidade: body.cidade?.trim() || null,
         pais: body.pais?.trim() || null,

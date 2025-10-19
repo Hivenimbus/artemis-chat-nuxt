@@ -75,17 +75,19 @@ export const useContatos = () => {
 
     try {
       // Validação básica dos campos obrigatórios
-      const requiredFields = ['nome', 'email', 'telefone']
+      const requiredFields = ['nome', 'telefone']
       const missingFields = requiredFields.filter(field => !contatoData[field])
 
       if (missingFields.length > 0) {
         throw new Error(`Campos obrigatórios: ${missingFields.join(', ')}`)
       }
 
-      // Validar formato do email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(contatoData.email)) {
-        throw new Error('Email inválido')
+      // Validar formato do email apenas se fornecido
+      if (contatoData.email && contatoData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(contatoData.email.trim())) {
+          throw new Error('Email inválido')
+        }
       }
 
       // Validar telefone
@@ -127,17 +129,19 @@ export const useContatos = () => {
 
     try {
       // Validação básica dos campos obrigatórios
-      const requiredFields = ['nome', 'email', 'telefone']
+      const requiredFields = ['nome', 'telefone']
       const missingFields = requiredFields.filter(field => !contatoData[field])
 
       if (missingFields.length > 0) {
         throw new Error(`Campos obrigatórios: ${missingFields.join(', ')}`)
       }
 
-      // Validar formato do email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(contatoData.email)) {
-        throw new Error('Email inválido')
+      // Validar formato do email apenas se fornecido
+      if (contatoData.email && contatoData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(contatoData.email.trim())) {
+          throw new Error('Email inválido')
+        }
       }
 
       // Validar telefone

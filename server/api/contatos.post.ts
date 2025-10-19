@@ -45,20 +45,22 @@ export default defineEventHandler(async (event) => {
     // Validar campos obrigatórios
     const { nome, email, telefone, tags = [] } = body
 
-    if (!nome || !email || !telefone) {
+    if (!nome || !telefone) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Campos obrigatórios: nome, email, telefone'
+        statusMessage: 'Campos obrigatórios: nome, telefone'
       })
     }
 
-    // Validar formato do email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Email inválido'
-      })
+    // Validar formato do email apenas se fornecido
+    if (email && email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email.trim())) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Email inválido'
+        })
+      }
     }
 
     // Validar telefone (apenas números)
@@ -78,7 +80,7 @@ export default defineEventHandler(async (event) => {
       .insert({
         nome: nome.trim(),
         sobrenome: body.sobrenome?.trim() || null,
-        email: email.trim().toLowerCase(),
+        email: email?.trim().toLowerCase() || null,
         telefone: cleanPhone,
         cidade: body.cidade?.trim() || null,
         pais: body.pais?.trim() || null,
@@ -92,14 +94,6 @@ export default defineEventHandler(async (event) => {
 
     if (contatoError) {
       console.error('API /api/contatos (POST): Erro ao criar contato:', contatoError)
-
-      // Verificar se é erro de email duplicado
-      if (contatoError.code === '23505') {
-        throw createError({
-          statusCode: 409,
-          statusMessage: 'Email já cadastrado'
-        })
-      }
 
       throw createError({
         statusCode: 500,

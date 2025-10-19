@@ -40,13 +40,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Criar inbox no Supabase vinculando à empresa
+    // Criar inbox no Supabase vinculando apenas à empresa
     const { data: inboxData, error: inboxError } = await client
       .from('inboxes')
       .insert({
         name: name.trim(),
         description: description?.trim() || null,
-        user_id: user.id,
         empresa_id: userData.empresa_id,
         status: 'disconnected'
       })

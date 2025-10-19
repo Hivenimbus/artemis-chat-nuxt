@@ -35,6 +35,15 @@
               </svg>
               {{ editMode ? 'Cancelar' : 'Editar' }}
             </button>
+            <button
+              @click="confirmDeleteContact"
+              class="inline-flex items-center px-3 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              Excluir
+            </button>
           </div>
         </div>
       </div>
@@ -367,6 +376,57 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div
+      v-if="showDeleteModal"
+      class="fixed inset-0 backdrop-blur-[2px] bg-opacity-20 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="flex items-center mb-4">
+          <div class="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <h3 class="text-lg font-semibold text-gray-900">Confirmar Exclusão</h3>
+            <p class="text-sm text-gray-500">Esta ação não pode ser desfeita</p>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <p class="text-gray-700">
+            Tem certeza que deseja excluir o contato
+            <span class="font-semibold text-gray-900">"{{ contact?.name }}"</span>?
+          </p>
+          <p class="text-sm text-gray-500 mt-2">
+            Todas as informações e histórico deste contato serão permanentemente removidos.
+          </p>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button
+            @click="cancelDelete"
+            :disabled="deleteLoading"
+            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancelar
+          </button>
+          <button
+            @click="executeDeleteContact"
+            :disabled="deleteLoading"
+            class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          >
+            <svg v-if="deleteLoading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ deleteLoading ? 'Excluindo...' : 'Excluir Contato' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -375,7 +435,7 @@
 import TagEditor from '~/components/TagEditor.vue'
 
 // Composables
-const { fetchContatoById, updateContato, fetchEtiquetas } = useContatos()
+const { fetchContatoById, updateContato, deleteContato, fetchEtiquetas } = useContatos()
 
 // Estado
 const route = useRoute()
@@ -384,6 +444,10 @@ const editMode = ref(false)
 const updateSuccess = ref(null)
 const loading = ref(false)
 const error = ref(null)
+
+// Estado de exclusão
+const showDeleteModal = ref(false)
+const deleteLoading = ref(false)
 
 // Tags
 const editingTags = ref(false)
@@ -551,6 +615,36 @@ const updateContactTags = async (newTags) => {
   } catch (err) {
     console.error('Erro ao atualizar tags do contato:', err)
     error.value = err.message || 'Erro ao atualizar tags'
+  }
+}
+
+// Métodos de exclusão
+const confirmDeleteContact = () => {
+  showDeleteModal.value = true
+}
+
+const cancelDelete = () => {
+  showDeleteModal.value = false
+}
+
+const executeDeleteContact = async () => {
+  if (!contact.value) return
+
+  try {
+    deleteLoading.value = true
+    error.value = null
+
+    await deleteContato(contact.value.id)
+
+    // Redirecionar para a lista de contatos
+    await navigateTo('/contatos')
+
+  } catch (err) {
+    console.error('Erro ao excluir contato:', err)
+    error.value = err.message || 'Erro ao excluir contato'
+    showDeleteModal.value = false
+  } finally {
+    deleteLoading.value = false
   }
 }
 
