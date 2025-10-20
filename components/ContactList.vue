@@ -192,8 +192,41 @@
 
     <!-- Lista de contatos -->
     <div class="space-y-3 p-3">
+      <!-- Estado de loading -->
+      <div v-if="props.loading" class="flex items-center justify-center py-8">
+        <div class="text-center">
+          <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-gray-600 text-sm">Carregando atendimentos...</p>
+        </div>
+      </div>
+
+      <!-- Estado de erro -->
+      <div v-else-if="props.error" class="flex items-center justify-center py-8">
+        <div class="text-center">
+          <svg class="h-12 w-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p class="text-red-600 text-sm">{{ props.error }}</p>
+        </div>
+      </div>
+
+      <!-- Lista vazia -->
+      <div v-else-if="!props.loading && !props.error && filteredContacts.length === 0" class="flex items-center justify-center py-8">
+        <div class="text-center">
+          <svg class="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+          <p class="text-gray-500 text-sm">Nenhum atendimento encontrado</p>
+        </div>
+      </div>
+
+      <!-- Lista de contatos -->
       <div
         v-for="contact in filteredContacts"
+        v-show="!props.loading && !props.error"
         :key="contact.id"
         :class="[
           'p-4 border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100 hover:shadow-md transition-all duration-200',
@@ -279,7 +312,7 @@ const props = defineProps({
     required: true
   },
   selectedContactId: {
-    type: Number,
+    type: [String, Number],
     default: null
   },
   availableTags: {
@@ -289,10 +322,22 @@ const props = defineProps({
   caixasEntradaOptions: {
     type: Array,
     default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  error: {
+    type: String,
+    default: null
+  },
+  selectedInboxId: {
+    type: String,
+    default: null
   }
 })
 
-const emit = defineEmits(['select-contact', 'assign-to-me'])
+const emit = defineEmits(['select-contact', 'assign-to-me', 'select-inbox'])
 
 const searchTerm = ref('')
 const selectedStatus = ref('todos')
@@ -307,6 +352,14 @@ const filterOptions = ref({
 
 // Opções de status com contagens
 const statusOptions = computed(() => {
+  if (!props.contacts || !Array.isArray(props.contacts)) {
+    return [
+      { label: 'Minhas', value: 'ativo', count: 0 },
+      { label: 'Aguardando', value: 'aguardando', count: 0 },
+      { label: 'Todos', value: 'todos', count: 0 }
+    ]
+  }
+
   const statusCounts = {
     todos: props.contacts.length,
     aguardando: props.contacts.filter(c => c.status === 'aguardando').length,
@@ -411,6 +464,7 @@ const selectCaixaEntrada = (value) => {
   selectedCaixaEntrada.value = value
   showCaixaEntradaDropdown.value = false
   searchCaixaEntrada.value = ''
+  emit('select-inbox', value)
 }
 
 const toggleFilterDropdown = () => {
@@ -451,8 +505,16 @@ const formatPhone = (phone) => {
 }
 
 const formatTime = (date) => {
+  if (!date) return 'sem data'
+
+  // Converter string para Date se necessário
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+
+  // Validar se é uma data válida
+  if (isNaN(dateObj.getTime())) return 'data inválida'
+
   const now = new Date()
-  const diff = now - date
+  const diff = now - dateObj
   const minutes = Math.floor(diff / (1000 * 60))
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -462,7 +524,7 @@ const formatTime = (date) => {
   if (hours < 24) return `há ${hours}h`
   if (days < 7) return `há ${days}d`
 
-  return date.toLocaleDateString('pt-BR')
+  return dateObj.toLocaleDateString('pt-BR')
 }
 
 const getTagColor = (tag) => {
@@ -491,6 +553,13 @@ watch(() => props.caixasEntradaOptions, (newOptions) => {
     if (firstRealInbox) {
       selectedCaixaEntrada.value = firstRealInbox.value
     }
+  }
+}, { immediate: true })
+
+// Watcher para sincronizar com prop do parent
+watch(() => props.selectedInboxId, (newInboxId) => {
+  if (newInboxId !== selectedCaixaEntrada.value) {
+    selectedCaixaEntrada.value = newInboxId
   }
 }, { immediate: true })
 

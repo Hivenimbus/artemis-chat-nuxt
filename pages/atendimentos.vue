@@ -4,12 +4,16 @@
     <div class="flex flex-1 overflow-hidden">
       <!-- Seção esquerda - Lista de contatos -->
       <ContactList
-        :contacts="contacts"
+        :contacts="atendimentos"
         :selected-contact-id="selectedContact?.id"
         :available-tags="availableTags"
         :caixas-entrada-options="caixasEntradaOptions"
+        :loading="loading"
+        :error="error"
+        :selected-inbox-id="selectedCaixaEntrada"
         @select-contact="selectContact"
         @assign-to-me="assignToMe"
+        @select-inbox="selectCaixaEntrada = $event"
       />
 
       <!-- Seção direita - Área de chat -->
@@ -69,170 +73,14 @@
 <script setup>
 import { nextTick } from 'vue'
 
-// Dados mockados para demonstração
-const contacts = ref([
-  {
-    id: 1,
-    name: 'João Silva',
-    phone: '11999999999',
-    lastMessage: 'Olá, preciso de ajuda com meu pedido',
-    lastMessageTime: new Date(Date.now() - 5 * 60 * 1000),
-    tags: ['Prioridade', 'VIP'],
-    unreadCount: 2,
-    status: 'ativo',
-    caixa_entrada: null, // Será atribuído dinamicamente baseado nas inboxes carregadas
-    messages: [
-      { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
-      { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 24 * 60 * 1000) },
-      { id: 3, text: 'Meu pedido #1234 está atrasado', sender: 'contact', timestamp: new Date(Date.now() - 23 * 60 * 1000) },
-      { id: 4, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 22 * 60 * 1000) },
-      { id: 5, text: 'Obrigado pelo atendimento rápido', sender: 'contact', timestamp: new Date(Date.now() - 21 * 60 * 1000) },
-      { id: 6, text: 'Verifiquei seu pedido e ele já foi despachado', sender: 'user', timestamp: new Date(Date.now() - 20 * 60 * 1000) },
-      { id: 7, text: 'Que bom! Quando ele deve chegar?', sender: 'contact', timestamp: new Date(Date.now() - 19 * 60 * 1000) },
-      { id: 8, text: 'A previsão de entrega é até sexta-feira', sender: 'user', timestamp: new Date(Date.now() - 18 * 60 * 1000) },
-      { id: 9, text: 'Perfeito, obrigado pela informação', sender: 'contact', timestamp: new Date(Date.now() - 17 * 60 * 1000) },
-      { id: 10, text: 'De nada! Se precisar de mais algo, é só chamar', sender: 'user', timestamp: new Date(Date.now() - 16 * 60 * 1000) },
-      { id: 11, text: 'Só mais uma dúvida, o pedido vem com nota fiscal?', sender: 'contact', timestamp: new Date(Date.now() - 15 * 60 * 1000) },
-      { id: 12, text: 'Sim, todos os nossos pedidos vêm com nota fiscal eletrônica', sender: 'user', timestamp: new Date(Date.now() - 14 * 60 * 1000) },
-      { id: 13, text: 'Excelente, isso é muito importante para mim', sender: 'contact', timestamp: new Date(Date.now() - 13 * 60 * 1000) },
-      { id: 14, text: 'A nota fiscal será enviada para seu e-mail cadastrado', sender: 'user', timestamp: new Date(Date.now() - 12 * 60 * 1000) },
-      { id: 15, text: 'Perfeito, já anotei isso. Obrigado mais uma vez!', sender: 'contact', timestamp: new Date(Date.now() - 11 * 60 * 1000) },
-      { id: 16, text: 'Foi um prazer ajudar! Estou à disposição', sender: 'user', timestamp: new Date(Date.now() - 10 * 60 * 1000) },
-      { id: 17, text: 'Tenha um ótimo dia!', sender: 'contact', timestamp: new Date(Date.now() - 9 * 60 * 1000) },
-      { id: 18, text: 'Você também! Até logo!', sender: 'user', timestamp: new Date(Date.now() - 8 * 60 * 1000) },
-      { id: 19, text: 'Oi, só para confirmar, meu pedido já saiu para entrega?', sender: 'contact', timestamp: new Date(Date.now() - 7 * 60 * 1000) },
-      { id: 20, text: 'Sim! Seu pedido já foi despachado hoje de manhã.', sender: 'user', timestamp: new Date(Date.now() - 6 * 60 * 1000) },
-      { id: 21, text: 'Que ótimo! Você tem o código de rastreamento?', sender: 'contact', timestamp: new Date(Date.now() - 5 * 60 * 1000) },
-      { id: 22, text: 'Claro! O código é: BR123456789BR', sender: 'user', timestamp: new Date(Date.now() - 4 * 60 * 1000) },
-      { id: 23, text: 'Perfeito, já vou rastrear no site dos Correios.', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 1000) },
-      { id: 24, text: 'Ótima ideia! Qualquer dúvida é só me chamar.', sender: 'user', timestamp: new Date(Date.now() - 2 * 60 * 1000) },
-      { id: 25, text: 'Obrigado pela ajuda! Vocês são incríveis!', sender: 'contact', timestamp: new Date(Date.now() - 1 * 60 * 1000) },
-      { id: 26, text: 'Foi um prazer ajudar! Volte sempre!', sender: 'user', timestamp: new Date() }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    phone: '21988888888',
-    lastMessage: 'Obrigado pela ajuda!',
-    lastMessageTime: new Date(Date.now() - 30 * 60 * 1000), // 30 minutos atrás
-    tags: ['Resolvido'],
-    unreadCount: 0,
-    status: 'concluido',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Preciso de ajuda com meu produto', sender: 'contact', timestamp: new Date(Date.now() - 60 * 60 * 1000) },
-      { id: 2, text: 'Claro, qual o problema?', sender: 'user', timestamp: new Date(Date.now() - 55 * 60 * 1000) },
-      { id: 3, text: 'Já resolveu, obrigado pela ajuda!', sender: 'contact', timestamp: new Date(Date.now() - 30 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 3,
-    name: 'Pedro Oliveira',
-    phone: '31977777777',
-    lastMessage: 'Quando meu produto será entregue?',
-    lastMessageTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
-    tags: ['Entrega', 'Urgente'],
-    unreadCount: 1,
-    status: 'aguardando',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Quando meu produto será entregue?', sender: 'contact', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 4,
-    name: 'Ana Costa',
-    phone: '11966666666',
-    lastMessage: 'Quero fazer um pedido',
-    lastMessageTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 dia atrás
-    tags: ['Novo Cliente'],
-    unreadCount: 0,
-    status: 'ativo',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Quero fazer um pedido', sender: 'contact', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      { id: 2, text: 'Claro! O que você gostaria de pedir?', sender: 'user', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 5,
-    name: 'Carlos Mendes',
-    phone: '11955555555',
-    lastMessage: 'Produto chegou com defeito',
-    lastMessageTime: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 horas atrás
-    tags: ['Reclamação', 'Troca'],
-    unreadCount: 1,
-    status: 'aguardando',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Produto chegou com defeito', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 6,
-    name: 'Fernanda Souza',
-    phone: '21944444444',
-    lastMessage: 'Obrigado pelo atendimento rápido',
-    lastMessageTime: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
-    tags: ['Elogio', 'Resolvido'],
-    unreadCount: 0,
-    status: 'concluido',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000) },
-      { id: 2, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000) },
-      { id: 3, text: 'Obrigado pelo atendimento rápido', sender: 'contact', timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 7,
-    name: 'Ricardo Alves',
-    phone: '31933333333',
-    lastMessage: 'Quero cancelar meu pedido',
-    lastMessageTime: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
-    tags: ['Cancelamento', 'Urgente'],
-    unreadCount: 2,
-    status: 'ativo',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Quero cancelar meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 8,
-    name: 'Juliana Lima',
-    phone: '11922222222',
-    lastMessage: 'Gostaria de fazer uma sugestão',
-    lastMessageTime: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18 horas atrás
-    tags: ['Sugestão', 'Feedback'],
-    unreadCount: 0,
-    status: 'concluido',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Gostaria de fazer uma sugestão', sender: 'contact', timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000) },
-      { id: 2, text: 'Claro! Adoraria ouvir sua sugestão', sender: 'user', timestamp: new Date(Date.now() - 17 * 60 * 60 * 1000) }
-    ]
-  },
-  {
-    id: 9,
-    name: 'Roberto Silva',
-    phone: '21911111111',
-    lastMessage: 'Quando vai ter promoção novamente?',
-    lastMessageTime: new Date(Date.now() - 36 * 60 * 60 * 1000), // 36 horas atrás
-    tags: ['Dúvida', 'Promoção'],
-    unreadCount: 0,
-    status: 'aguardando',
-    caixa_entrada: null, // Será atribuído dinamicamente
-    messages: [
-      { id: 1, text: 'Quando vai ter promoção novamente?', sender: 'contact', timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000) },
-      { id: 2, text: 'Temos promoções mensais, fique de olho!', sender: 'user', timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000) }
-    ]
-  }
-])
+// Dados carregados da API
+const atendimentos = ref([])
+const loading = ref(true)
+const error = ref(null)
 
 const selectedContact = ref(null)
 const showResolveModal = ref(false)
+const selectedCaixaEntrada = ref(null)
 
 // Carregar caixas de entrada do Supabase
 const { getInboxes, loading: inboxesLoading } = useInboxes()
@@ -248,13 +96,13 @@ const caixasEntradaOptions = computed(() => {
     return [{ label: 'Nenhuma caixa de entrada disponível', value: 'none', count: 0, disabled: true }]
   }
 
-  // Contar contatos por caixa de entrada usando os IDs das inboxes
+  // Contar atendimentos por caixa de entrada usando os IDs das inboxes
   const caixaCounts = {}
 
   // Inicializar contadores para cada inbox
   inboxesData.value.forEach(inbox => {
-    caixaCounts[inbox.id] = contacts.value.filter(c =>
-      c.caixa_entrada === inbox.id
+    caixaCounts[inbox.id] = atendimentos.value.filter(a =>
+      a.caixa_entrada === inbox.id
     ).length
   })
 
@@ -268,33 +116,19 @@ const caixasEntradaOptions = computed(() => {
   }))
 })
 
-// Tags do sistema disponíveis
-const systemTags = ref([
-  'Prioridade',
-  'VIP',
-  'Resolvido',
-  'Entrega',
-  'Urgente',
-  'Novo Cliente',
-  'Reclamação',
-  'Elogio',
-  'Dúvida',
-  'Sugestão',
-  'Cancelamento',
-  'Promoção',
-  'Feedback',
-  'Troca'
-])
+// Tags do sistema carregadas da API
+const systemTags = ref([])
+const loadingTags = ref(true)
 
 // Obter tags disponíveis
 const availableTags = computed(() => {
-  if (!contacts.value || !Array.isArray(contacts.value)) {
+  if (!atendimentos.value || !Array.isArray(atendimentos.value)) {
     return []
   }
 
-  const allTags = contacts.value
-    .filter(contact => contact && contact.tags && Array.isArray(contact.tags))
-    .flatMap(contact => contact.tags)
+  const allTags = atendimentos.value
+    .filter(atendimento => atendimento && atendimento.tags && Array.isArray(atendimento.tags))
+    .flatMap(atendimento => atendimento.tags)
 
   return [...new Set(allTags)].sort()
 })
@@ -307,19 +141,30 @@ const selectContact = (contact) => {
 }
 
 // Enviar mensagem
-const sendMessage = (messageText) => {
+const sendMessage = async (messageText) => {
   if (!messageText.trim() || !selectedContact.value) return
 
-  const message = {
-    id: Date.now(),
-    text: messageText,
-    sender: 'user',
-    timestamp: new Date()
-  }
+  try {
+    const response = await $fetch(`/api/atendimentos/${selectedContact.value.id}/mensagens`, {
+      method: 'POST',
+      body: {
+        texto: messageText
+      }
+    })
 
-  selectedContact.value.messages.push(message)
-  selectedContact.value.lastMessage = message.text
-  selectedContact.value.lastMessageTime = message.timestamp
+    if (response?.success) {
+      // Atualizar atendimento local
+      const atendimentoIndex = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
+      if (atendimentoIndex > -1) {
+        atendimentos.value[atendimentoIndex].lastMessage = messageText
+        atendimentos.value[atendimentoIndex].lastMessageTime = new Date()
+      }
+    } else {
+      console.error('Erro ao enviar mensagem:', response)
+    }
+  } catch (error) {
+    console.error('Erro ao enviar mensagem:', error)
+  }
 }
 
 // Funções de gerenciamento de tags
@@ -363,24 +208,67 @@ const handleResolveChat = () => {
   showResolveModal.value = true
 }
 
-const confirmResolveChat = () => {
+const confirmResolveChat = async () => {
   if (!selectedContact.value) return
-  
-  updateStatus('concluido')
-  showResolveModal.value = false
+
+  try {
+    const response = await $fetch(`/api/atendimentos/${selectedContact.value.id}/resolve`, {
+      method: 'PATCH'
+    })
+
+    if (response?.success) {
+      // Atualizar atendimento local
+      const atendimentoIndex = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
+      if (atendimentoIndex > -1) {
+        atendimentos.value[atendimentoIndex].status = 'concluido'
+        atendimentos.value[atendimentoIndex].unreadCount = 0
+      }
+
+      showResolveModal.value = false
+      alert('Atendimento resolvido com sucesso!')
+    } else {
+      console.error('Erro ao resolver atendimento:', response)
+      alert('Erro ao resolver atendimento')
+    }
+  } catch (error) {
+    console.error('Erro ao resolver atendimento:', error)
+    alert('Erro ao resolver atendimento')
+  }
 }
 
 const cancelResolveChat = () => {
   showResolveModal.value = false
 }
 
-// Função para atribuir contato a mim
-const assignToMe = (contact) => {
-  if (!contact) return
-  
-  console.log('Atribuindo contato a mim:', contact.name)
-  contact.status = 'ativo'
-  alert(`Atendimento de ${contact.name} atribuído a você!`)
+// Função para atribuir atendimento a mim
+const assignToMe = async (atendimento) => {
+  if (!atendimento) return
+
+  try {
+    console.log('Atribuindo atendimento a mim:', atendimento.name)
+
+    const response = await $fetch(`/api/atendimentos/${atendimento.id}/assign`, {
+      method: 'PATCH'
+    })
+
+    if (response?.success) {
+      // Atualizar atendimento local
+      const atendimentoIndex = atendimentos.value.findIndex(a => a.id === atendimento.id)
+      if (atendimentoIndex > -1) {
+        atendimentos.value[atendimentoIndex].status = 'ativo'
+        atendimentos.value[atendimentoIndex].responsavel_name = 'Você'
+      }
+
+      // Exibir mensagem de sucesso
+      alert(`Atendimento de ${atendimento.name} atribuído a você!`)
+    } else {
+      console.error('Erro ao atribuir atendimento:', response)
+      alert('Erro ao atribuir atendimento')
+    }
+  } catch (error) {
+    console.error('Erro ao atribuir atendimento:', error)
+    alert('Erro ao atribuir atendimento')
+  }
 }
 
 // Funções do menu kebab (sidebar)
@@ -426,37 +314,81 @@ const loadInboxes = async () => {
     if (response?.success && response?.data) {
       inboxesData.value = response.data
       console.log('Inboxes carregadas:', response.data)
-
-      // Atribuir contatos às inboxes carregadas (lógica temporária para demo)
-      assignContactsToInboxes()
     } else {
       console.warn('Resposta inválida da API de inboxes:', response)
       inboxesData.value = []
     }
   } catch (error) {
     console.error('Erro ao carregar inboxes:', error)
-    // Em caso de erro, definir array vazio para mostrar mensagem apropriada
     inboxesData.value = []
   }
 }
 
-// Atribuir contatos às inboxes disponíveis (lógica para demonstração)
-const assignContactsToInboxes = () => {
-  if (!inboxesData.value || inboxesData.value.length === 0) return
+// Carregar atendimentos do Supabase
+const loadAtendimentos = async (inboxId = null) => {
+  try {
+    loading.value = true
+    error.value = null
 
-  // Distribuir contatos entre as inboxes disponíveis
-  contacts.value.forEach((contact, index) => {
-    const inboxIndex = index % inboxesData.value.length
-    contact.caixa_entrada = inboxesData.value[inboxIndex].id
-  })
+    const params = new URLSearchParams()
+    if (inboxId) {
+      params.append('inbox_id', inboxId)
+    }
 
-  console.log('Contatos distribuídos entre as inboxes')
+    const response = await $fetch(`/api/atendimentos?${params.toString()}`)
+
+    if (response?.success && response?.data) {
+      atendimentos.value = response.data.atendimentos
+      console.log('Atendimentos carregados:', response.data.atendimentos)
+    } else {
+      console.warn('Resposta inválida da API de atendimentos:', response)
+      atendimentos.value = []
+    }
+  } catch (err) {
+    console.error('Erro ao carregar atendimentos:', err)
+    error.value = err.message || 'Erro ao carregar atendimentos'
+    atendimentos.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-// Carregar inboxes ao montar a página
+// Carregar tags do sistema
+const loadTags = async () => {
+  try {
+    loadingTags.value = true
+    const response = await $fetch('/api/etiquetas')
+
+    if (response?.success && response?.data) {
+      systemTags.value = response.data.map(tag => tag.nome)
+      console.log('Tags carregadas:', response.data)
+    } else {
+      systemTags.value = []
+    }
+  } catch (err) {
+    console.error('Erro ao carregar tags:', err)
+    systemTags.value = []
+  } finally {
+    loadingTags.value = false
+  }
+}
+
+// Carregar dados ao montar a página
 onMounted(async () => {
   await nextTick()
-  await loadInboxes()
+  await Promise.all([
+    loadInboxes(),
+    loadTags()
+  ])
+  // Carregar atendimentos após carregar inboxes
+  await loadAtendimentos()
+})
+
+// Watcher para atualizar atendimentos quando a caixa de entrada mudar
+watch(selectedCaixaEntrada, async (newInboxId) => {
+  if (newInboxId) {
+    await loadAtendimentos(newInboxId)
+  }
 })
 
 // Definir middleware de autenticação

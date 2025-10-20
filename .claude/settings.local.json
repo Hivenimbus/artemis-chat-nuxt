@@ -19,7 +19,12 @@
       "mcp__supabase-NOVO__get_logs",
       "Bash(npm run dev)",
       "Bash(npm install:*)",
-      "mcp__supabase-NOVO__list_edge_functions"
+      "mcp__supabase-NOVO__list_edge_functions",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell \"Stop-Process -Id 38476 -Force; Stop-Process -Id 5628 -Force; Stop-Process -Id 39276 -Force; Stop-Process -Id 33020 -Force\")",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

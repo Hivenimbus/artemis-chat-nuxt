@@ -127,8 +127,19 @@
 
       <!-- Área de mensagens -->
       <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 280px);" id="chat-messages">
+        <!-- Loading state -->
+        <div v-if="loadingMessages" class="flex justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+
+        <!-- Empty state quando não há mensagens -->
+        <div v-else-if="messages.length === 0" class="flex justify-center py-8">
+          <p class="text-gray-500 text-center">Nenhuma mensagem trocada ainda</p>
+        </div>
+
+        <!-- Lista de mensagens -->
         <div
-          v-for="message in selectedContact.messages"
+          v-for="message in messages"
           :key="message.id"
           :class="[
             'flex',
@@ -340,7 +351,34 @@ const newMessage = ref('')
 const showTagDropdown = ref(false)
 const showKebabSidebar = ref(false)
 const showAddTagInput = ref(false)
+
+// Estados para mensagens
+const messages = ref([])
+const loadingMessages = ref(false)
 const newTag = ref('')
+
+// Carregar mensagens do atendimento
+const loadMessages = async (contactId) => {
+  if (!contactId) {
+    messages.value = []
+    return
+  }
+
+  loadingMessages.value = true
+  try {
+    const response = await $fetch(`/api/atendimentos/${contactId}/mensagens`)
+    if (response?.success && response?.data?.mensagens) {
+      messages.value = response.data.mensagens
+    } else {
+      messages.value = []
+    }
+  } catch (error) {
+    console.error('Erro ao carregar mensagens:', error)
+    messages.value = []
+  } finally {
+    loadingMessages.value = false
+  }
+}
 
 // Rolar para a parte inferior do chat
 const scrollToBottom = () => {
@@ -350,8 +388,17 @@ const scrollToBottom = () => {
   }
 }
 
-// Watch para rolar quando o contato selecionado mudar
-watch(() => props.selectedContact, () => {
+// Watch para carregar mensagens quando o contato selecionado mudar
+watch(() => props.selectedContact?.id, (newContactId) => {
+  if (newContactId) {
+    loadMessages(newContactId)
+  } else {
+    messages.value = []
+  }
+}, { immediate: true })
+
+// Watch para rolar quando as mensagens mudarem
+watch(messages, () => {
   nextTick(() => {
     scrollToBottom()
   })
@@ -385,7 +432,21 @@ const handleEnterKey = (event) => {
 const sendMessage = () => {
   if (!newMessage.value.trim() || !props.selectedContact) return
 
-  emit('send-message', newMessage.value)
+  const messageText = newMessage.value.trim()
+
+  // Adicionar mensagem otimista localmente
+  const tempMessage = {
+    id: Date.now().toString(), // ID temporário
+    text: messageText,
+    sender: 'user',
+    timestamp: new Date(),
+    lida: true,
+    usuario_name: 'Você'
+  }
+
+  messages.value.push(tempMessage)
+
+  emit('send-message', messageText)
   newMessage.value = ''
 
   // Rolar para ver a nova mensagem
@@ -446,8 +507,13 @@ const formatPhone = (phone) => {
 }
 
 const formatTime = (date) => {
+  if (!date) return 'sem data'
+
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  if (isNaN(dateObj.getTime())) return 'data inválida'
+
   const now = new Date()
-  const diff = now - date
+  const diff = now - dateObj
   const minutes = Math.floor(diff / (1000 * 60))
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -457,7 +523,7 @@ const formatTime = (date) => {
   if (hours < 24) return `há ${hours}h`
   if (days < 7) return `há ${days}d`
 
-  return date.toLocaleDateString('pt-BR')
+  return dateObj.toLocaleDateString('pt-BR')
 }
 
 const getStatusLabel = (status) => {
