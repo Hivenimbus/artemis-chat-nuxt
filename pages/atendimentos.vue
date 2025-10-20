@@ -80,7 +80,7 @@ const contacts = ref([
     tags: ['Prioridade', 'VIP'],
     unreadCount: 2,
     status: 'ativo',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente baseado nas inboxes carregadas
     messages: [
       { id: 1, text: 'Olá, preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 25 * 60 * 1000) },
       { id: 2, text: 'Olá João! Como posso ajudar?', sender: 'user', timestamp: new Date(Date.now() - 24 * 60 * 1000) },
@@ -119,7 +119,7 @@ const contacts = ref([
     tags: ['Resolvido'],
     unreadCount: 0,
     status: 'concluido',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu produto', sender: 'contact', timestamp: new Date(Date.now() - 60 * 60 * 1000) },
       { id: 2, text: 'Claro, qual o problema?', sender: 'user', timestamp: new Date(Date.now() - 55 * 60 * 1000) },
@@ -135,7 +135,7 @@ const contacts = ref([
     tags: ['Entrega', 'Urgente'],
     unreadCount: 1,
     status: 'aguardando',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Quando meu produto será entregue?', sender: 'contact', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) }
     ]
@@ -149,7 +149,7 @@ const contacts = ref([
     tags: ['Novo Cliente'],
     unreadCount: 0,
     status: 'ativo',
-    caixa_entrada: 'Vendas',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Quero fazer um pedido', sender: 'contact', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! O que você gostaria de pedir?', sender: 'user', timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000) }
@@ -164,7 +164,7 @@ const contacts = ref([
     tags: ['Reclamação', 'Troca'],
     unreadCount: 1,
     status: 'aguardando',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Produto chegou com defeito', sender: 'contact', timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000) }
     ]
@@ -178,7 +178,7 @@ const contacts = ref([
     tags: ['Elogio', 'Resolvido'],
     unreadCount: 0,
     status: 'concluido',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Preciso de ajuda com meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000) },
       { id: 2, text: 'Vou verificar seu pedido agora mesmo', sender: 'user', timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000) },
@@ -194,7 +194,7 @@ const contacts = ref([
     tags: ['Cancelamento', 'Urgente'],
     unreadCount: 2,
     status: 'ativo',
-    caixa_entrada: 'Urgente',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Quero cancelar meu pedido', sender: 'contact', timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000) }
     ]
@@ -208,7 +208,7 @@ const contacts = ref([
     tags: ['Sugestão', 'Feedback'],
     unreadCount: 0,
     status: 'concluido',
-    caixa_entrada: 'Suporte',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Gostaria de fazer uma sugestão', sender: 'contact', timestamp: new Date(Date.now() - 18 * 60 * 60 * 1000) },
       { id: 2, text: 'Claro! Adoraria ouvir sua sugestão', sender: 'user', timestamp: new Date(Date.now() - 17 * 60 * 60 * 1000) }
@@ -223,7 +223,7 @@ const contacts = ref([
     tags: ['Dúvida', 'Promoção'],
     unreadCount: 0,
     status: 'aguardando',
-    caixa_entrada: 'Prospecção',
+    caixa_entrada: null, // Será atribuído dinamicamente
     messages: [
       { id: 1, text: 'Quando vai ter promoção novamente?', sender: 'contact', timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000) },
       { id: 2, text: 'Temos promoções mensais, fique de olho!', sender: 'user', timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000) }
@@ -234,63 +234,38 @@ const contacts = ref([
 const selectedContact = ref(null)
 const showResolveModal = ref(false)
 
-// Opções de caixas de entrada
+// Carregar caixas de entrada do Supabase
+const { getInboxes, loading: inboxesLoading } = useInboxes()
+const inboxesData = ref([])
 const caixasEntradaOptions = computed(() => {
-  const caixaCounts = {
-    Suporte: contacts.value.filter(c => c.caixa_entrada === 'Suporte').length,
-    Vendas: contacts.value.filter(c => c.caixa_entrada === 'Vendas').length,
-    Urgente: contacts.value.filter(c => c.caixa_entrada === 'Urgente').length,
-    Prospecção: contacts.value.filter(c => c.caixa_entrada === 'Prospecção').length,
-    Financeiro: 0,
-    Marketing: 0,
-    Produtos: 0,
-    Logística: 0,
-    RH: 0,
-    TI: 0,
-    Legal: 0,
-    Parcerias: 0,
-    Sugestões: 0,
-    Reclamações: 0,
-    Elogios: 0,
-    'Contas a Pagar': 0,
-    'Contas a Receber': 0,
-    'Compras': 0,
-    'Estoque': 0,
-    'Qualidade': 0,
-    'Treinamento': 0,
-    'Segurança': 0,
-    'Almoxarifado': 0,
-    'Manutenção': 0,
-    'Atendimento Prioritário': 0
+  // Se está carregando, retorna array vazio ou estado de loading
+  if (inboxesLoading.value) {
+    return [{ label: 'Carregando...', value: 'loading', count: 0, disabled: true }]
   }
 
-  return [
-    { label: 'Suporte', value: 'Suporte', count: caixaCounts.Suporte },
-    { label: 'Vendas', value: 'Vendas', count: caixaCounts.Vendas },
-    { label: 'Urgente', value: 'Urgente', count: caixaCounts.Urgente },
-    { label: 'Prospecção', value: 'Prospecção', count: caixaCounts.Prospecção },
-    { label: 'Financeiro', value: 'Financeiro', count: caixaCounts.Financeiro },
-    { label: 'Marketing', value: 'Marketing', count: caixaCounts.Marketing },
-    { label: 'Produtos', value: 'Produtos', count: caixaCounts.Produtos },
-    { label: 'Logística', value: 'Logística', count: caixaCounts.Logística },
-    { label: 'RH', value: 'RH', count: caixaCounts.RH },
-    { label: 'TI', value: 'TI', count: caixaCounts.TI },
-    { label: 'Legal', value: 'Legal', count: caixaCounts.Legal },
-    { label: 'Parcerias', value: 'Parcerias', count: caixaCounts.Parcerias },
-    { label: 'Sugestões', value: 'Sugestões', count: caixaCounts.Sugestões },
-    { label: 'Reclamações', value: 'Reclamações', count: caixaCounts.Reclamações },
-    { label: 'Elogios', value: 'Elogios', count: caixaCounts.Elogios },
-    { label: 'Contas a Pagar', value: 'Contas a Pagar', count: caixaCounts['Contas a Pagar'] },
-    { label: 'Contas a Receber', value: 'Contas a Receber', count: caixaCounts['Contas a Receber'] },
-    { label: 'Compras', value: 'Compras', count: caixaCounts.Compras },
-    { label: 'Estoque', value: 'Estoque', count: caixaCounts.Estoque },
-    { label: 'Qualidade', value: 'Qualidade', count: caixaCounts.Qualidade },
-    { label: 'Treinamento', value: 'Treinamento', count: caixaCounts.Treinamento },
-    { label: 'Segurança', value: 'Segurança', count: caixaCounts.Segurança },
-    { label: 'Almoxarifado', value: 'Almoxarifado', count: caixaCounts.Almoxarifado },
-    { label: 'Manutenção', value: 'Manutenção', count: caixaCounts.Manutenção },
-    { label: 'Atendimento Prioritário', value: 'Atendimento Prioritário', count: caixaCounts['Atendimento Prioritário'] }
-  ]
+  // Se não há inboxes carregadas, retorna array vazio ou mensagem
+  if (!inboxesData.value || !Array.isArray(inboxesData.value)) {
+    return [{ label: 'Nenhuma caixa de entrada disponível', value: 'none', count: 0, disabled: true }]
+  }
+
+  // Contar contatos por caixa de entrada usando os IDs das inboxes
+  const caixaCounts = {}
+
+  // Inicializar contadores para cada inbox
+  inboxesData.value.forEach(inbox => {
+    caixaCounts[inbox.id] = contacts.value.filter(c =>
+      c.caixa_entrada === inbox.id
+    ).length
+  })
+
+  // Mapear inboxes para o formato esperado pelo ContactList
+  return inboxesData.value.map(inbox => ({
+    label: inbox.name,
+    value: inbox.id,
+    count: caixaCounts[inbox.id] || 0,
+    description: inbox.description,
+    status: inbox.status
+  }))
 })
 
 // Tags do sistema disponíveis
@@ -443,6 +418,46 @@ const handleDeleteChat = () => {
     alert('Conversa excluída com sucesso.')
   }
 }
+
+// Carregar inboxes do Supabase
+const loadInboxes = async () => {
+  try {
+    const response = await getInboxes()
+    if (response?.success && response?.data) {
+      inboxesData.value = response.data
+      console.log('Inboxes carregadas:', response.data)
+
+      // Atribuir contatos às inboxes carregadas (lógica temporária para demo)
+      assignContactsToInboxes()
+    } else {
+      console.warn('Resposta inválida da API de inboxes:', response)
+      inboxesData.value = []
+    }
+  } catch (error) {
+    console.error('Erro ao carregar inboxes:', error)
+    // Em caso de erro, definir array vazio para mostrar mensagem apropriada
+    inboxesData.value = []
+  }
+}
+
+// Atribuir contatos às inboxes disponíveis (lógica para demonstração)
+const assignContactsToInboxes = () => {
+  if (!inboxesData.value || inboxesData.value.length === 0) return
+
+  // Distribuir contatos entre as inboxes disponíveis
+  contacts.value.forEach((contact, index) => {
+    const inboxIndex = index % inboxesData.value.length
+    contact.caixa_entrada = inboxesData.value[inboxIndex].id
+  })
+
+  console.log('Contatos distribuídos entre as inboxes')
+}
+
+// Carregar inboxes ao montar a página
+onMounted(async () => {
+  await nextTick()
+  await loadInboxes()
+})
 
 // Definir middleware de autenticação
 definePageMeta({

@@ -16,7 +16,7 @@
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
             </svg>
-            <span>{{ selectedCaixaEntrada }}</span>
+            <span>{{ selectedCaixaEntradaName }}</span>
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
@@ -296,7 +296,7 @@ const emit = defineEmits(['select-contact', 'assign-to-me'])
 
 const searchTerm = ref('')
 const selectedStatus = ref('todos')
-const selectedCaixaEntrada = ref('Suporte')
+const selectedCaixaEntrada = ref(null) // null = aguardando carregar, ou UUID específico
 const showCaixaEntradaDropdown = ref(false)
 const searchCaixaEntrada = ref('')
 const showFilterDropdown = ref(false)
@@ -321,15 +321,25 @@ const statusOptions = computed(() => {
   ]
 })
 
+// Computed para obter o nome da caixa de entrada selecionada para exibição
+const selectedCaixaEntradaName = computed(() => {
+  if (!selectedCaixaEntrada.value) {
+    return 'Carregando...'
+  }
+
+  const selectedInbox = props.caixasEntradaOptions.find(caixa => caixa.value === selectedCaixaEntrada.value)
+  return selectedInbox ? selectedInbox.label : 'Nenhuma'
+})
+
 // Computed para filtrar caixas de entrada no dropdown
 const filteredCaixaEntradaOptions = computed(() => {
   if (!searchCaixaEntrada.value) {
-    return props.caixasEntradaOptions
+    return props.caixasEntradaOptions || []
   }
 
   const search = searchCaixaEntrada.value.toLowerCase()
-  return props.caixasEntradaOptions.filter(caixa =>
-    caixa.label.toLowerCase().includes(search)
+  return (props.caixasEntradaOptions || []).filter(caixa =>
+    caixa.label && caixa.label.toLowerCase().includes(search)
   )
 })
 
@@ -341,10 +351,13 @@ const filteredContacts = computed(() => {
 
   let filtered = props.contacts.filter(contact => contact != null)
 
-  // Filtrar por caixa de entrada
-  filtered = filtered.filter(contact =>
-    contact.caixa_entrada === selectedCaixaEntrada.value
-  )
+  // Filtrar por caixa de entrada (apenas se houver uma selecionada)
+  if (selectedCaixaEntrada.value) {
+    filtered = filtered.filter(contact =>
+      contact.caixa_entrada === selectedCaixaEntrada.value
+    )
+  }
+  // Se não houver caixa selecionada, mostra todos os contatos
 
   // Filtrar por status
   if (selectedStatus.value !== 'todos') {
@@ -464,6 +477,22 @@ const getTagColor = (tag) => {
 
   return colors[tag] || 'bg-gray-100 text-gray-800'
 }
+
+// Watcher para selecionar automaticamente a primeira inbox quando carregar
+watch(() => props.caixasEntradaOptions, (newOptions) => {
+  if (newOptions && newOptions.length > 0 && !selectedCaixaEntrada.value) {
+    // Se há inboxes disponíveis e nenhuma está selecionada, seleciona a primeira real
+    const firstRealInbox = newOptions.find(caixa =>
+      caixa.value !== 'loading' &&
+      caixa.value !== 'none' &&
+      !caixa.disabled
+    )
+
+    if (firstRealInbox) {
+      selectedCaixaEntrada.value = firstRealInbox.value
+    }
+  }
+}, { immediate: true })
 
 // Controle de scrollbars
 onMounted(() => {
