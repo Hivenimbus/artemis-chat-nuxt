@@ -52,16 +52,26 @@
                     <div class="space-y-2">
                       <label
                         v-for="systemTag in systemTags"
-                        :key="systemTag"
+                        :key="systemTag.id || systemTag"
                         class="flex items-center px-2 py-2 hover:bg-gray-50 rounded cursor-pointer"
                       >
                         <input
                           type="checkbox"
-                          :checked="selectedContact?.tags?.includes(systemTag) || false"
-                          @change="toggleTag(systemTag)"
+                          :checked="selectedContact?.tags?.includes(systemTag.nome || systemTag) || false"
+                          @change="toggleTag(systemTag.nome || systemTag)"
                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span class="ml-2 text-sm text-gray-700">{{ systemTag }}</span>
+                        <span
+                          class="ml-2 text-sm px-2 py-1 rounded-full border text-xs font-medium"
+                          :class="systemTag.cor ? '' : 'bg-gray-100 text-gray-700'"
+                          :style="systemTag.cor ? {
+                            backgroundColor: systemTag.cor + '20',
+                            color: systemTag.cor,
+                            borderColor: systemTag.cor
+                          } : {}"
+                        >
+                          {{ systemTag.nome || systemTag }}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -263,6 +273,22 @@
                 <div class="bg-gray-50 p-3 rounded-lg">
                   <p class="text-xs text-gray-500">Caixa de Entrada</p>
                   <p class="text-sm font-medium text-gray-900 mt-1">{{ selectedContact.caixa_entrada }}</p>
+                </div>
+
+                <!-- Tags do contato -->
+                <div v-if="selectedContact.tags && selectedContact.tags.length > 0" class="bg-gray-50 p-3 rounded-lg">
+                  <p class="text-xs text-gray-500 mb-2">Tags</p>
+                  <div class="flex flex-wrap gap-1">
+                    <span
+                      v-for="(tag, index) in selectedContact.tags"
+                      :key="typeof tag === 'object' ? tag.id : index"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border"
+                      :class="typeof getTagColor(tag) === 'string' ? getTagColor(tag) : ''"
+                      :style="typeof getTagColor(tag) === 'object' ? getTagColor(tag) : {}"
+                    >
+                      {{ getTagName(tag) }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -534,6 +560,26 @@ const getStatusLabel = (status) => {
   }
 
   return labels[status] || status
+}
+
+// Funções para gerenciamento de cores das tags
+const getTagColor = (tag) => {
+  // Se tag for um objeto com cor (nova estrutura), usar a cor do banco
+  if (typeof tag === 'object' && tag.cor) {
+    return {
+      backgroundColor: tag.cor + '20', // Adicionar transparência
+      color: tag.cor,
+      borderColor: tag.cor
+    }
+  }
+
+  // Se tag for string (antiga estrutura) ou não tiver cor, usar cor padrão
+  return 'bg-gray-100 text-gray-800'
+}
+
+const getTagName = (tag) => {
+  // Extrair nome da tag (se for objeto ou string)
+  return typeof tag === 'object' ? tag.nome : tag
 }
 </script>
 

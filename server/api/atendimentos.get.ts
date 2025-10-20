@@ -64,7 +64,15 @@ export default defineEventHandler(async (event) => {
           telefone,
           email,
           empresa,
-          cidade
+          cidade,
+          contato_etiquetas (
+            etiqueta_id,
+            etiquetas (
+              id,
+              nome,
+              cor
+            )
+          )
         ),
         inboxes (
           id,
@@ -132,8 +140,15 @@ export default defineEventHandler(async (event) => {
         data_conclusao: atendimento.data_conclusao,
         created_at: atendimento.created_at,
         updated_at: atendimento.updated_at,
-        // Campos adicionais para compatibilidade com frontend atual
-        tags: [], // Será preenchido depois com etiquetas do contato
+        // Extrair tags completas do contato (com id, nome e cor)
+        tags: atendimento.contatos?.contato_etiquetas
+          ?.filter(ce => ce.etiquetas)
+          ?.map(ce => ({
+            id: ce.etiquetas.id,
+            nome: ce.etiquetas.nome,
+            cor: ce.etiquetas.cor
+          })) || [],
+        // Campo adicional para compatibilidade com frontend atual
         messages: [] // Será carregado sob demanda
       }
     }) || []

@@ -275,12 +275,13 @@
                 <!-- Tags -->
                 <div class="flex flex-wrap gap-1">
                   <span
-                    v-for="tag in contact.tags"
-                    :key="tag"
-                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                    :class="getTagColor(tag)"
+                    v-for="(tag, index) in contact.tags"
+                    :key="typeof tag === 'object' ? tag.id : tag"
+                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border"
+                    :class="typeof getTagColor(tag) === 'string' ? getTagColor(tag) : ''"
+                    :style="typeof getTagColor(tag) === 'object' ? getTagColor(tag) : {}"
                   >
-                    {{ tag }}
+                    {{ getTagName(tag) }}
                   </span>
                 </div>
                 
@@ -528,6 +529,16 @@ const formatTime = (date) => {
 }
 
 const getTagColor = (tag) => {
+  // Se tag for um objeto com cor (nova estrutura), usar a cor do banco
+  if (typeof tag === 'object' && tag.cor) {
+    return {
+      backgroundColor: tag.cor + '20', // Adicionar transparência
+      color: tag.cor,
+      borderColor: tag.cor
+    }
+  }
+
+  // Se tag for string (antiga estrutura) ou não tiver cor, usar cores padrão
   const colors = {
     'Prioridade': 'bg-red-100 text-red-800',
     'VIP': 'bg-purple-100 text-purple-800',
@@ -538,6 +549,11 @@ const getTagColor = (tag) => {
   }
 
   return colors[tag] || 'bg-gray-100 text-gray-800'
+}
+
+const getTagName = (tag) => {
+  // Extrair nome da tag (se for objeto ou string)
+  return typeof tag === 'object' ? tag.nome : tag
 }
 
 // Watcher para selecionar automaticamente a primeira inbox quando carregar

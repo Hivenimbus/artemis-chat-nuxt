@@ -168,30 +168,100 @@ const sendMessage = async (messageText) => {
 }
 
 // Funções de gerenciamento de tags
-const toggleTag = (tag) => {
-  if (!selectedContact.value) return
+// Função para salvar tags do contato no banco de dados
+const saveContactTags = async (contatoId, tags) => {
+  if (!contatoId) return
 
-  const tagIndex = selectedContact.value.tags.indexOf(tag)
-  if (tagIndex > -1) {
-    selectedContact.value.tags.splice(tagIndex, 1)
-  } else {
-    selectedContact.value.tags.push(tag)
+  try {
+    console.log('Salvando tags para contato:', contatoId, tags)
+
+    const response = await $fetch(`/api/contatos/${contatoId}`, {
+      method: 'PUT',
+      body: {
+        nome: selectedContact.value.name,
+        telefone: selectedContact.value.phone,
+        email: selectedContact.value.email || null,
+        tags: tags
+      }
+    })
+
+    if (response?.success) {
+      console.log('Tags salvas com sucesso:', response.data)
+      // Atualizar tags no contato selecionado com os dados retornados da API
+      if (selectedContact.value) {
+        selectedContact.value.tags = response.data.tags || []
+      }
+      // Opcional: mostrar feedback visual para o usuário
+      return true
+    } else {
+      console.error('Erro ao salvar tags:', response?.message || 'Erro desconhecido')
+      return false
+    }
+  } catch (error) {
+    console.error('Erro ao salvar tags do contato:', error)
+    return false
   }
 }
 
-const addNewSystemTag = (tagName) => {
+const toggleTag = async (tagName) => {
+  if (!selectedContact.value) return
+
+  const tagIndex = selectedContact.value.tags.indexOf(tagName)
+  if (tagIndex > -1) {
+    selectedContact.value.tags.splice(tagIndex, 1)
+  } else {
+    selectedContact.value.tags.push(tagName)
+  }
+
+  // Salvar as tags no banco de dados
+  await saveContactTags(selectedContact.value.contato_id, selectedContact.value.tags)
+}
+
+const addNewSystemTag = async (tagName) => {
   if (!tagName.trim()) return
 
   const cleanTagName = tagName.trim()
 
-  // Adicionar às tags do sistema se não existir
-  if (!systemTags.value.includes(cleanTagName)) {
-    systemTags.value.push(cleanTagName)
-  }
+  try {
+    // Verificar se a etiqueta já existe no sistema (agora systemTags é array de objetos)
+    const existingTag = systemTags.value.find(tag => tag.nome === cleanTagName)
 
-  // Adicionar ao contato selecionado
-  if (selectedContact.value && !selectedContact.value.tags.includes(cleanTagName)) {
-    selectedContact.value.tags.push(cleanTagName)
+    if (!existingTag) {
+      console.log('Criando nova etiqueta:', cleanTagName)
+
+      const etiquetaResponse = await $fetch('/api/etiquetas', {
+        method: 'POST',
+        body: {
+          nome: cleanTagName,
+          descricao: `Etiqueta criada via chat: ${cleanTagName}`,
+          cor: '#' + Math.floor(Math.random()*16777215).toString(16) // Cor aleatória
+        }
+      })
+
+      if (etiquetaResponse?.success) {
+        console.log('Etiqueta criada com sucesso:', etiquetaResponse.data)
+        // Adicionar à lista local de tags do sistema com estrutura completa
+        systemTags.value.push({
+          id: etiquetaResponse.data.id,
+          nome: etiquetaResponse.data.nome,
+          cor: etiquetaResponse.data.cor
+        })
+      } else {
+        console.error('Erro ao criar etiqueta:', etiquetaResponse?.message || 'Erro desconhecido')
+        // Mesmo se falhar a criação da etiqueta, continuar tentando adicionar ao contato
+      }
+    }
+
+    // Adicionar ao contato selecionado
+    if (selectedContact.value && !selectedContact.value.tags.includes(cleanTagName)) {
+      selectedContact.value.tags.push(cleanTagName)
+    }
+
+    // Salvar as tags no banco de dados
+    await saveContactTags(selectedContact.value.contato_id, selectedContact.value.tags)
+
+  } catch (error) {
+    console.error('Erro ao adicionar nova etiqueta:', error)
   }
 }
 
@@ -360,7 +430,12 @@ const loadTags = async () => {
     const response = await $fetch('/api/etiquetas')
 
     if (response?.success && response?.data) {
-      systemTags.value = response.data.map(tag => tag.nome)
+      // Preservar dados completos: id, nome, cor
+      systemTags.value = response.data.map(tag => ({
+        id: tag.id,
+        nome: tag.nome,
+        cor: tag.cor || '#6B7280' // Cor padrão cinza se não tiver
+      }))
       console.log('Tags carregadas:', response.data)
     } else {
       systemTags.value = []
