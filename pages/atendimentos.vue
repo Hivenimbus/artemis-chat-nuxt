@@ -345,7 +345,7 @@ const assignToMe = async (atendimento) => {
 const handleExportChat = () => {
   if (!selectedContact.value) return
   console.log('Exportar conversa:', selectedContact.value.name)
-  alert(`Exportando conversa com ${selectedContact.value.name}...`)
+  // TODO: Implementar funcionalidade de exportação de conversa
 }
 
 const handleBlockContact = () => {
@@ -353,14 +353,14 @@ const handleBlockContact = () => {
   const confirmBlock = confirm(`Deseja realmente bloquear ${selectedContact.value.name}?`)
   if (confirmBlock) {
     console.log('Bloquear contato:', selectedContact.value.name)
-    alert(`Contato ${selectedContact.value.name} bloqueado.`)
+    // TODO: Implementar funcionalidade de bloqueio de contato
   }
 }
 
 const handleTransferChat = () => {
   if (!selectedContact.value) return
   console.log('Transferir atendimento:', selectedContact.value.name)
-  alert(`Transferindo atendimento de ${selectedContact.value.name}...`)
+  // TODO: Implementar funcionalidade de transferência de atendimento
 }
 
 const handleDeleteChat = () => {
@@ -368,9 +368,9 @@ const handleDeleteChat = () => {
   const confirmDelete = confirm(`Deseja realmente excluir a conversa com ${selectedContact.value.name}?`)
   if (confirmDelete) {
     console.log('Excluir conversa:', selectedContact.value.name)
-    const index = contacts.value.findIndex(c => c.id === selectedContact.value.id)
+    const index = atendimentos.value.findIndex(c => c.id === selectedContact.value.id)
     if (index > -1) {
-      contacts.value.splice(index, 1)
+      atendimentos.value.splice(index, 1)
     }
     selectedContact.value = null
     alert('Conversa excluída com sucesso.')
