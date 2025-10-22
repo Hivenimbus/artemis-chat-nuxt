@@ -1,5 +1,2 @@
 /node_modules
 /.nuxt
-package-lock.json 
-package.json
-.claude/settings.local.json
