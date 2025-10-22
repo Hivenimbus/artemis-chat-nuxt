@@ -5,11 +5,11 @@
       <!-- Tags atuais -->
       <span
         v-for="tag in currentTags"
-        :key="tag"
+        :key="typeof tag === 'object' ? tag.name : tag"
         :class="getTagColor(tag)"
         class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium group relative"
       >
-        {{ tag }}
+        {{ typeof tag === 'object' ? tag.name : tag }}
         <!-- Botão de remover tag (visível apenas no modo de edição) -->
         <button
           v-if="editing"
@@ -170,21 +170,75 @@ onUnmounted(() => {
 
 // Todas as tags disponíveis com status de seleção
 const allTagsWithStatus = computed(() => {
-  return props.availableTags.map(tag => ({
-    name: tag,
-    isAdded: currentTags.value.includes(tag)
-  }))
+  return props.availableTags.map(tag => {
+    const tagName = typeof tag === 'object' ? tag.name : tag
+    const isAdded = currentTags.value.some(currentTag => {
+      const currentTagName = typeof currentTag === 'object' ? currentTag.name : currentTag
+      return currentTagName === tagName
+    })
+
+    return {
+      name: tagName,
+      isAdded
+    }
+  })
 })
 
 // Methods
 const getTagColor = (tag) => {
+  // Se a tag for um objeto com cor definida, usar a cor do banco
+  if (typeof tag === 'object' && tag.color) {
+    // Converter cor hex para classes Tailwind equivalentes
+    return getTailwindColor(tag.color)
+  }
+
+  // Se for string, buscar a cor nas etiquetas disponíveis
+  const tagName = typeof tag === 'object' ? tag.name : tag
+  const availableTag = props.availableTags.find(t =>
+    typeof t === 'object' ? t.name === tagName : t === tagName
+  )
+
+  if (availableTag && typeof availableTag === 'object' && availableTag.color) {
+    return getTailwindColor(availableTag.color)
+  }
+
+  // Fallback para cores fixas (mantidas para compatibilidade)
   const colors = {
     'VIP': 'bg-purple-100 text-purple-800',
     'Cliente': 'bg-blue-100 text-blue-800',
     'Novo Lead': 'bg-green-100 text-green-800',
     'Empresa': 'bg-indigo-100 text-indigo-800'
   }
-  return colors[tag] || 'bg-gray-100 text-gray-800'
+  return colors[tagName] || 'bg-gray-100 text-gray-800'
+}
+
+// Converter cor hex para classes Tailwind
+const getTailwindColor = (hexColor) => {
+  if (!hexColor || !hexColor.startsWith('#')) {
+    return 'bg-gray-100 text-gray-800'
+  }
+
+  // Mapeamento de cores comuns para classes Tailwind
+  const colorMap = {
+    '#FF0000': 'bg-red-100 text-red-800',     // Vermelho
+    '#FF4500': 'bg-orange-100 text-orange-800', // Laranja
+    '#FFD700': 'bg-yellow-100 text-yellow-800', // Amarelo
+    '#32CD32': 'bg-green-100 text-green-800',   // Verde
+    '#0000FF': 'bg-blue-100 text-blue-800',     // Azul
+    '#800080': 'bg-purple-100 text-purple-800', // Roxo
+    '#FFC0CB': 'bg-pink-100 text-pink-800',     // Rosa
+    '#808080': 'bg-gray-100 text-gray-800',     // Cinza
+    '#000000': 'bg-gray-900 text-white',        // Preto
+    '#FFFFFF': 'bg-white text-gray-900 border border-gray-300', // Branco
+    '#8B5CF6': 'bg-purple-100 text-purple-800', // Roxo (VIP)
+    '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul (Cliente)
+    '#10B981': 'bg-green-100 text-green-800',   // Verde (Novo Lead)
+    '#6366F1': 'bg-indigo-100 text-indigo-800', // Índigo (Empresa)
+    '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul padrão
+    '#6B7280': 'bg-gray-100 text-gray-800'      // Cinza padrão
+  }
+
+  return colorMap[hexColor.toUpperCase()] || 'bg-gray-100 text-gray-800'
 }
 
 const calculateDropdownPosition = () => {
@@ -247,8 +301,20 @@ const closeDropdown = () => {
 }
 
 const addTag = (tag) => {
-  if (!currentTags.value.includes(tag)) {
-    currentTags.value.push(tag)
+  // Normalizar nome da tag para comparação
+  const tagName = typeof tag === 'object' ? tag.name : tag
+  const tagExists = currentTags.value.some(currentTag => {
+    const currentTagName = typeof currentTag === 'object' ? currentTag.name : currentTag
+    return currentTagName === tagName
+  })
+
+  if (!tagExists) {
+    // Encontrar a tag completa com cor se disponível
+    const fullTag = typeof tag === 'object' ? tag : props.availableTags.find(t =>
+      typeof t === 'object' ? t.name === tag : t === tag
+    )
+
+    currentTags.value.push(fullTag || tagName)
     // Fechar dropdown automaticamente após adicionar uma tag
     closeDropdown()
     // Auto-save: emitir atualização para o pai
@@ -259,7 +325,12 @@ const addTag = (tag) => {
 }
 
 const removeTag = (tagToRemove) => {
-  const index = currentTags.value.indexOf(tagToRemove)
+  const tagNameToRemove = typeof tagToRemove === 'object' ? tagToRemove.name : tagToRemove
+  const index = currentTags.value.findIndex(tag => {
+    const tagName = typeof tag === 'object' ? tag.name : tag
+    return tagName === tagNameToRemove
+  })
+
   if (index > -1) {
     currentTags.value.splice(index, 1)
     // Auto-save: emitir atualização para o pai

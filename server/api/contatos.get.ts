@@ -109,10 +109,13 @@ export default defineEventHandler(async (event) => {
 
     // Formatar dados para o frontend
     const contatosFormatados = contatos?.map(contato => {
-      // Extrair tags do relacionamento
+      // Extrair tags do relacionamento com informações completas (nome e cor)
       const tags = contato.contato_etiquetas
         ?.filter(ce => ce.etiquetas) // Filtrar etiquetas nulas
-        ?.map(ce => ce.etiquetas.nome) || []
+        ?.map(ce => ({
+          name: ce.etiquetas.nome,
+          color: ce.etiquetas.cor || '#6B7280' // Cor padrão caso não definida
+        })) || []
 
       // Remover campo de relacionamento do objeto final
       const { contato_etiquetas, ...contatoLimpo } = contato

@@ -212,12 +212,21 @@ export const useContatos = () => {
         throw apiError
       }
 
-      // Retornar apenas os nomes das etiquetas para compatibilidade com o frontend
-      return data.map(etiqueta => etiqueta.nome)
+      // Retornar etiquetas completas com informações de nome e cor
+      return data.map(etiqueta => ({
+        name: etiqueta.nome,
+        color: etiqueta.cor || '#6B7280' // Cor padrão caso não definida
+      }))
     } catch (err) {
       console.error('useContatos.fetchEtiquetas: Erro ao buscar etiquetas:', err)
       error.value = err.message || 'Erro ao buscar etiquetas'
-      throw err
+      // Retornar etiquetas padrão em caso de erro (mantidas as cores padrão)
+      return [
+        { name: 'VIP', color: '#8B5CF6' },
+        { name: 'Cliente', color: '#3B82F6' },
+        { name: 'Novo Lead', color: '#10B981' },
+        { name: 'Empresa', color: '#6366F1' }
+      ]
     } finally {
       loading.value = false
     }

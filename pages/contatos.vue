@@ -629,6 +629,14 @@ const updateContact = async (contactId) => {
 
     const contactData = contacts.value[contactIndex]
 
+    // Normalizar tags: extrair apenas os nomes para enviar à API
+    const normalizedTags = (contactData.tags || []).map(tag => {
+      if (typeof tag === 'object' && tag.name) {
+        return tag.name
+      }
+      return tag
+    })
+
     // Preparar dados para API
     const updateData = {
       nome: contactData.name,
@@ -640,7 +648,7 @@ const updateContact = async (contactId) => {
       biografia: contactData.biography,
       empresa: contactData.company,
       endereco: contactData.address,
-      tags: contactData.tags
+      tags: normalizedTags
     }
 
     // Chamar API de atualização
@@ -672,6 +680,14 @@ const updateContact = async (contactId) => {
 // Método de criação de contato
 const handleCreateContact = async (contactData) => {
   try {
+    // Normalizar tags: extrair apenas os nomes para enviar à API
+    const normalizedTags = (contactData.tags || []).map(tag => {
+      if (typeof tag === 'object' && tag.name) {
+        return tag.name
+      }
+      return tag
+    })
+
     // Preparar dados para API
     const newContactData = {
       nome: contactData.name,
@@ -683,7 +699,7 @@ const handleCreateContact = async (contactData) => {
       biografia: contactData.biography,
       empresa: contactData.company,
       endereco: contactData.address,
-      tags: contactData.tags
+      tags: normalizedTags
     }
 
     // Chamar API de criação
@@ -731,6 +747,14 @@ const updateContactTags = async (contactId, newTags) => {
 
     const contactData = contacts.value[contactIndex]
 
+    // Normalizar tags: extrair apenas os nomes para enviar à API
+    const normalizedTags = newTags.map(tag => {
+      if (typeof tag === 'object' && tag.name) {
+        return tag.name
+      }
+      return tag
+    })
+
     // Preparar dados para API (apenas tags)
     const updateData = {
       nome: contactData.name,
@@ -742,7 +766,7 @@ const updateContactTags = async (contactId, newTags) => {
       biografia: contactData.biography,
       empresa: contactData.company,
       endereco: contactData.address,
-      tags: newTags
+      tags: normalizedTags
     }
 
     // Chamar API de atualização
