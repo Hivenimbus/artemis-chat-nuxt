@@ -241,7 +241,11 @@ export default defineEventHandler(async (event) => {
       ...contatoCompleto,
       tags: contatoCompleto.contato_etiquetas
         ?.filter(ce => ce.etiquetas)
-        ?.map(ce => ce.etiquetas.nome) || [],
+        ?.map(ce => ({
+          id: ce.etiquetas.id,
+          nome: ce.etiquetas.nome,
+          cor: ce.etiquetas.cor
+        })) || [],
       name: contatoCompleto.nome,
       lastName: contatoCompleto.sobrenome || '',
       phone: contatoCompleto.telefone,

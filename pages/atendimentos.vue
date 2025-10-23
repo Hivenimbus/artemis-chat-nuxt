@@ -20,6 +20,7 @@
       <ChatArea
         :selected-contact="selectedContact"
         :system-tags="systemTags"
+        :caixas-entrada-map="caixasEntradaMap"
         @send-message="sendMessage"
         @toggle-tag="toggleTag"
         @add-tag="addNewSystemTag"
@@ -133,6 +134,19 @@ const availableTags = computed(() => {
   return [...new Set(allTags)].sort()
 })
 
+// Criar mapa de caixas de entrada para fácil acesso ao nome
+const caixasEntradaMap = computed(() => {
+  if (!inboxesData.value || !Array.isArray(inboxesData.value)) {
+    return {}
+  }
+
+  const map = {}
+  inboxesData.value.forEach(inbox => {
+    map[inbox.id] = inbox.name
+  })
+  return map
+})
+
 // Selecionar contato
 const selectContact = (contact) => {
   selectedContact.value = contact
@@ -187,9 +201,11 @@ const saveContactTags = async (contatoId, tags) => {
 
     if (response?.success) {
       console.log('Tags salvas com sucesso:', response.data)
+      console.log('Estrutura das tags recebidas:', response.data.tags)
       // Atualizar tags no contato selecionado com os dados retornados da API
       if (selectedContact.value) {
         selectedContact.value.tags = response.data.tags || []
+        console.log('Tags atualizadas no contato:', selectedContact.value.tags)
       }
       // Opcional: mostrar feedback visual para o usuário
       return true
@@ -206,15 +222,36 @@ const saveContactTags = async (contatoId, tags) => {
 const toggleTag = async (tagName) => {
   if (!selectedContact.value) return
 
-  const tagIndex = selectedContact.value.tags.indexOf(tagName)
-  if (tagIndex > -1) {
-    selectedContact.value.tags.splice(tagIndex, 1)
+  // Encontrar a tag na lista de systemTags para obter o objeto completo
+  const systemTag = systemTags.value.find(tag => tag.nome === tagName)
+
+  // Verificar se a tag já está selecionada
+  const existingTagIndex = selectedContact.value.tags.findIndex(contactTag => {
+    const contactTagName = typeof contactTag === 'object' ? contactTag.nome : contactTag
+    return contactTagName === tagName
+  })
+
+  if (existingTagIndex > -1) {
+    // Remover tag
+    selectedContact.value.tags.splice(existingTagIndex, 1)
   } else {
-    selectedContact.value.tags.push(tagName)
+    // Adicionar tag - usar o objeto completo se encontrado, caso contrário usar string
+    if (systemTag) {
+      selectedContact.value.tags.push({
+        id: systemTag.id,
+        nome: systemTag.nome,
+        cor: systemTag.cor
+      })
+    } else {
+      selectedContact.value.tags.push(tagName)
+    }
   }
 
-  // Salvar as tags no banco de dados
-  await saveContactTags(selectedContact.value.contato_id, selectedContact.value.tags)
+  // Salvar as tags no banco de dados - enviar apenas nomes das tags
+  const tagNames = selectedContact.value.tags.map(tag => {
+    return typeof tag === 'object' ? tag.nome : tag
+  })
+  await saveContactTags(selectedContact.value.contato_id, tagNames)
 }
 
 const addNewSystemTag = async (tagName) => {
@@ -252,13 +289,31 @@ const addNewSystemTag = async (tagName) => {
       }
     }
 
+    // Encontrar a tag na lista (recarregada ou existente) para adicionar ao contato
+    const tagToAdd = systemTags.value.find(tag => tag.nome === cleanTagName)
+
     // Adicionar ao contato selecionado
-    if (selectedContact.value && !selectedContact.value.tags.includes(cleanTagName)) {
-      selectedContact.value.tags.push(cleanTagName)
+    if (selectedContact.value && tagToAdd) {
+      // Verificar se a tag já não está no contato
+      const alreadyExists = selectedContact.value.tags.some(contactTag => {
+        const contactTagName = typeof contactTag === 'object' ? contactTag.nome : contactTag
+        return contactTagName === cleanTagName
+      })
+
+      if (!alreadyExists) {
+        selectedContact.value.tags.push({
+          id: tagToAdd.id,
+          nome: tagToAdd.nome,
+          cor: tagToAdd.cor
+        })
+      }
     }
 
-    // Salvar as tags no banco de dados
-    await saveContactTags(selectedContact.value.contato_id, selectedContact.value.tags)
+    // Salvar as tags no banco de dados - enviar apenas nomes das tags
+    const tagNames = selectedContact.value.tags.map(tag => {
+      return typeof tag === 'object' ? tag.nome : tag
+    })
+    await saveContactTags(selectedContact.value.contato_id, tagNames)
 
   } catch (error) {
     console.error('Erro ao adicionar nova etiqueta:', error)

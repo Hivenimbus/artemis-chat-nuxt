@@ -57,7 +57,7 @@
                       >
                         <input
                           type="checkbox"
-                          :checked="selectedContact?.tags?.includes(systemTag.nome || systemTag) || false"
+                          :checked="isTagSelected(systemTag)"
                           @change="toggleTag(systemTag.nome || systemTag)"
                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
@@ -272,7 +272,7 @@
                 </div>
                 <div class="bg-gray-50 p-3 rounded-lg">
                   <p class="text-xs text-gray-500">Caixa de Entrada</p>
-                  <p class="text-sm font-medium text-gray-900 mt-1">{{ selectedContact.caixa_entrada }}</p>
+                  <p class="text-sm font-medium text-gray-900 mt-1">{{ getCaixaEntradaNome(selectedContact.caixa_entrada) }}</p>
                 </div>
 
                 <!-- Tags do contato -->
@@ -359,6 +359,10 @@ const props = defineProps({
   systemTags: {
     type: Array,
     default: () => []
+  },
+  caixasEntradaMap: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -521,6 +525,21 @@ const toggleKebabSidebar = () => {
 // Funções utilitárias
 const getInitials = (name) => {
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
+}
+
+const getCaixaEntradaNome = (caixaId) => {
+  if (!caixaId) return 'Não definida'
+  return props.caixasEntradaMap[caixaId] || caixaId
+}
+
+const isTagSelected = (systemTag) => {
+  if (!props.selectedContact?.tags || !systemTag) return false
+
+  const tagName = typeof systemTag === 'object' ? systemTag.nome : systemTag
+  return props.selectedContact.tags.some(contactTag => {
+    const contactTagName = typeof contactTag === 'object' ? contactTag.nome : contactTag
+    return contactTagName === tagName
+  })
 }
 
 const formatPhone = (phone) => {
