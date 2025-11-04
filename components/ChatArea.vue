@@ -419,8 +419,6 @@ const fileInput = ref(null)
 const selectedFile = ref(null)
 const uploadingFile = ref(false)
 const isTyping = ref(false)
-const sendError = ref(null)
-const sendErrorTimeout = ref(null)
 
 // UI State
 const showTagDropdown = ref(false)
