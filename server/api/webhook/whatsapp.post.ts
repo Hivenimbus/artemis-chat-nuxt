@@ -15,6 +15,14 @@ interface MessageData {
     remoteJid: string
     fromMe: boolean
   }
+  // Propriedades adicionais da Evolution API
+  pushName?: string         // Nome do contato
+  participant?: string      // ID do participante (para grupos)
+  broadcast?: boolean       // Se é mensagem de broadcast
+  messageExtendedTextMessage?: string // Mensagem estendida
+  ack?: number              // Status de confirmação
+  messageStubType?: string  // Tipo de mensagem stub
+
   message: {
     conversation?: string
     extendedTextMessage?: {
@@ -64,13 +72,44 @@ export default defineEventHandler(async (event) => {
 
     console.log('Webhook recebido:', JSON.stringify(body, null, 2))
 
+    // Validar estrutura básica dos dados do webhook
+    if (!body || !body.event) {
+      console.error('Estrutura inválida: evento ausente')
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Estrutura de dados inválida: evento ausente'
+      })
+    }
+
     // Verificar se é um evento de mensagem
     if (body.event !== 'MESSAGES_UPSERT') {
       console.log(`Evento ignorado: ${body.event}`)
       return { success: true, message: 'Evento ignorado' }
     }
 
+    // Validar estrutura da mensagem
+    if (!body.data || typeof body.data !== 'object') {
+      console.error('Estrutura inválida: data ausente')
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Estrutura de dados inválida: data ausente'
+      })
+    }
+
     const messageData = body.data as MessageData
+
+    // Validar campos obrigatórios da mensagem
+    if (!messageData.key || !messageData.message || !messageData.messageTimestamp) {
+      console.error('Estrutura inválida: campos obrigatórios ausentes', {
+        hasKey: !!messageData.key,
+        hasMessage: !!messageData.message,
+        hasTimestamp: !!messageData.messageTimestamp
+      })
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Estrutura de dados inválida: campos obrigatórios ausentes'
+      })
+    }
 
     // Ignorar mensagens enviadas por nós mesmos
     if (messageData.key.fromMe) {
@@ -300,10 +339,47 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error) {
-    console.error('Erro no webhook:', error)
+    console.error('Erro no webhook:', {
+      error: error?.message || error,
+      stack: error?.stack,
+      instance: body?.instance,
+      event: body?.event
+    })
+
+    // Log detalhado para debugging
+    console.error('Detalhes do erro:', {
+      errorMessage: error?.message,
+      errorType: error?.constructor?.name,
+      bodyStructure: {
+        hasEvent: !!body?.event,
+        hasData: !!body?.data,
+        hasInstance: !!body?.instance
+      }
+    })
+
+    // Retornar erro mais específico se possível
+    let errorMessage = 'Erro interno no webhook'
+    let statusCode = 500
+
+    if (error?.message) {
+      errorMessage = error.message
+    }
+
+    // Erros específicos do Supabase
+    if (error?.message?.includes('duplicate key')) {
+      errorMessage = 'Mensagem duplicada'
+      statusCode = 409
+    } else if (error?.message?.includes('foreign key')) {
+      errorMessage = 'Erro de relacionamento no banco de dados'
+      statusCode = 400
+    } else if (error?.message?.includes('timeout')) {
+      errorMessage = 'Timeout no banco de dados'
+      statusCode = 504
+    }
+
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno no webhook'
+      statusCode: statusCode,
+      statusMessage: errorMessage
     })
   }
 })
