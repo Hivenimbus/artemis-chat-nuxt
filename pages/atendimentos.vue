@@ -73,6 +73,7 @@
 
 <script setup>
 import { nextTick } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 
 // Dados carregados da API
 const atendimentos = ref([])
@@ -566,10 +567,10 @@ watch(selectedCaixaEntrada, async (newInboxId) => {
 })
 
 // Pausar polling quando a aba não estiver visível
-const { visibility } = useDocumentVisibility()
+const isVisible = useDocumentVisibility()
 
-watch(visibility, (isVisible) => {
-  if (isVisible) {
+watch(isVisible, (visible) => {
+  if (visible) {
     // Quando a aba ficar visível, atualizar imediatamente e continuar polling
     loadAtendimentos(selectedCaixaEntrada.value)
     startPolling()
