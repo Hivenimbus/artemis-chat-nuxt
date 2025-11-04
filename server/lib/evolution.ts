@@ -65,7 +65,7 @@ export async function findInboxByInstance(supabase: SupabaseClient, instanceId: 
     const { data, error } = await supabase
       .from('inboxes')
       .select('id, empresa_id')
-      .eq('name', instanceId)
+      .eq('id', instanceId)
       .single()
 
     if (error) {
