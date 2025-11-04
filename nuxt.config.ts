@@ -33,13 +33,16 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private keys (only available on server-side)
-    evolutionApiUrl: process.env.EVOLUTION_API_URL,
-    evolutionApiKey: process.env.EVOLUTION_API_KEY,
+    private: {
+      supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
+    },
 
     public: {
       supabaseUrl: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
-      siteUrl: process.env.SITE_URL || 'http://localhost:3000'
+      siteUrl: process.env.SITE_URL || 'http://localhost:3000',
+      evolutionApiUrl: process.env.EVOLUTION_API_URL || 'https://evolution-hive-evolution.jjqtga.easypanel.host',
+      evolutionApiKey: process.env.EVOLUTION_API_KEY || 'tKdwRz9Ph5Lz5D30InM75QO0vwK9r21vKVpmfBWNC4nqcw3qygHqGvlqlCP4jICL'
     }
   }
 })
