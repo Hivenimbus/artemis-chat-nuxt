@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.0",
+    "@vueuse/core": "^14.0.0",
     "nuxt": "^4.1.2",
     "vue": "^3.5.16",
     "vue-draggable-plus": "^0.6.0",
