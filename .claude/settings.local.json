@@ -30,9 +30,7 @@
       "Bash(curl:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:doc.evolution-api.com)",
-      "WebFetch(domain:evolution-api.com)",
-      "mcp__supabase-NOVO__search_docs",
-      "mcp__context7__resolve-library-id"
+      "WebFetch(domain:evolution-api.com)"
     ],
     "deny": [],
     "ask": []

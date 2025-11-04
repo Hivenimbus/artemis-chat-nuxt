@@ -15,7 +15,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/',
       callback: '/atendimentos',
-      exclude: ['/', '/api/**']
+      exclude: ['/']
     },
     clientOptions: {
       auth: {
