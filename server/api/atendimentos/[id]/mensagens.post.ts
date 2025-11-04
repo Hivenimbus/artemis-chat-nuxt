@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createEvolutionClient, formatPhoneNumberForWhatsApp } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -42,7 +43,7 @@ export default defineEventHandler(async (event) => {
 
     // Obter corpo da requisição
     const body = await readBody(event)
-    const { texto } = body
+    const { texto, mediaUrl, mediaType, caption } = body
 
     // Validar campos obrigatórios
     if (!texto || !texto.trim()) {
@@ -62,7 +63,15 @@ export default defineEventHandler(async (event) => {
         contato_id,
         inbox_id,
         inboxes!inner (
-          empresa_id
+          id,
+          empresa_id,
+          status,
+          name
+        ),
+        contatos!inner (
+          id,
+          nome,
+          telefone
         )
       `)
       .eq('id', atendimentoId)
@@ -72,6 +81,14 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa'
+      })
+    }
+
+    // Verificar se a inbox está conectada
+    if (atendimento.inboxes.status !== 'connected') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Caixa de entrada não está conectada ao WhatsApp'
       })
     }
 
@@ -95,7 +112,45 @@ export default defineEventHandler(async (event) => {
         .eq('id', atendimentoId)
     }
 
-    // Criar mensagem
+    // Enviar mensagem através da Evolution API
+    const evolutionClient = createEvolutionClient()
+    const phoneNumber = formatPhoneNumberForWhatsApp(atendimento.contatos.telefone)
+
+    let evolutionResponse: any = null
+
+    try {
+      console.log(`Enviando mensagem para ${phoneNumber} via instância ${atendimento.inboxes.id}`)
+
+      if (mediaUrl && mediaType) {
+        // Enviar mídia
+        evolutionResponse = await evolutionClient.sendMediaMessage(
+          atendimento.inboxes.id,
+          phoneNumber,
+          mediaUrl,
+          mediaType,
+          caption || texto.trim()
+        )
+      } else {
+        // Enviar texto
+        evolutionResponse = await evolutionClient.sendTextMessage(
+          atendimento.inboxes.id,
+          phoneNumber,
+          texto.trim()
+        )
+      }
+
+      console.log('Mensagem enviada para Evolution API:', evolutionResponse)
+    } catch (evolutionError) {
+      console.error('Erro ao enviar mensagem para Evolution API:', evolutionError)
+
+      // Não impedir salvamento local, mas logar erro
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao enviar mensagem para o WhatsApp. Tente novamente.'
+      })
+    }
+
+    // Criar mensagem no banco de dados
     const { data: novaMensagem, error: mensagemError } = await client
       .from('mensagens')
       .insert({
@@ -104,7 +159,11 @@ export default defineEventHandler(async (event) => {
         texto: texto.trim(),
         remetente: 'user',
         lida: true,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        message_type: mediaType ? mediaType : 'text',
+        media_url: mediaUrl,
+        media_type: mediaType,
+        evolution_message_id: evolutionResponse?.key?.id || null
       })
       .select(`
         id,
@@ -114,6 +173,9 @@ export default defineEventHandler(async (event) => {
         remetente,
         lida,
         timestamp,
+        message_type,
+        media_url,
+        media_type,
         created_at,
         users (
           id,
@@ -127,7 +189,7 @@ export default defineEventHandler(async (event) => {
       console.error('API /api/atendimentos/[id]/mensagens POST: Erro ao criar mensagem:', mensagemError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Erro ao enviar mensagem'
+        statusMessage: 'Erro ao salvar mensagem no banco de dados'
       })
     }
 
@@ -162,12 +224,17 @@ export default defineEventHandler(async (event) => {
       lida: novaMensagem.lida,
       usuario_id: novaMensagem.usuario_id,
       usuario_name: novaMensagem.users?.name || null,
-      created_at: novaMensagem.created_at
+      created_at: novaMensagem.created_at,
+      message_type: novaMensagem.message_type,
+      media_url: novaMensagem.media_url,
+      media_type: novaMensagem.media_type,
+      evolution_status: evolutionResponse ? 'sent' : 'pending'
     }
 
     return {
       success: true,
       data: mensagemFormatada,
+      evolution_response: evolutionResponse,
       message: 'Mensagem enviada com sucesso'
     }
 
