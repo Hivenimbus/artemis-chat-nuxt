@@ -503,6 +503,37 @@ const loadTags = async () => {
   }
 }
 
+// Sistema de atualização automática para novas mensagens
+let pollingInterval = null
+
+const startPolling = () => {
+  // Limpar intervalo existente
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+  }
+
+  // Atualizar a cada 10 segundos
+  pollingInterval = setInterval(async () => {
+    // Só atualizar se não estiver carregando
+    if (!loading.value) {
+      await loadAtendimentos(selectedCaixaEntrada.value)
+
+      // Se há um contato selecionado, atualizar também as mensagens
+      if (selectedContact.value) {
+        // TODO: Implementar atualização de mensagens do contato selecionado
+        // Isso pode ser feito via $fetch para /api/atendimentos/[id]/mensagens
+      }
+    }
+  }, 10000) // 10 segundos
+}
+
+const stopPolling = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
 // Carregar dados ao montar a página
 onMounted(async () => {
   await nextTick()
@@ -512,12 +543,39 @@ onMounted(async () => {
   ])
   // Carregar atendimentos após carregar inboxes
   await loadAtendimentos()
+
+  // Iniciar polling
+  startPolling()
+})
+
+// Parar polling quando a página for destruída
+onUnmounted(() => {
+  stopPolling()
 })
 
 // Watcher para atualizar atendimentos quando a caixa de entrada mudar
 watch(selectedCaixaEntrada, async (newInboxId) => {
   if (newInboxId) {
     await loadAtendimentos(newInboxId)
+    // Reiniciar polling com novo filtro
+    stopPolling()
+    nextTick(() => {
+      startPolling()
+    })
+  }
+})
+
+// Pausar polling quando a aba não estiver visível
+const { visibility } = useDocumentVisibility()
+
+watch(visibility, (isVisible) => {
+  if (isVisible) {
+    // Quando a aba ficar visível, atualizar imediatamente e continuar polling
+    loadAtendimentos(selectedCaixaEntrada.value)
+    startPolling()
+  } else {
+    // Quando a aba não estiver visível, parar polling para economizar recursos
+    stopPolling()
   }
 })
 
