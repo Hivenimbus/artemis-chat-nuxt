@@ -84,29 +84,13 @@ graph TD
 POST /api/webhook/whatsapp
 ```
 
-### Endpoints de Teste
-
-#### Teste Básico
+### Endpoint de Teste
 ```
 POST /api/test/media
 Content-Type: application/json
 
 {
   "type": "image"  // "audio", "image", "video"
-}
-```
-
-#### Teste de Debug (Cenários de Corrupção)
-```
-POST /api/test/media-debug
-Content-Type: application/json
-
-{
-  "testType": "valid-base64"           // Base64 válido - deve funcionar
-  "testType": "invalid-base64-truncated"  // Base64 truncado - deve falhar
-  "testType": "invalid-base64-format"    // Formato inválido - deve falhar
-  "testType": "size-mismatch"           // Tamanho não corresponde - deve falhar
-  "testType": "no-base64-no-url"        // Sem dados - deve falhar
 }
 ```
 
@@ -132,52 +116,12 @@ O sistema inclui logs detalhados para monitoramento:
 - `📤 Fazendo upload para Supabase Storage`
 - `✅ Upload realizado com sucesso`
 
-## Tratamento de Erros e Validação Robusta
+## Tratamento de Erros
 
-### Validações Implementadas
-
-1. **Validação de Base64**
-   - Verificação de formato regex
-   - Validação de padding (máximo 2 =)
-   - Comparação de tamanho esperado
-   - Teste de decodificação para confirmar validade
-
-2. **Validação de Hash SHA256**
-   - Compara hash do arquivo com hash esperado
-   - Detecta corrupção ou truncamento
-   - Falha rápida se hash não corresponder
-
-3. **Validação de Imagem**
-   - Verificação de magic numbers (JPEG, PNG, GIF, WebP)
-   - Validação de tamanho mínimo
-   - Detecção de cabeçalhos inválidos
-
-4. **Validação de Download**
-   - Verificação de Content-Type
-   - Validação de Content-Length
-   - Timeout de 30 segundos
-   - User-Agent personalizado
-
-### Fluxo de Recuperação
-
-- **Base64 inválido**: Tenta download da URL
-- **Download falhou**: Log detalhado do erro
-- **Hash não corresponde**: Falha imediata para evitar corrupção
-- **Buffer inválido**: Detecta magic numbers incorretos
-- **Size mismatch**: Verifica diferença > 20% do esperado
+- **Download falhou**: Tenta usar base64 se disponível
 - **Upload falhou**: Continua com processamento de texto apenas
-
-### Logs Detalhados
-
-Sistema de logging em múltiplas etapas:
-- `🔍 [INÍCIO]`: Início do processamento
-- `📷 Informações da mídia`: Metadados completos
-- `🔍 [BASE64]`: Validação e processamento de base64
-- `🔍 [DOWNLOAD]`: Download da URL com validações
-- `✅ [SUCESSO]`: Buffer validado com sucesso
-- `📤 [UPLOAD]`: Upload para Supabase
-- `✅ [COMPLETO]`: Processamento concluído
-- `❌ [FALHA]`: Erros específicos com contexto
+- **Base64 inválido**: Tenta download da URL
+- **Storage indisponível**: Log de erro e continuidade do fluxo
 
 ## Performance
 
