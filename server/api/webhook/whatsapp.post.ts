@@ -8,12 +8,6 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const headers = getHeaders(event)
 
-    // Log completo do JSON que chega no webhook
-    console.log('📥 [WEBHOOK] Body completo:', JSON.stringify(body, null, 2))
-
-    // Log dos headers da requisição para debug
-    console.log('🔍 [WEBHOOK] Headers:', JSON.stringify(headers, null, 2))
-
     // Criar cliente Supabase com service role (webhooks não têm usuário autenticado)
     const supabase = createServiceSupabaseClient()
 
@@ -24,14 +18,8 @@ export default defineEventHandler(async (event) => {
       console.log('⚠️ Webhook sem validação de origem')
     }
 
-    // Log após validação
-    console.log('✅ [WEBHOOK] Body validado:', JSON.stringify(body, null, 2))
-
     // Verificar se é um evento de mensagem
     if (body.event === 'messages.upsert') {
-      // Log antes do processamento
-      console.log('⚡ [WEBHOOK] Body antes do processamento:', JSON.stringify(body, null, 2))
-
       const result = await processEvolutionMessage(supabase, body)
 
       const processingTime = Date.now() - startTime
