@@ -208,7 +208,12 @@ export async function createMessage(
   remetente: 'contact' | 'user',
   messageType: string = 'text',
   evolutionMessageId?: string,
-  messageTimestamp?: number
+  messageTimestamp?: number,
+  mediaData?: {
+    mediaUrl: string | null
+    mediaType: string | null
+    mediaName: string | null
+  }
 ): Promise<string | null> {
   try {
     const messageData: any = {
@@ -225,6 +230,19 @@ export async function createMessage(
 
     if (evolutionMessageId) {
       messageData.evolution_message_id = evolutionMessageId
+    }
+
+    // Adicionar dados de mídia se existirem
+    if (mediaData) {
+      if (mediaData.mediaUrl) {
+        messageData.media_url = mediaData.mediaUrl
+      }
+      if (mediaData.mediaType) {
+        messageData.media_type = mediaData.mediaType
+      }
+      if (mediaData.mediaName) {
+        messageData.media_name = mediaData.mediaName
+      }
     }
 
     const { data: mensagem, error } = await supabase
@@ -360,13 +378,19 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     // Extrair informações
     const remoteJid = data.key?.remoteJid
     const pushName = data.pushName || 'Contato'
-    const messageText = data.message?.conversation || ''
     const messageType = data.messageType || 'conversation'
     const messageTimestamp = data.messageTimestamp || Date.now()
     const evolutionMessageId = data.key?.id
 
-    if (!remoteJid || !messageText?.trim()) {
-      webhookLogger.warn('message.invalid_data', 'Mensagem sem informações necessárias', {
+    // Extrair texto da mensagem (texto direto ou legenda de mídia)
+    let messageText = data.message?.conversation || ''
+    let mediaData = null
+
+    // Para mensagens de mídia, processar após encontrar a inbox (precisamos do empresaId)
+    const isMediaMessage = messageType !== 'conversation' && messageType !== 'extendedTextMessage'
+
+    if (!remoteJid) {
+      webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', {
         remoteJid,
         messageText,
         instance
@@ -386,6 +410,30 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     if (!inbox) {
       webhookLogger.logInboxNotFound(instance)
       return null
+    }
+
+    // 1.5. Processar mídia se for mensagem de mídia
+    if (isMediaMessage) {
+      mediaData = await processMediaMessage(
+        supabase,
+        data.message,
+        messageType,
+        evolutionMessageId,
+        inbox.empresa_id
+      )
+
+      if (mediaData) {
+        messageText = mediaData.displayText
+      } else {
+        // Se falhou processar mídia, usar texto padrão
+        const mediaTexts = {
+          'imageMessage': '📷 Imagem',
+          'videoMessage': '🎥 Vídeo',
+          'audioMessage': '🔊 Áudio',
+          'documentMessage': '📎 Documento'
+        }
+        messageText = mediaTexts[messageType] || '📎 Mídia'
+      }
     }
 
     // 2. Buscar ou criar contato
@@ -411,7 +459,8 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       'contact',
       messageType,
       evolutionMessageId,
-      messageTimestamp
+      messageTimestamp,
+      mediaData || undefined
     )
 
     if (!mensagemId) {
@@ -454,6 +503,126 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
   } catch (error) {
     webhookLogger.logWebhookError(webhookData.event, instance, error, webhookData)
+    return null
+  }
+}
+
+/**
+ * Processa mídias (imagem, vídeo, áudio) e faz upload para o Supabase Storage
+ */
+export async function processMediaMessage(
+  supabase: SupabaseClient,
+  messageData: any,
+  messageType: string,
+  messageId: string,
+  empresaId: string
+): Promise<{
+  mediaUrl: string | null
+  mediaType: string | null
+  mediaName: string | null
+  displayText: string
+} | null> {
+  try {
+    let mediaContent: any = null
+    let displayText = ''
+    let fileExtension = ''
+
+    // Determinar o tipo de mídia e extrair conteúdo
+    switch (messageType) {
+      case 'imageMessage':
+        mediaContent = messageData.imageMessage
+        displayText = mediaContent?.caption || '📷 Imagem'
+        fileExtension = mediaContent?.mimetype?.includes('png') ? 'png' : 'jpg'
+        break
+
+      case 'videoMessage':
+        mediaContent = messageData.videoMessage
+        displayText = mediaContent?.caption || '🎥 Vídeo'
+        fileExtension = 'mp4'
+        break
+
+      case 'audioMessage':
+        mediaContent = messageData.audioMessage
+        displayText = mediaContent?.ptt ? '🎤 Nota de áudio' : '🔊 Áudio'
+        fileExtension = 'ogg'
+        break
+
+      case 'documentMessage':
+        mediaContent = messageData.documentMessage
+        displayText = `📎 ${mediaContent?.fileName || 'Documento'}`
+        fileExtension = mediaContent?.fileName?.split('.').pop() || 'pdf'
+        break
+
+      default:
+        webhookLogger.warn('media.unsupported_type', `Tipo de mídia não suportado: ${messageType}`)
+        return null
+    }
+
+    if (!mediaContent || !mediaContent.base64) {
+      webhookLogger.warn('media.no_content', `Mídia sem conteúdo base64 para: ${messageType}`)
+      return {
+        mediaUrl: null,
+        mediaType: null,
+        mediaName: null,
+        displayText
+      }
+    }
+
+    // Gerar nome único para o arquivo
+    const timestamp = Date.now()
+    const fileName = `${messageType}_${messageId}_${timestamp}.${fileExtension}`
+    const storagePath = `empresas/${empresaId}/${fileName}`
+
+    // Converter base64 para Buffer
+    const base64Data = mediaContent.base64
+    const buffer = Buffer.from(base64Data, 'base64')
+
+    // Fazer upload para o Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('midias')
+      .upload(storagePath, buffer, {
+        contentType: mediaContent.mimetype,
+        upsert: true
+      })
+
+    if (uploadError) {
+      webhookLogger.error('media.upload_failed', `Erro ao fazer upload da mídia`, uploadError, {
+        fileName,
+        storagePath,
+        messageType
+      })
+      return {
+        mediaUrl: null,
+        mediaType: mediaContent.mimetype,
+        mediaName: fileName,
+        displayText
+      }
+    }
+
+    // Obter URL pública do arquivo
+    const { data: urlData } = supabase.storage
+      .from('midias')
+      .getPublicUrl(storagePath)
+
+    const publicUrl = urlData.publicUrl
+
+    webhookLogger.info('media.uploaded', `Mídia processada com sucesso`, {
+      fileName,
+      storagePath,
+      publicUrl,
+      messageType,
+      fileSize: buffer.length
+    })
+
+    return {
+      mediaUrl: publicUrl,
+      mediaType: mediaContent.mimetype,
+      mediaName: fileName,
+      displayText
+    }
+
+  } catch (error) {
+    webhookLogger.error('media.processing_error', `Erro ao processar mídia: ${messageType}`, error)
     return null
   }
 }
