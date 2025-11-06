@@ -77,6 +77,12 @@ export default defineEventHandler(async (event) => {
         lida,
         timestamp,
         created_at,
+        message_type,
+        media_url,
+        media_type,
+        media_name,
+        evolution_message_id,
+        evolution_status,
         users (
           id,
           name,
@@ -102,12 +108,20 @@ export default defineEventHandler(async (event) => {
       id: mensagem.id,
       atendimento_id: mensagem.atendimento_id,
       text: mensagem.texto,
+      texto: mensagem.texto, // Manter ambos para compatibilidade
       sender: mensagem.remetente,
       timestamp: mensagem.timestamp ? new Date(mensagem.timestamp) : new Date(mensagem.created_at),
       lida: mensagem.lida,
       usuario_id: mensagem.usuario_id,
       usuario_name: mensagem.users?.name || null,
-      created_at: mensagem.created_at
+      created_at: mensagem.created_at,
+      // Campos de mídia
+      message_type: mensagem.message_type,
+      media_url: mensagem.media_url,
+      media_type: mensagem.media_type,
+      media_name: mensagem.media_name,
+      evolution_message_id: mensagem.evolution_message_id,
+      evolution_status: mensagem.evolution_status
     })) || []
 
     // Marcar mensagens não lidas como lidas (se o usuário for o responsável)

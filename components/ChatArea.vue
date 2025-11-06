@@ -164,7 +164,20 @@
                 : 'bg-white text-gray-900 shadow-sm'
             ]"
           >
-            <p class="text-sm">{{ message.text }}</p>
+            <!-- Componente de mídia para mensagens com mídia -->
+            <MediaMessage
+              v-if="message.media_url || (message.media_type && message.media_type !== 'text')"
+              :message="message"
+              :show-file-name="true"
+              @error="handleMediaError"
+            />
+
+            <!-- Mensagem de texto tradicional (fallback) -->
+            <div v-else>
+              <p class="text-sm">{{ message.text || message.texto }}</p>
+            </div>
+
+            <!-- Timestamp da mensagem -->
             <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-indigo-200' : 'text-gray-500'">
               {{ formatTime(message.timestamp) }}
             </p>
@@ -599,6 +612,11 @@ const getTagColor = (tag) => {
 const getTagName = (tag) => {
   // Extrair nome da tag (se for objeto ou string)
   return typeof tag === 'object' ? tag.nome : tag
+}
+
+// Manipular erros de mídia
+const handleMediaError = (error) => {
+  console.error('Erro ao carregar mídia:', error)
 }
 </script>
 
