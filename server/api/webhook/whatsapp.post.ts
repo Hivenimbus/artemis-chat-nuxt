@@ -20,15 +20,36 @@ export default defineEventHandler(async (event) => {
 
     // Verificar se é um evento de mensagem
     if (body.event === 'messages.upsert') {
+      // Detectar se é mensagem de mídia para logging
+      const isMediaMessage = !!(body.data?.message?.imageMessage ||
+                              body.data?.message?.videoMessage ||
+                              body.data?.message?.audioMessage ||
+                              body.data?.message?.documentMessage)
+
+      if (isMediaMessage) {
+        console.log(`📷 [${startTime}] Mensagem de mídia detectada: ${body.data?.messageType}`)
+      }
+
       const result = await processEvolutionMessage(supabase, body)
 
       const processingTime = Date.now() - startTime
-      console.log(`⚡ [${processingTime}ms] Webhook processado com sucesso`)
 
-      return {
-        success: true,
-        message: 'Webhook processado com sucesso',
-        processingTime: `${processingTime}ms`
+      if (isMediaMessage && result?.mediaUrl) {
+        console.log(`⚡ [${processingTime}ms] Webhook de mídia processado com sucesso`)
+        return {
+          success: true,
+          message: 'Mensagem de mídia processada com sucesso',
+          mediaUrl: result.mediaUrl,
+          mediaType: result.mediaType,
+          processingTime: `${processingTime}ms`
+        }
+      } else {
+        console.log(`⚡ [${processingTime}ms] Webhook processado com sucesso`)
+        return {
+          success: true,
+          message: 'Webhook processado com sucesso',
+          processingTime: `${processingTime}ms`
+        }
       }
     }
     else if (body.event === 'messages.edit') {
