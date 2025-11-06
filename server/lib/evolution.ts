@@ -130,6 +130,7 @@ export interface MediaInfo {
   duration?: number
   caption?: string
   base64?: string
+  fileSha256?: string
 }
 
 export interface ProcessedMessage {
@@ -637,7 +638,8 @@ export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo |
       filename: `audio_${data.key?.id}_${Date.now()}.${extension}`,
       size: audio.fileLength,
       duration: audio.seconds,
-      base64: audio.base64
+      base64: audio.base64,
+      fileSha256: audio.fileSha256
     }
   }
 
@@ -656,7 +658,8 @@ export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo |
       filename: `image_${data.key?.id}_${Date.now()}.${extension}`,
       size: image.fileLength,
       caption: image.caption,
-      base64: image.base64
+      base64: image.base64,
+      fileSha256: image.fileSha256
     }
   }
 
@@ -675,7 +678,8 @@ export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo |
       size: video.fileLength,
       duration: video.seconds,
       caption: video.caption,
-      base64: video.base64
+      base64: video.base64,
+      fileSha256: video.fileSha256
     }
   }
 
@@ -691,7 +695,8 @@ export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo |
       filename: doc.fileName || `document_${data.key?.id}_${Date.now()}.${extension}`,
       size: doc.fileLength,
       caption: doc.caption,
-      base64: doc.base64
+      base64: doc.base64,
+      fileSha256: doc.fileSha256
     }
   }
 
@@ -699,25 +704,203 @@ export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo |
 }
 
 /**
- * Baixa mídia da Evolution API
+ * Valida se uma string base64 é válida e completa
  */
-export async function downloadMediaFromEvolution(mediaUrl: string): Promise<Buffer | null> {
+export function isValidBase64(base64: string, expectedLength?: number): boolean {
   try {
-    console.log('🔽 Baixando mídia da Evolution API:', mediaUrl)
+    // Verificar formato básico
+    const base64Regex = /^[A-Za-z0-9+/]+=*$/
+    if (!base64Regex.test(base64)) {
+      console.log('❌ Base64 inválido: formato incorreto')
+      return false
+    }
 
-    const response = await fetch(mediaUrl)
+    // Verificar padding (máximo 2 =)
+    const padding = base64.match(/[=]+$/)?.[0] || ''
+    if (padding.length > 2) {
+      console.log('❌ Base64 inválido: padding excessivo')
+      return false
+    }
+
+    // Verificar se não está truncado (tamanho mínimo)
+    if (base64.length < 4) {
+      console.log('❌ Base64 inválido: muito curto')
+      return false
+    }
+
+    // Verificar tamanho esperado se fornecido
+    if (expectedLength) {
+      const expectedBase64Length = Math.ceil(expectedLength / 3) * 4
+      if (Math.abs(base64.length - expectedBase64Length) > 4) {
+        console.log('❌ Base64 inválido: tamanho não corresponde ao esperado', {
+          actual: base64.length,
+          expected: expectedBase64Length
+        })
+        return false
+      }
+    }
+
+    // Tentar decodificar para validar completamente
+    const decoded = Buffer.from(base64, 'base64')
+    if (decoded.length === 0) {
+      console.log('❌ Base64 inválido: decodificação resultou em buffer vazio')
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('❌ Erro na validação de base64:', error)
+    return false
+  }
+}
+
+/**
+ * Verifica o hash SHA256 de um buffer
+ */
+export async function validateSha256Hash(buffer: Buffer, expectedHash: string): Promise<boolean> {
+  try {
+    const crypto = await import('crypto')
+    const actualHash = crypto.createHash('sha256').update(buffer).digest('base64')
+
+    const isValid = actualHash === expectedHash
+    if (!isValid) {
+      console.log('❌ Hash SHA256 não corresponde:', {
+        expected: expectedHash,
+        actual: actualHash
+      })
+    } else {
+      console.log('✅ Hash SHA256 validado com sucesso')
+    }
+
+    return isValid
+  } catch (error) {
+    console.error('❌ Erro na validação de hash:', error)
+    return false
+  }
+}
+
+/**
+ * Valida se um buffer representa uma imagem válida
+ */
+export function validateImageBuffer(buffer: Buffer, mimeType: string): boolean {
+  try {
+    // Verificar tamanho mínimo
+    if (buffer.length < 100) {
+      console.log('❌ Buffer muito pequeno para ser uma imagem válida')
+      return false
+    }
+
+    // Verificar magic numbers baseados no tipo
+    const signature = buffer.subarray(0, 12)
+
+    if (mimeType.includes('jpeg')) {
+      // JPEG: FF D8 FF
+      return signature[0] === 0xFF && signature[1] === 0xD8 && signature[2] === 0xFF
+    } else if (mimeType.includes('png')) {
+      // PNG: 89 50 4E 47 0D 0A 1A 0A
+      return signature.toString('ascii', 1, 8) === 'PNG\r\n\x1a\n'
+    } else if (mimeType.includes('gif')) {
+      // GIF: 47 49 46 38
+      return signature.toString('ascii', 0, 4) === 'GIF8'
+    } else if (mimeType.includes('webp')) {
+      // WebP: 52 49 46 46 ... 57 45 42 50
+      return signature.toString('ascii', 0, 4) === 'RIFF' &&
+             signature.toString('ascii', 8, 12) === 'WEBP'
+    }
+
+    // Para outros tipos, apenas verificar se não está vazio
+    return buffer.length > 0
+  } catch (error) {
+    console.error('❌ Erro na validação de imagem:', error)
+    return false
+  }
+}
+
+/**
+ * Baixa mídia da Evolution API com validações robustas
+ */
+export async function downloadMediaFromEvolution(
+  mediaUrl: string,
+  expectedSize?: number,
+  expectedMimeType?: string
+): Promise<Buffer | null> {
+  try {
+    console.log('🔽 Baixando mídia da Evolution API:', {
+      url: mediaUrl,
+      expectedSize,
+      expectedMimeType
+    })
+
+    const response = await fetch(mediaUrl, {
+      timeout: 30000, // 30 segundos timeout
+      headers: {
+        'User-Agent': 'Artemis-WhatsApp-Webhook/1.0'
+      }
+    })
+
     if (!response.ok) {
-      console.error('❌ Erro ao baixar mídia:', response.status, response.statusText)
+      console.error('❌ Erro ao baixar mídia:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: mediaUrl
+      })
       return null
+    }
+
+    // Validar Content-Type
+    const contentType = response.headers.get('content-type')
+    if (expectedMimeType && contentType && !contentType.includes(expectedMimeType.split('/')[0])) {
+      console.warn('⚠️ Content-Type não corresponde ao esperado:', {
+        received: contentType,
+        expected: expectedMimeType
+      })
+    }
+
+    // Validar Content-Length se disponível
+    const contentLength = response.headers.get('content-length')
+    if (contentLength && expectedSize) {
+      const receivedSize = parseInt(contentLength)
+      if (Math.abs(receivedSize - expectedSize) > 1000) { // permitir diferença de até 1KB
+        console.warn('⚠️ Tamanho do conteúdo não corresponde ao esperado:', {
+          received: receivedSize,
+          expected: expectedSize,
+          difference: Math.abs(receivedSize - expectedSize)
+        })
+      }
     }
 
     const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    console.log('✅ Mídia baixada com sucesso:', buffer.length, 'bytes')
+    // Validar tamanho mínimo
+    if (buffer.length < 100) {
+      console.error('❌ Buffer muito pequeno após download:', {
+        size: buffer.length,
+        url: mediaUrl
+      })
+      return null
+    }
+
+    // Validar tamanho se esperado
+    if (expectedSize && Math.abs(buffer.length - expectedSize) > expectedSize * 0.1) {
+      console.warn('⚠️ Tamanho do buffer difere significativamente:', {
+        actual: buffer.length,
+        expected: expectedSize,
+        differencePercent: ((buffer.length - expectedSize) / expectedSize * 100).toFixed(2) + '%'
+      })
+    }
+
+    console.log('✅ Mídia baixada com sucesso:', {
+      size: buffer.length,
+      contentType,
+      url: mediaUrl.substring(0, 100) + '...'
+    })
     return buffer
   } catch (error) {
-    console.error('❌ Erro ao baixar mídia:', error)
+    console.error('❌ Erro ao baixar mídia:', {
+      error: error.message,
+      url: mediaUrl.substring(0, 100) + '...'
+    })
     return null
   }
 }
@@ -771,38 +954,126 @@ export async function processMediaMessage(
   webhookData: EvolutionWebhookData,
   empresaId: string
 ): Promise<{ mediaUrl: string; mediaType: string; mediaName: string } | null> {
+  const startTime = Date.now()
+
   try {
+    console.log('🔍 [INÍCIO] Processando mídia - Timestamp:', startTime)
+
     const mediaInfo = extractMediaInfo(webhookData)
     if (!mediaInfo) {
       console.log('📷 Nenhuma mídia encontrada na mensagem')
       return null
     }
 
-    console.log('📷 Processando mídia:', mediaInfo.type, mediaInfo.filename)
+    console.log('📷 Informações da mídia:', {
+      type: mediaInfo.type,
+      filename: mediaInfo.filename,
+      mimetype: mediaInfo.mimetype,
+      size: mediaInfo.size,
+      hasBase64: !!mediaInfo.base64,
+      hasUrl: !!mediaInfo.url,
+      caption: mediaInfo.caption
+    })
 
     let mediaBuffer: Buffer | null = null
+    let sourceMethod = ''
 
-    // Tentar usar base64 primeiro (mais eficiente)
+    // === MÉTODO 1: Tentar base64 primeiro (mais eficiente) ===
     if (mediaInfo.base64) {
-      try {
-        mediaBuffer = Buffer.from(mediaInfo.base64, 'base64')
-        console.log('✅ Mídia carregada do base64:', mediaBuffer.length, 'bytes')
-      } catch (error) {
-        console.warn('⚠️ Erro ao processar base64, tentando download:', error)
+      console.log('🔍 [BASE64] Validando base64 antes do processamento...')
+
+      // Validar base64 robustamente
+      const isBase64Valid = isValidBase64(mediaInfo.base64, mediaInfo.size)
+      if (!isBase64Valid) {
+        console.warn('⚠️ [BASE64] Base64 inválido, tentando download da URL')
+      } else {
+        try {
+          mediaBuffer = Buffer.from(mediaInfo.base64, 'base64')
+          sourceMethod = 'base64'
+
+          console.log('✅ [BASE64] Mídia carregada do base64:', {
+            size: mediaBuffer.length,
+            expectedSize: mediaInfo.size,
+            difference: mediaBuffer.length - mediaInfo.size
+          })
+
+          // Validar integridade do buffer
+          if (mediaInfo.type === 'image' && !validateImageBuffer(mediaBuffer, mediaInfo.mimetype)) {
+            console.warn('⚠️ [BASE64] Buffer não representa uma imagem válida, tentando download')
+            mediaBuffer = null
+          }
+
+          // Validar hash se disponível
+          if (mediaInfo.fileSha256 && mediaBuffer) {
+            const hashValid = await validateSha256Hash(mediaBuffer, mediaInfo.fileSha256)
+            if (!hashValid) {
+              console.warn('⚠️ [BASE64] Hash SHA256 não corresponde, tentando download')
+              mediaBuffer = null
+            }
+          }
+
+        } catch (error) {
+          console.error('❌ [BASE64] Erro ao processar base64:', error)
+          mediaBuffer = null
+        }
       }
     }
 
-    // Se não conseguiu do base64, baixa da URL
+    // === MÉTODO 2: Download da URL (fallback) ===
     if (!mediaBuffer && mediaInfo.url) {
-      mediaBuffer = await downloadMediaFromEvolution(mediaInfo.url)
+      console.log('🔍 [DOWNLOAD] Tentando download da URL...')
+
+      mediaBuffer = await downloadMediaFromEvolution(
+        mediaInfo.url,
+        mediaInfo.size,
+        mediaInfo.mimetype
+      )
+
+      if (mediaBuffer) {
+        sourceMethod = 'download'
+
+        // Validar buffer baixado
+        if (mediaInfo.type === 'image' && !validateImageBuffer(mediaBuffer, mediaInfo.mimetype)) {
+          console.error('❌ [DOWNLOAD] Buffer baixado não representa uma imagem válida')
+          return null
+        }
+
+        // Validar hash se disponível
+        if (mediaInfo.fileSha256) {
+          const hashValid = await validateSha256Hash(mediaBuffer, mediaInfo.fileSha256)
+          if (!hashValid) {
+            console.error('❌ [DOWNLOAD] Hash SHA256 não corresponde ao esperado')
+            return null
+          }
+        }
+      }
     }
 
+    // === VALIDAÇÃO FINAL ===
     if (!mediaBuffer) {
-      console.error('❌ Não foi possível obter o arquivo de mídia')
+      console.error('❌ [FALHA] Não foi possível obter o arquivo de mídia por nenhum método')
       return null
     }
 
-    // Fazer upload para Supabase
+    // Validação final de tamanho
+    if (mediaInfo.size && Math.abs(mediaBuffer.length - mediaInfo.size) > mediaInfo.size * 0.2) {
+      console.error('❌ [FALHA] Tamanho final do buffer é muito diferente do esperado:', {
+        actual: mediaBuffer.length,
+        expected: mediaInfo.size,
+        differencePercent: ((mediaBuffer.length - mediaInfo.size) / mediaInfo.size * 100).toFixed(2) + '%'
+      })
+      return null
+    }
+
+    console.log('✅ [SUCESSO] Buffer validado e pronto para upload:', {
+      sourceMethod,
+      finalSize: mediaBuffer.length,
+      processingTime: Date.now() - startTime
+    })
+
+    // === UPLOAD PARA SUPABASE ===
+    console.log('📤 [UPLOAD] Iniciando upload para Supabase Storage...')
+
     const mediaUrl = await uploadMediaToSupabase(
       supabase,
       mediaBuffer,
@@ -812,17 +1083,34 @@ export async function processMediaMessage(
     )
 
     if (!mediaUrl) {
-      console.error('❌ Falha no upload da mídia')
+      console.error('❌ [FALHA] Falha no upload da mídia')
       return null
     }
+
+    const totalTime = Date.now() - startTime
+
+    console.log('✅ [COMPLETO] Mídia processada com sucesso:', {
+      mediaUrl,
+      filename: mediaInfo.filename,
+      mimetype: mediaInfo.mimetype,
+      size: mediaBuffer.length,
+      sourceMethod,
+      totalTime: `${totalTime}ms`
+    })
 
     return {
       mediaUrl,
       mediaType: mediaInfo.mimetype,
       mediaName: mediaInfo.filename
     }
+
   } catch (error) {
-    console.error('❌ Erro ao processar mídia:', error)
+    const totalTime = Date.now() - startTime
+    console.error('❌ [ERRO] Erro crítico ao processar mídia:', {
+      error: error.message,
+      stack: error.stack,
+      totalTime: `${totalTime}ms`
+    })
     return null
   }
 }
