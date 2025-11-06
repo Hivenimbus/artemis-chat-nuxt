@@ -20,76 +20,6 @@ export function createServiceSupabaseClient(): SupabaseClient {
   })
 }
 
-// Interfaces para diferentes tipos de mídia
-export interface AudioMessage {
-  url: string
-  mimetype: string
-  fileSha256: string
-  fileLength: number
-  seconds: number
-  ptt?: boolean
-  mediaKey: string
-  fileEncSha256: string
-  directPath: string
-  mediaKeyTimestamp: string
-  waveform?: string
-  viewOnce?: boolean
-  base64?: string
-}
-
-export interface ImageMessage {
-  url: string
-  mimetype: string
-  fileSha256: string
-  fileLength: number
-  height?: number
-  width?: number
-  mediaKey: string
-  fileEncSha256: string
-  directPath: string
-  mediaKeyTimestamp: string
-  jpegThumbnail?: string
-  caption?: string
-  viewOnce?: boolean
-  base64?: string
-}
-
-export interface VideoMessage {
-  url: string
-  mimetype: string
-  fileSha256: string
-  fileLength: number
-  seconds: number
-  mediaKey: string
-  fileEncSha256: string
-  directPath: string
-  mediaKeyTimestamp: string
-  height?: number
-  width?: number
-  gifPlayback?: boolean
-  jpegThumbnail?: string
-  caption?: string
-  viewOnce?: boolean
-  base64?: string
-}
-
-export interface DocumentMessage {
-  url: string
-  mimetype: string
-  fileSha256: string
-  fileLength: number
-  pageCount?: number
-  fileName?: string
-  mediaKey: string
-  fileEncSha256: string
-  directPath: string
-  mediaKeyTimestamp: string
-  thumbnail?: string
-  caption?: string
-  viewOnce?: boolean
-  base64?: string
-}
-
 export interface EvolutionWebhookData {
   event: string
   instance: string
@@ -103,10 +33,6 @@ export interface EvolutionWebhookData {
     status?: string
     message: {
       conversation?: string
-      audioMessage?: AudioMessage
-      imageMessage?: ImageMessage
-      videoMessage?: VideoMessage
-      documentMessage?: DocumentMessage
       [key: string]: any
     }
     messageType?: string
@@ -121,26 +47,12 @@ export interface EvolutionWebhookData {
   apikey: string
 }
 
-export interface MediaInfo {
-  type: 'audio' | 'image' | 'video' | 'document'
-  url: string
-  mimetype: string
-  filename: string
-  size: number
-  duration?: number
-  caption?: string
-  base64?: string
-}
-
 export interface ProcessedMessage {
   contatoId: string
   atendimentoId: string
   mensagemId: string
   inboxId: string
   empresaId: string
-  mediaUrl?: string
-  mediaType?: string
-  mediaName?: string
 }
 
 /**
@@ -296,12 +208,7 @@ export async function createMessage(
   remetente: 'contact' | 'user',
   messageType: string = 'text',
   evolutionMessageId?: string,
-  messageTimestamp?: number,
-  mediaData?: {
-    media_url: string
-    media_type: string
-    media_name: string
-  }
+  messageTimestamp?: number
 ): Promise<string | null> {
   try {
     const messageData: any = {
@@ -318,13 +225,6 @@ export async function createMessage(
 
     if (evolutionMessageId) {
       messageData.evolution_message_id = evolutionMessageId
-    }
-
-    // Adicionar dados de mídia se existirem
-    if (mediaData) {
-      messageData.media_url = mediaData.media_url
-      messageData.media_type = mediaData.media_type
-      messageData.media_name = mediaData.media_name
     }
 
     const { data: mensagem, error } = await supabase
@@ -457,57 +357,28 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // Extrair informações básicas
+    // Extrair informações
     const remoteJid = data.key?.remoteJid
     const pushName = data.pushName || 'Contato'
+    const messageText = data.message?.conversation || ''
     const messageType = data.messageType || 'conversation'
     const messageTimestamp = data.messageTimestamp || Date.now()
     const evolutionMessageId = data.key?.id
 
-    if (!remoteJid) {
-      webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', {
+    if (!remoteJid || !messageText?.trim()) {
+      webhookLogger.warn('message.invalid_data', 'Mensagem sem informações necessárias', {
         remoteJid,
+        messageText,
         instance
       })
       return null
-    }
-
-    // Detectar tipo de mensagem e extrair texto/caption
-    let messageText = data.message?.conversation || ''
-    let isMediaMessage = false
-
-    // Verificar se é mensagem de mídia
-    if (data.message?.imageMessage || data.message?.videoMessage ||
-        data.message?.audioMessage || data.message?.documentMessage) {
-      isMediaMessage = true
-
-      // Para mensagens de mídia, usar caption como texto ou gerar texto descritivo
-      if (data.message?.imageMessage?.caption) {
-        messageText = data.message.imageMessage.caption
-      } else if (data.message?.videoMessage?.caption) {
-        messageText = data.message.videoMessage.caption
-      } else if (data.message?.documentMessage?.caption) {
-        messageText = data.message.documentMessage.caption
-      } else {
-        // Gerar texto descritivo baseado no tipo
-        if (data.message?.imageMessage) {
-          messageText = '📷 Imagem'
-        } else if (data.message?.videoMessage) {
-          messageText = '🎥 Vídeo'
-        } else if (data.message?.audioMessage) {
-          messageText = '🎵 Áudio'
-        } else if (data.message?.documentMessage) {
-          messageText = '📄 Documento'
-        }
-      }
     }
 
     webhookLogger.info('message.processing', `Processando mensagem de ${pushName}`, {
       remoteJid,
       messageText: messageText.substring(0, 50),
       instance,
-      messageType,
-      isMediaMessage
+      messageType
     })
 
     // 1. Encontrar inbox
@@ -532,26 +403,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // 4. Processar mídia se existir
-    let mediaData = null
-    if (isMediaMessage) {
-      const mediaResult = await processMediaMessage(supabase, webhookData, inbox.empresa_id)
-      if (mediaResult) {
-        mediaData = {
-          media_url: mediaResult.mediaUrl,
-          media_type: mediaResult.mediaType,
-          media_name: mediaResult.mediaName
-        }
-        webhookLogger.info('media.processed', `Mídia processada com sucesso: ${mediaResult.mediaName}`, {
-          type: mediaResult.mediaType,
-          size: mediaResult.mediaName
-        })
-      } else {
-        webhookLogger.warn('media.processing_failed', 'Falha ao processar mídia, continuando com texto apenas')
-      }
-    }
-
-    // 5. Criar mensagem
+    // 4. Criar mensagem
     const mensagemId = await createMessage(
       supabase,
       atendimento.id,
@@ -559,8 +411,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       'contact',
       messageType,
       evolutionMessageId,
-      messageTimestamp,
-      mediaData
+      messageTimestamp
     )
 
     if (!mensagemId) {
@@ -571,7 +422,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // 6. Atualizar atendimento
+    // 5. Atualizar atendimento
     await updateAtendimentoWithMessage(
       supabase,
       atendimento.id,
@@ -580,7 +431,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       true // incrementar não lidas
     )
 
-    // 7. Atualizar contato
+    // 6. Atualizar contato
     await updateContactData(
       supabase,
       contato.id,
@@ -588,19 +439,12 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       messageTimestamp
     )
 
-    const result: ProcessedMessage = {
+    const result = {
       contatoId: contato.id,
       atendimentoId: atendimento.id,
       mensagemId: mensagemId,
       inboxId: inbox.id,
       empresaId: inbox.empresa_id
-    }
-
-    // Adicionar dados de mídia ao resultado se existirem
-    if (mediaData) {
-      result.mediaUrl = mediaData.media_url
-      result.mediaType = mediaData.media_type
-      result.mediaName = mediaData.media_name
     }
 
     webhookLogger.logWebhookProcessed(webhookData.event, instance, result)
@@ -610,219 +454,6 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
   } catch (error) {
     webhookLogger.logWebhookError(webhookData.event, instance, error, webhookData)
-    return null
-  }
-}
-
-/**
- * Detecta se a mensagem contém mídia e extrai informações
- */
-export function extractMediaInfo(webhookData: EvolutionWebhookData): MediaInfo | null {
-  const { data } = webhookData
-  const message = data.message
-
-  if (!message) return null
-
-  // Áudio
-  if (message.audioMessage) {
-    const audio = message.audioMessage
-    const extension = audio.mimetype.includes('ogg') ? 'ogg' :
-                     audio.mimetype.includes('mpeg') ? 'mp3' :
-                     audio.mimetype.includes('wav') ? 'wav' : 'audio'
-
-    return {
-      type: 'audio',
-      url: audio.url,
-      mimetype: audio.mimetype,
-      filename: `audio_${data.key?.id}_${Date.now()}.${extension}`,
-      size: audio.fileLength,
-      duration: audio.seconds,
-      base64: audio.base64
-    }
-  }
-
-  // Imagem
-  if (message.imageMessage) {
-    const image = message.imageMessage
-    const extension = image.mimetype.includes('jpeg') ? 'jpg' :
-                     image.mimetype.includes('png') ? 'png' :
-                     image.mimetype.includes('gif') ? 'gif' :
-                     image.mimetype.includes('webp') ? 'webp' : 'img'
-
-    return {
-      type: 'image',
-      url: image.url,
-      mimetype: image.mimetype,
-      filename: `image_${data.key?.id}_${Date.now()}.${extension}`,
-      size: image.fileLength,
-      caption: image.caption,
-      base64: image.base64
-    }
-  }
-
-  // Vídeo
-  if (message.videoMessage) {
-    const video = message.videoMessage
-    const extension = video.mimetype.includes('mp4') ? 'mp4' :
-                     video.mimetype.includes('3gp') ? '3gp' :
-                     video.mimetype.includes('mov') ? 'mov' : 'video'
-
-    return {
-      type: 'video',
-      url: video.url,
-      mimetype: video.mimetype,
-      filename: `video_${data.key?.id}_${Date.now()}.${extension}`,
-      size: video.fileLength,
-      duration: video.seconds,
-      caption: video.caption,
-      base64: video.base64
-    }
-  }
-
-  // Documento
-  if (message.documentMessage) {
-    const doc = message.documentMessage
-    const extension = doc.fileName?.split('.').pop() || 'doc'
-
-    return {
-      type: 'document',
-      url: doc.url,
-      mimetype: doc.mimetype,
-      filename: doc.fileName || `document_${data.key?.id}_${Date.now()}.${extension}`,
-      size: doc.fileLength,
-      caption: doc.caption,
-      base64: doc.base64
-    }
-  }
-
-  return null
-}
-
-/**
- * Baixa mídia da Evolution API
- */
-export async function downloadMediaFromEvolution(mediaUrl: string): Promise<Buffer | null> {
-  try {
-    console.log('🔽 Baixando mídia da Evolution API:', mediaUrl)
-
-    const response = await fetch(mediaUrl)
-    if (!response.ok) {
-      console.error('❌ Erro ao baixar mídia:', response.status, response.statusText)
-      return null
-    }
-
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    console.log('✅ Mídia baixada com sucesso:', buffer.length, 'bytes')
-    return buffer
-  } catch (error) {
-    console.error('❌ Erro ao baixar mídia:', error)
-    return null
-  }
-}
-
-/**
- * Faz upload de mídia para o Supabase Storage
- */
-export async function uploadMediaToSupabase(
-  supabase: SupabaseClient,
-  mediaBuffer: Buffer,
-  filename: string,
-  mimetype: string,
-  empresaId: string
-): Promise<string | null> {
-  try {
-    const filePath = `empresas/${empresaId}/${filename}`
-
-    console.log('📤 Fazendo upload para Supabase Storage:', filePath)
-
-    const { data, error } = await supabase.storage
-      .from('midias')
-      .upload(filePath, mediaBuffer, {
-        contentType: mimetype,
-        cacheControl: '3600',
-        upsert: true
-      })
-
-    if (error) {
-      console.error('❌ Erro no upload:', error)
-      return null
-    }
-
-    // Obter URL pública do arquivo
-    const { data: { publicUrl } } = supabase.storage
-      .from('midias')
-      .getPublicUrl(filePath)
-
-    console.log('✅ Upload realizado com sucesso:', publicUrl)
-    return publicUrl
-  } catch (error) {
-    console.error('❌ Erro no upload para Supabase:', error)
-    return null
-  }
-}
-
-/**
- * Processa mídia do webhook e faz upload para o Supabase
- */
-export async function processMediaMessage(
-  supabase: SupabaseClient,
-  webhookData: EvolutionWebhookData,
-  empresaId: string
-): Promise<{ mediaUrl: string; mediaType: string; mediaName: string } | null> {
-  try {
-    const mediaInfo = extractMediaInfo(webhookData)
-    if (!mediaInfo) {
-      console.log('📷 Nenhuma mídia encontrada na mensagem')
-      return null
-    }
-
-    console.log('📷 Processando mídia:', mediaInfo.type, mediaInfo.filename)
-
-    let mediaBuffer: Buffer | null = null
-
-    // Tentar usar base64 primeiro (mais eficiente)
-    if (mediaInfo.base64) {
-      try {
-        mediaBuffer = Buffer.from(mediaInfo.base64, 'base64')
-        console.log('✅ Mídia carregada do base64:', mediaBuffer.length, 'bytes')
-      } catch (error) {
-        console.warn('⚠️ Erro ao processar base64, tentando download:', error)
-      }
-    }
-
-    // Se não conseguiu do base64, baixa da URL
-    if (!mediaBuffer && mediaInfo.url) {
-      mediaBuffer = await downloadMediaFromEvolution(mediaInfo.url)
-    }
-
-    if (!mediaBuffer) {
-      console.error('❌ Não foi possível obter o arquivo de mídia')
-      return null
-    }
-
-    // Fazer upload para Supabase
-    const mediaUrl = await uploadMediaToSupabase(
-      supabase,
-      mediaBuffer,
-      mediaInfo.filename,
-      mediaInfo.mimetype,
-      empresaId
-    )
-
-    if (!mediaUrl) {
-      console.error('❌ Falha no upload da mídia')
-      return null
-    }
-
-    return {
-      mediaUrl,
-      mediaType: mediaInfo.mimetype,
-      mediaName: mediaInfo.filename
-    }
-  } catch (error) {
-    console.error('❌ Erro ao processar mídia:', error)
     return null
   }
 }
