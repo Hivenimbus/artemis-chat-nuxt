@@ -208,7 +208,12 @@ export async function createMessage(
   remetente: 'contact' | 'user',
   messageType: string = 'text',
   evolutionMessageId?: string,
-  messageTimestamp?: number
+  messageTimestamp?: number,
+  mediaData?: {
+    url: string
+    type: string
+    name: string
+  }
 ): Promise<string | null> {
   try {
     const messageData: any = {
@@ -221,6 +226,13 @@ export async function createMessage(
         : new Date().toISOString(),
       message_type: messageType === 'conversation' ? 'text' : messageType,
       evolution_status: 'delivered'
+    }
+
+    // Adicionar dados de mídia se fornecidos
+    if (mediaData) {
+      messageData.media_url = mediaData.url
+      messageData.media_type = mediaData.type
+      messageData.media_name = mediaData.name
     }
 
     if (evolutionMessageId) {
@@ -238,7 +250,8 @@ export async function createMessage(
       return null
     }
 
-    console.log('✅ Mensagem criada:', mensagem.id)
+    const mediaInfo = mediaData ? ` (mídia: ${mediaData.name})` : ''
+    console.log(`✅ Mensagem criada: ${mensagem.id}${mediaInfo}`)
     return mensagem.id
 
   } catch (error) {
@@ -357,19 +370,87 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // Extrair informações
+    // Extrair informações básicas
     const remoteJid = data.key?.remoteJid
     const pushName = data.pushName || 'Contato'
-    const messageText = data.message?.conversation || ''
     const messageType = data.messageType || 'conversation'
     const messageTimestamp = data.messageTimestamp || Date.now()
     const evolutionMessageId = data.key?.id
 
-    if (!remoteJid || !messageText?.trim()) {
-      webhookLogger.warn('message.invalid_data', 'Mensagem sem informações necessárias', {
+    if (!remoteJid) {
+      webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', { instance })
+      return null
+    }
+
+    // Processar texto ou mídia
+    let messageText = data.message?.conversation || ''
+    let mediaData = null
+    let processedMessageType = 'text'
+
+    // Verificar se é mensagem de mídia
+    if (messageType && messageType !== 'conversation') {
+      console.log(`🎯 Detectado tipo de mídia: ${messageType}`)
+
+      // Extrair informações da mídia
+      const mediaInfo = extractMediaInfo(data.message, messageType)
+
+      if (mediaInfo && mediaInfo.base64) {
+        console.log(`📸 Processando mídia: ${mediaInfo.fileName}`)
+
+        // Prosseguir com as outras etapas primeiro para obter empresa_id
+        // 1. Encontrar inbox
+        const inbox = await findInboxByInstance(supabase, instance)
+        if (!inbox) {
+          webhookLogger.logInboxNotFound(instance)
+          return null
+        }
+
+        // Fazer upload da mídia
+        const uploadResult = await uploadMediaToSupabase(
+          supabase,
+          inbox.empresa_id,
+          mediaInfo.base64,
+          mediaInfo.mimeType,
+          mediaInfo.fileName
+        )
+
+        if (uploadResult) {
+          mediaData = {
+            url: uploadResult.url,
+            type: mediaInfo.mimeType,
+            name: mediaInfo.fileName
+          }
+
+          // Criar texto de preview para a mídia
+          if (messageType === 'imageMessage') {
+            messageText = `📸 Imagem: ${mediaInfo.fileName}`
+            processedMessageType = 'image'
+          } else if (messageType === 'videoMessage') {
+            messageText = `🎥 Vídeo: ${mediaInfo.fileName}`
+            processedMessageType = 'video'
+          } else if (messageType === 'audioMessage') {
+            messageText = `🎵 Áudio: ${mediaInfo.fileName}`
+            processedMessageType = 'audio'
+          } else if (messageType === 'documentMessage') {
+            messageText = `📄 Documento: ${mediaInfo.fileName}`
+            processedMessageType = 'document'
+          }
+
+          console.log(`✅ Mídia processada: ${messageText}`)
+        } else {
+          console.log(`❌ Falha no upload da mídia, tratando como mensagem sem conteúdo`)
+          messageText = `[Mídia não processada: ${messageType}]`
+        }
+      } else {
+        console.log(`⚠️ Mídia não pôde ser extraída: ${messageType}`)
+        messageText = `[Mídia inválida: ${messageType}]`
+      }
+    } else if (!messageText?.trim()) {
+      webhookLogger.warn('message.invalid_data', 'Mensagem sem conteúdo de texto ou mídia', {
         remoteJid,
         messageText,
-        instance
+        instance,
+        messageType
       })
       return null
     }
@@ -378,10 +459,11 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       remoteJid,
       messageText: messageText.substring(0, 50),
       instance,
-      messageType
+      messageType: processedMessageType,
+      hasMedia: !!mediaData
     })
 
-    // 1. Encontrar inbox
+    // 1. Encontrar inbox (se já não foi encontrado acima)
     const inbox = await findInboxByInstance(supabase, instance)
     if (!inbox) {
       webhookLogger.logInboxNotFound(instance)
@@ -403,15 +485,16 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // 4. Criar mensagem
+    // 4. Criar mensagem (com ou sem mídia)
     const mensagemId = await createMessage(
       supabase,
       atendimento.id,
       messageText,
       'contact',
-      messageType,
+      processedMessageType,
       evolutionMessageId,
-      messageTimestamp
+      messageTimestamp,
+      mediaData
     )
 
     if (!mensagemId) {
@@ -454,6 +537,206 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
   } catch (error) {
     webhookLogger.logWebhookError(webhookData.event, instance, error, webhookData)
+    return null
+  }
+}
+
+/**
+ * Faz upload de mídia para o Supabase Storage
+ */
+export async function uploadMediaToSupabase(
+  supabase: SupabaseClient,
+  empresaId: string,
+  base64Data: string,
+  mimeType: string,
+  fileName: string
+): Promise<{ url: string, path: string } | null> {
+  try {
+    console.log(`📤 Fazendo upload de mídia: ${fileName} (${mimeType})`)
+
+    // Extrair extensão do arquivo
+    const extension = fileName.split('.').pop() || getFileExtensionFromMimeType(mimeType)
+
+    // Gerar nome único para o arquivo
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substring(2, 8)
+    const uniqueFileName = `msg_${timestamp}_${random}.${extension}`
+
+    // Caminho completo no storage
+    const storagePath = `${empresaId}/${uniqueFileName}`
+
+    // Converter base64 para buffer
+    // Remover prefixo data:image/jpeg;base64, se existir
+    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '')
+    const buffer = Buffer.from(cleanBase64, 'base64')
+
+    console.log(`💾 Armazenando em: midias/${storagePath}`)
+
+    // Fazer upload para o Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('midias')
+      .upload(storagePath, buffer, {
+        contentType: mimeType,
+        upsert: true
+      })
+
+    if (uploadError) {
+      console.error('❌ Erro no upload:', uploadError)
+      return null
+    }
+
+    // Obter URL pública do arquivo
+    const { data: urlData } = supabase.storage
+      .from('midias')
+      .getPublicUrl(storagePath)
+
+    if (!urlData?.publicUrl) {
+      console.error('❌ Erro ao obter URL pública')
+      return null
+    }
+
+    console.log(`✅ Upload realizado com sucesso: ${urlData.publicUrl}`)
+
+    return {
+      url: urlData.publicUrl,
+      path: storagePath
+    }
+
+  } catch (error) {
+    console.error('❌ Erro em uploadMediaToSupabase:', error)
+    return null
+  }
+}
+
+/**
+ * Obtém extensão de arquivo a partir do MIME type
+ */
+function getFileExtensionFromMimeType(mimeType: string): string {
+  const mimeToExt: { [key: string]: string } = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'video/mp4': 'mp4',
+    'video/3gpp': '3gp',
+    'video/quicktime': 'mov',
+    'audio/mpeg': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/ogg': 'ogg',
+    'audio/wav': 'wav',
+    'audio/amr': 'amr',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx'
+  }
+
+  return mimeToExt[mimeType.toLowerCase()] || 'bin'
+}
+
+/**
+ * Extrai informações de mídia da mensagem da Evolution API
+ */
+function extractMediaInfo(message: any, messageType: string): {
+  base64: string | null
+  mimeType: string
+  fileName: string
+  fileLength?: number
+  duration?: number
+  width?: number
+  height?: number
+} | null {
+  try {
+    console.log(`🔍 Extraindo mídia do tipo: ${messageType}`)
+    console.log(`📋 Estrutura da mensagem:`, {
+      hasMessage: !!message,
+      hasBase64: !!message?.base64,
+      messageType,
+      keys: Object.keys(message || {})
+    })
+
+    // Extrair base64 diretamente de message.base64 (estrutura real da Evolution API)
+    const base64 = message?.base64
+
+    if (!base64) {
+      console.log(`❌ Base64 não encontrado em message.base64`)
+      console.log(`🔍 Estrutura completa da mensagem:`, JSON.stringify(message, null, 2))
+      return null
+    }
+
+    console.log(`✅ Base64 encontrado com ${base64.length} caracteres`)
+
+    // Extrair metadados do objeto específico de mídia
+    let mediaData = null
+    let mimeType = ''
+    let fileName = ''
+    let fileLength = 0
+    let duration = undefined
+    let width = undefined
+    let height = undefined
+
+    console.log(`🎯 Processando objeto específico: ${messageType}`)
+
+    switch (messageType) {
+      case 'imageMessage':
+        mediaData = message.imageMessage
+        mimeType = mediaData?.mimetype || 'image/jpeg'
+        fileName = `image_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        width = mediaData?.width
+        height = mediaData?.height
+        fileLength = mediaData?.fileLength
+        console.log(`📸 Metadados da imagem: ${mimeType}, ${width}x${height}, ${fileLength} bytes`)
+        break
+
+      case 'videoMessage':
+        mediaData = message.videoMessage
+        mimeType = mediaData?.mimetype || 'video/mp4'
+        fileName = `video_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        width = mediaData?.width
+        height = mediaData?.height
+        duration = mediaData?.seconds
+        fileLength = mediaData?.fileLength
+        console.log(`🎥 Metadados do vídeo: ${mimeType}, ${width}x${height}, ${duration}s, ${fileLength} bytes`)
+        break
+
+      case 'audioMessage':
+        mediaData = message.audioMessage
+        mimeType = mediaData?.mimetype || 'audio/ogg'
+        fileName = `audio_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        duration = mediaData?.seconds
+        fileLength = mediaData?.fileLength
+        console.log(`🎵 Metadados do áudio: ${mimeType}, ${duration}s, ${fileLength} bytes`)
+        break
+
+      case 'documentMessage':
+        mediaData = message.documentMessage
+        mimeType = mediaData?.mimetype || 'application/pdf'
+        fileName = mediaData?.fileName || `document_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        fileLength = mediaData?.fileLength
+        console.log(`📄 Metadados do documento: ${mimeType}, ${fileName}, ${fileLength} bytes`)
+        break
+
+      default:
+        console.log(`⚠️ Tipo de mídia não suportado: ${messageType}`)
+        console.log(`🔍 Tipos disponíveis na mensagem:`, Object.keys(message).filter(k => k.includes('Message')))
+        return null
+    }
+
+    console.log(`✅ Mídia extraída com sucesso: ${fileName} (${mimeType})`)
+
+    return {
+      base64: base64,  // ← CORREÇÃO: base64 vem de message.base64
+      mimeType,
+      fileName,
+      fileLength,
+      duration,
+      width,
+      height
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao extrair informações de mídia:', error)
+    console.error('🔍 Dados recebidos:', { message: !!message, messageType, keys: message ? Object.keys(message) : null })
     return null
   }
 }
