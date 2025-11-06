@@ -84,7 +84,7 @@ graph TD
 POST /api/webhook/whatsapp
 ```
 
-### Endpoint de Teste
+### Endpoint de Teste (Antigo)
 ```
 POST /api/test/media
 Content-Type: application/json
@@ -93,6 +93,19 @@ Content-Type: application/json
   "type": "image"  // "audio", "image", "video"
 }
 ```
+
+### Endpoint de Teste (Corrigido)
+```
+POST /api/test/media-fixed
+Content-Type: application/json
+
+{
+  "type": "image",           // "audio", "image"
+  "useRealBase64": true      // true para base64 válido, false para base64 inválido
+}
+```
+
+**Importante**: Use o endpoint `/api/test/media-fixed` para testar com base64 real e válido. O endpoint antigo usa base64 truncado que causa corrupção.
 
 ## Configuração
 
@@ -122,6 +135,72 @@ O sistema inclui logs detalhados para monitoramento:
 - **Upload falhou**: Continua com processamento de texto apenas
 - **Base64 inválido**: Tenta download da URL
 - **Storage indisponível**: Log de erro e continuidade do fluxo
+
+## 🔧 Correções de Base64 Implementadas
+
+### Problema Original
+As mídias estavam chegando corrompidas porque o sistema não validava o campo `base64` antes de processar, resultando em arquivos inválidos.
+
+### Soluções Implementadas
+
+#### 1. **Validação Robusta de Base64**
+```typescript
+validateBase64(base64: string): { valid: boolean; error?: string; details?: any }
+```
+- Verifica estrutura e caracteres válidos
+- Valida padding e tamanho mínimo
+- Testa decodificação real antes de processar
+
+#### 2. **Múltiplos Métodos de Decodificação**
+```typescript
+decodeBase64(base64: string): { success: boolean; buffer?: Buffer; error?: string; method?: string }
+```
+- Método 1: Decodificação direta
+- Método 2: Com limpeza e normalização
+- Método 3: Sem padding (fallback)
+
+#### 3. **Logging Detalhado**
+- Log do base64 bruto recebido
+- Resultados da validação
+- Método de decodificação utilizado
+- Estatísticas do buffer gerado
+
+#### 4. **Fallback Inteligente**
+- Base64 validado → usa preferencialmente
+- Base64 inválido → tenta download
+- Base64 corrompido → múltiplas tentativas de correção
+- Todos falham → log detalhado do erro
+
+### Estratégia de Processamento
+
+```mermaid
+graph TD
+    A[Base64 recebido] --> B[Validar base64]
+    B -->|Válido| C[Tentar decodificação]
+    B -->|Inválido| D[Log erro + Tentar download]
+    C -->|Sucesso| E[Usar base64]
+    C -->|Falha| F[Tentar métodos alternativos]
+    F -->|Sucesso| E
+    F -->|Falha| D
+    D -->|Sucesso| G[Usar download]
+    D -->|Falha| H[Erro crítico]
+    E --> I[Upload para Supabase]
+    G --> I
+```
+
+### Logs de Diagnóstico
+
+O sistema agora gera logs detalhados como:
+```
+📷 Processando mídia: { type: 'image', hasBase64: true, base64Length: 12345 }
+🔍 Analisando base64 recebido...
+📝 Base64 info: { length: 12345, startsWith: 'iVBORw0KGgoA...' }
+🔍 Resultado da validação do base64: { valid: true, details: {...} }
+✅ Base64 válido, tentando decodificação...
+🔍 Tentando decodificação direta do base64...
+✅ Mídia carregada do base64 com sucesso: { method: 'direct', size: 1024 }
+🎉 Processamento de mídia concluído com sucesso!
+```
 
 ## Performance
 
