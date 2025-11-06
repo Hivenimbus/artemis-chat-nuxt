@@ -199,126 +199,6 @@ export async function findOrCreateAtendimento(
 }
 
 /**
- * Faz upload de mídia para o Supabase Storage
- */
-export async function uploadMediaToStorage(
-  supabase: SupabaseClient,
-  empresaId: string,
-  atendimentoId: string,
-  mediaData: {
-    base64: string
-    mimetype: string
-    filename: string
-    fileLength?: number
-  }
-): Promise<{ url: string; path: string } | null> {
-  try {
-    // Extrair conteúdo base64 (remover prefixo data:...;base64,)
-    const base64Content = mediaData.base64.includes(',')
-      ? mediaData.base64.split(',')[1]
-      : mediaData.base64
-
-    // Converter base64 para buffer
-    const buffer = Buffer.from(base64Content, 'base64')
-
-    // Gerar caminho único no storage
-    const timestamp = Date.now()
-    const hash = mediaData.filename.substring(0, 8)
-    const extension = mediaData.mimetype.split('/')[1] || 'bin'
-    const filename = `${timestamp}_${hash}.${extension}`
-    const path = `empresas/${empresaId}/atendimentos/${atendimentoId}/${filename}`
-
-    console.log(`📤 Fazendo upload de mídia: ${path} (${mediaData.mimetype})`)
-
-    // Upload para o Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('Midias')
-      .upload(path, buffer, {
-        contentType: mediaData.mimetype,
-        upsert: false
-      })
-
-    if (error) {
-      console.error('❌ Erro no upload da mídia:', error)
-      return null
-    }
-
-    // Obter URL pública
-    const { data: { publicUrl } } = supabase.storage
-      .from('Midias')
-      .getPublicUrl(path)
-
-    console.log('✅ Mídia uploaded com sucesso:', publicUrl)
-    return {
-      url: publicUrl,
-      path: path
-    }
-
-  } catch (error) {
-    console.error('❌ Erro em uploadMediaToStorage:', error)
-    return null
-  }
-}
-
-/**
- * Extrai informações da míria da mensagem baseado no tipo
- */
-export function extractMediaInfo(message: any, messageType: string): {
-  base64: string
-  mimetype: string
-  filename: string
-  fileLength?: number
-  caption?: string
-} | null {
-  try {
-    let mediaMessage: any = null
-
-    switch (messageType) {
-      case 'imageMessage':
-        mediaMessage = message.imageMessage
-        break
-      case 'videoMessage':
-        mediaMessage = message.videoMessage
-        break
-      case 'audioMessage':
-        mediaMessage = message.audioMessage
-        break
-      case 'documentMessage':
-        mediaMessage = message.documentMessage
-        break
-      default:
-        return null
-    }
-
-    if (!mediaMessage || !mediaMessage.base64) {
-      return null
-    }
-
-    // Gerar nome de arquivo baseado no tipo e metadados
-    let extension = 'bin'
-    let filename = 'media'
-
-    if (mediaMessage.mimetype) {
-      const mimeParts = mediaMessage.mimetype.split('/')
-      extension = mimeParts[1] || 'bin'
-      filename = `${messageType.replace('Message', '')}_${Date.now()}`
-    }
-
-    return {
-      base64: mediaMessage.base64,
-      mimetype: mediaMessage.mimetype,
-      filename: `${filename}.${extension}`,
-      fileLength: mediaMessage.fileLength,
-      caption: mediaMessage.caption || undefined
-    }
-
-  } catch (error) {
-    console.error('❌ Erro ao extrair informações da mídia:', error)
-    return null
-  }
-}
-
-/**
  * Cria uma nova mensagem no banco de dados
  */
 export async function createMessage(
@@ -328,12 +208,7 @@ export async function createMessage(
   remetente: 'contact' | 'user',
   messageType: string = 'text',
   evolutionMessageId?: string,
-  messageTimestamp?: number,
-  mediaInfo?: {
-    url: string
-    type: string
-    name: string
-  }
+  messageTimestamp?: number
 ): Promise<string | null> {
   try {
     const messageData: any = {
@@ -350,13 +225,6 @@ export async function createMessage(
 
     if (evolutionMessageId) {
       messageData.evolution_message_id = evolutionMessageId
-    }
-
-    // Adicionar informações de mídia se existirem
-    if (mediaInfo) {
-      messageData.media_url = mediaInfo.url
-      messageData.media_type = mediaInfo.type
-      messageData.media_name = mediaInfo.name
     }
 
     const { data: mensagem, error } = await supabase
@@ -489,107 +357,19 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // Extrair informações básicas
+    // Extrair informações
     const remoteJid = data.key?.remoteJid
     const pushName = data.pushName || 'Contato'
+    const messageText = data.message?.conversation || ''
     const messageType = data.messageType || 'conversation'
     const messageTimestamp = data.messageTimestamp || Date.now()
     const evolutionMessageId = data.key?.id
 
-    if (!remoteJid) {
-      webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', {
-        remoteJid,
-        instance
-      })
-      return null
-    }
-
-    // Extrair texto ou legenda da mídia
-    let messageText = data.message?.conversation || ''
-    let mediaInfo: { url: string; type: string; name: string } | undefined
-
-    // Verificar se é mensagem de mídia
-    const isMediaMessage = ['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage'].includes(messageType)
-
-    if (isMediaMessage) {
-      webhookLogger.info('media.detected', `Detectada mensagem de mídia: ${messageType}`, {
-        remoteJid,
-        instance,
-        messageType
-      })
-
-      // Extrair informações da mídia
-      const extractedMedia = extractMediaInfo(data.message, messageType)
-      if (extractedMedia) {
-        // 1. Encontrar inbox primeiro para obter empresa_id
-        const inbox = await findInboxByInstance(supabase, instance)
-        if (!inbox) {
-          webhookLogger.logInboxNotFound(instance)
-          return null
-        }
-
-        // 2. Buscar ou criar contato
-        const phone = extractPhoneFromRemoteJid(remoteJid)
-        const contato = await findOrCreateContact(supabase, phone, pushName, inbox.empresa_id)
-        if (!contato) {
-          webhookLogger.error('contact.not_found', `Não foi possível encontrar/criar contato: ${pushName}`, null, { phone, instance })
-          return null
-        }
-
-        // 3. Buscar ou criar atendimento
-        const atendimento = await findOrCreateAtendimento(supabase, contato.id, inbox.id)
-        if (!atendimento) {
-          webhookLogger.error('atendimento.not_found', `Não foi possível encontrar/criar atendimento`, null, { contatoId: contato.id, instance })
-          return null
-        }
-
-        // 4. Fazer upload da mídia
-        const uploadResult = await uploadMediaToStorage(
-          supabase,
-          inbox.empresa_id,
-          atendimento.id,
-          extractedMedia
-        )
-
-        if (uploadResult) {
-          mediaInfo = {
-            url: uploadResult.url,
-            type: extractedMedia.mimetype,
-            name: extractedMedia.filename
-          }
-
-          // Usar legenda da mídia ou texto padrão
-          messageText = extractedMedia.caption || `📎 ${messageType.replace('Message', '')} enviado`
-
-          webhookLogger.info('media.uploaded', `Mídia processada com sucesso: ${extractedMedia.filename}`, {
-            url: uploadResult.url,
-            mimetype: extractedMedia.mimetype,
-            size: extractedMedia.fileLength
-          })
-        } else {
-          webhookLogger.error('media.upload_failed', 'Falha no upload da mídia', null, {
-            messageType,
-            filename: extractedMedia.filename
-          })
-          // Continuar processando mesmo sem upload da mídia
-          messageText = `📎 ${messageType.replace('Message', '')} (erro no processamento)`
-        }
-      } else {
-        webhookLogger.warn('media.extraction_failed', 'Não foi possível extrair informações da mídia', {
-          messageType,
-          instance
-        })
-        messageText = `📎 ${messageType.replace('Message', '')}`
-      }
-    }
-
-    // Validar se temos texto para processar
-    if (!messageText?.trim() && !isMediaMessage) {
-      webhookLogger.warn('message.invalid_data', 'Mensagem sem conteúdo para processar', {
+    if (!remoteJid || !messageText?.trim()) {
+      webhookLogger.warn('message.invalid_data', 'Mensagem sem informações necessárias', {
         remoteJid,
         messageText,
-        instance,
-        messageType
+        instance
       })
       return null
     }
@@ -598,18 +378,17 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       remoteJid,
       messageText: messageText.substring(0, 50),
       instance,
-      messageType,
-      hasMedia: !!mediaInfo
+      messageType
     })
 
-    // 1. Encontrar inbox (se não foi encontrado no processamento de mídia)
+    // 1. Encontrar inbox
     const inbox = await findInboxByInstance(supabase, instance)
     if (!inbox) {
       webhookLogger.logInboxNotFound(instance)
       return null
     }
 
-    // 2. Buscar ou criar contato (se não foi criado no processamento de mídia)
+    // 2. Buscar ou criar contato
     const phone = extractPhoneFromRemoteJid(remoteJid)
     const contato = await findOrCreateContact(supabase, phone, pushName, inbox.empresa_id)
     if (!contato) {
@@ -617,7 +396,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       return null
     }
 
-    // 3. Buscar ou criar atendimento (se não foi criado no processamento de mídia)
+    // 3. Buscar ou criar atendimento
     const atendimento = await findOrCreateAtendimento(supabase, contato.id, inbox.id)
     if (!atendimento) {
       webhookLogger.error('atendimento.not_found', `Não foi possível encontrar/criar atendimento`, null, { contatoId: contato.id, instance })
@@ -632,8 +411,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       'contact',
       messageType,
       evolutionMessageId,
-      messageTimestamp,
-      mediaInfo
+      messageTimestamp
     )
 
     if (!mensagemId) {
