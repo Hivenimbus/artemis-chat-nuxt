@@ -764,122 +764,6 @@ export async function uploadMediaToSupabase(
 }
 
 /**
- * Valida se uma string contém base64 válido
- */
-export function validateBase64(base64: string): { valid: boolean; error?: string; details?: any } {
-  try {
-    // Verificar se base64 existe e é string
-    if (!base64 || typeof base64 !== 'string') {
-      return { valid: false, error: 'Base64 não fornecido ou não é string' }
-    }
-
-    // Remover espaços, quebras de linha e caracteres inválidos
-    const cleanBase64 = base64.replace(/[^A-Za-z0-9+/=]/g, '')
-
-    // Verificar tamanho mínimo (base64 precisa ter pelo menos 4 caracteres)
-    if (cleanBase64.length < 4) {
-      return { valid: false, error: `Base64 muito curto: ${cleanBase64.length} caracteres` }
-    }
-
-    // Verificar se o comprimento é múltiplo de 4
-    if (cleanBase64.length % 4 !== 0) {
-      return { valid: false, error: `Base64 com padding incorreto: comprimento ${cleanBase64.length} não é múltiplo de 4` }
-    }
-
-    // Verificar caracteres válidos (após limpeza)
-    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/
-    if (!base64Regex.test(cleanBase64)) {
-      return { valid: false, error: 'Base64 contém caracteres inválidos' }
-    }
-
-    // Tentar decodificar para testar validade real
-    const buffer = Buffer.from(cleanBase64, 'base64')
-
-    // Verificar se o buffer tem conteúdo
-    if (buffer.length === 0) {
-      return { valid: false, error: 'Base64 decodificado para buffer vazio' }
-    }
-
-    return {
-      valid: true,
-      details: {
-        originalLength: base64.length,
-        cleanLength: cleanBase64.length,
-        bufferSize: buffer.length,
-        cleaned: cleanBase64.length !== base64.length
-      }
-    }
-  } catch (error) {
-    return { valid: false, error: `Erro na validação: ${error.message}` }
-  }
-}
-
-/**
- * Limpa e normaliza uma string base64
- */
-export function cleanBase64(base64: string): string {
-  if (!base64 || typeof base64 !== 'string') {
-    return ''
-  }
-
-  // Remover espaços, quebras de linha e caracteres não base64
-  let cleaned = base64.replace(/[^A-Za-z0-9+/=]/g, '')
-
-  // Remover espaços extras no início e fim
-  cleaned = cleaned.trim()
-
-  // Corrigir padding se necessário
-  const padLength = 4 - (cleaned.length % 4)
-  if (padLength < 4 && padLength > 0) {
-    cleaned += '='.repeat(padLength)
-  }
-
-  return cleaned
-}
-
-/**
- * Decodifica base64 com múltiplos métodos de fallback
- */
-export function decodeBase64(base64: string): { success: boolean; buffer?: Buffer; error?: string; method?: string } {
-  try {
-    // Método 1: Decodificação direta
-    console.log('🔍 Tentando decodificação direta do base64...')
-    const buffer1 = Buffer.from(base64, 'base64')
-    if (buffer1.length > 0) {
-      return { success: true, buffer: buffer1, method: 'direct' }
-    }
-  } catch (error) {
-    console.warn('⚠️ Falha na decodificação direta:', error.message)
-  }
-
-  try {
-    // Método 2: Limpar e tentar novamente
-    console.log('🔍 Tentando decodificação com limpeza...')
-    const cleaned = cleanBase64(base64)
-    const buffer2 = Buffer.from(cleaned, 'base64')
-    if (buffer2.length > 0) {
-      return { success: true, buffer: buffer2, method: 'cleaned' }
-    }
-  } catch (error) {
-    console.warn('⚠️ Falha na decodificação com limpeza:', error.message)
-  }
-
-  try {
-    // Método 3: Tentar sem padding
-    console.log('🔍 Tentando decodificação sem padding...')
-    const noPadding = base64.replace(/=/g, '')
-    const buffer3 = Buffer.from(noPadding, 'base64')
-    if (buffer3.length > 0) {
-      return { success: true, buffer: buffer3, method: 'no_padding' }
-    }
-  } catch (error) {
-    console.warn('⚠️ Falha na decodificação sem padding:', error.message)
-  }
-
-  return { success: false, error: 'Todos os métodos de decodificação falharam' }
-}
-
-/**
  * Processa mídia do webhook e faz upload para o Supabase
  */
 export async function processMediaMessage(
@@ -894,102 +778,31 @@ export async function processMediaMessage(
       return null
     }
 
-    console.log('📷 Processando mídia:', {
-      type: mediaInfo.type,
-      filename: mediaInfo.filename,
-      size: mediaInfo.size,
-      mimetype: mediaInfo.mimetype,
-      hasBase64: !!mediaInfo.base64,
-      hasUrl: !!mediaInfo.url,
-      base64Length: mediaInfo.base64 ? mediaInfo.base64.length : 0
-    })
+    console.log('📷 Processando mídia:', mediaInfo.type, mediaInfo.filename)
 
     let mediaBuffer: Buffer | null = null
-    let sourceMethod: string = 'none'
 
-    // Estratégia 1: Usar base64 primeiro (mais eficiente)
+    // Tentar usar base64 primeiro (mais eficiente)
     if (mediaInfo.base64) {
-      console.log('🔍 Analisando base64 recebido...')
-      console.log('📝 Base64 info:', {
-        length: mediaInfo.base64.length,
-        startsWith: mediaInfo.base64.substring(0, 50) + '...',
-        endsWith: '...' + mediaInfo.base64.substring(Math.max(0, mediaInfo.base64.length - 50))
-      })
-
-      // Validar base64 antes de processar
-      const validation = validateBase64(mediaInfo.base64)
-      console.log('🔍 Resultado da validação do base64:', validation)
-
-      if (validation.valid) {
-        console.log('✅ Base64 válido, tentando decodificação...')
-        const decodeResult = decodeBase64(mediaInfo.base64)
-
-        if (decodeResult.success && decodeResult.buffer) {
-          mediaBuffer = decodeResult.buffer
-          sourceMethod = decodeResult.method || 'base64'
-          console.log('✅ Mídia carregada do base64 com sucesso:', {
-            method: decodeResult.method,
-            size: mediaBuffer.length,
-            validationDetails: validation.details
-          })
-        } else {
-          console.warn('⚠️ Falha na decodificação do base64:', decodeResult.error)
-        }
-      } else {
-        console.warn('⚠️ Base64 inválido:', validation.error)
-      }
-    }
-
-    // Estratégia 2: Download da URL como fallback
-    if (!mediaBuffer && mediaInfo.url) {
-      console.log('🌐 Tentando download da URL como fallback:', mediaInfo.url)
-      mediaBuffer = await downloadMediaFromEvolution(mediaInfo.url)
-      if (mediaBuffer) {
-        sourceMethod = 'download'
-        console.log('✅ Mídia baixada com sucesso:', mediaBuffer.length, 'bytes')
-      }
-    }
-
-    // Se ainda não conseguiu o buffer, tentar métodos alternativos
-    if (!mediaBuffer && mediaInfo.base64) {
-      console.log('🔄 Tentando métodos alternativos de decodificação...')
-
-      // Tentar sem validação prévia
       try {
-        const cleanedBase64 = cleanBase64(mediaInfo.base64)
-        if (cleanedBase64.length > 0) {
-          mediaBuffer = Buffer.from(cleanedBase64, 'base64')
-          if (mediaBuffer.length > 0) {
-            sourceMethod = 'cleaned_base64'
-            console.log('✅ Mídia carregada via base64 limpo:', mediaBuffer.length, 'bytes')
-          }
-        }
+        mediaBuffer = Buffer.from(mediaInfo.base64, 'base64')
+        console.log('✅ Mídia carregada do base64:', mediaBuffer.length, 'bytes')
       } catch (error) {
-        console.warn('⚠️ Falha no método alternativo:', error.message)
+        console.warn('⚠️ Erro ao processar base64, tentando download:', error)
       }
     }
 
-    // Verificação final
+    // Se não conseguiu do base64, baixa da URL
+    if (!mediaBuffer && mediaInfo.url) {
+      mediaBuffer = await downloadMediaFromEvolution(mediaInfo.url)
+    }
+
     if (!mediaBuffer) {
-      console.error('❌ Não foi possível obter o arquivo de mídia por nenhum método')
+      console.error('❌ Não foi possível obter o arquivo de mídia')
       return null
     }
-
-    // Validação final do buffer
-    if (mediaBuffer.length === 0) {
-      console.error('❌ Buffer de mídia está vazio')
-      return null
-    }
-
-    console.log('📊 Estatísticas finais da mídia:', {
-      sourceMethod,
-      bufferSize: mediaBuffer.length,
-      originalSize: mediaInfo.size,
-      compressionRatio: mediaInfo.size ? (mediaBuffer.length / mediaInfo.size).toFixed(2) : 'N/A'
-    })
 
     // Fazer upload para Supabase
-    console.log('📤 Iniciando upload para Supabase...')
     const mediaUrl = await uploadMediaToSupabase(
       supabase,
       mediaBuffer,
@@ -999,17 +812,9 @@ export async function processMediaMessage(
     )
 
     if (!mediaUrl) {
-      console.error('❌ Falha no upload da mídia para Supabase')
+      console.error('❌ Falha no upload da mídia')
       return null
     }
-
-    console.log('🎉 Processamento de mídia concluído com sucesso:', {
-      mediaUrl,
-      mediaType: mediaInfo.mimetype,
-      mediaName: mediaInfo.filename,
-      sourceMethod,
-      size: mediaBuffer.length
-    })
 
     return {
       mediaUrl,
@@ -1017,18 +822,7 @@ export async function processMediaMessage(
       mediaName: mediaInfo.filename
     }
   } catch (error) {
-    console.error('❌ Erro crítico ao processar mídia:', {
-      error: error.message,
-      stack: error.stack,
-      webhookData: {
-        instance: webhookData.instance,
-        messageType: webhookData.data.messageType,
-        hasBase64: !!webhookData.data.message?.imageMessage?.base64 ||
-                   !!webhookData.data.message?.videoMessage?.base64 ||
-                   !!webhookData.data.message?.audioMessage?.base64 ||
-                   !!webhookData.data.message?.documentMessage?.base64
-      }
-    })
+    console.error('❌ Erro ao processar mídia:', error)
     return null
   }
 }
