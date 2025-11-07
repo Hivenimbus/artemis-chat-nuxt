@@ -165,7 +165,7 @@
             ]"
           >
             <!-- Componente de mídia para mensagens com mídia -->
-            <MediaMessage
+            <MediaPreview
               v-if="message.media_url || (message.media_type && message.media_type !== 'text')"
               :message="message"
               :show-file-name="true"
@@ -617,7 +617,9 @@ const getTagName = (tag) => {
 // Manipular erros de mídia
 const handleMediaError = (error) => {
   console.error('Erro ao carregar mídia:', error)
+  // Aqui você pode adicionar lógica adicional, como mostrar uma notificação
 }
+
 </script>
 
 <style scoped>

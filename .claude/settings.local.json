@@ -25,7 +25,9 @@
       "Bash(taskkill:*)",
       "Bash(powershell \"Stop-Process -Id 38476 -Force; Stop-Process -Id 5628 -Force; Stop-Process -Id 39276 -Force; Stop-Process -Id 33020 -Force\")",
       "Bash(netstat:*)",
-      "mcp__supabase-NOVO__get_advisors"
+      "mcp__supabase-NOVO__get_advisors",
+      "mcp__supabase-NOVO__get_publishable_keys",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []
