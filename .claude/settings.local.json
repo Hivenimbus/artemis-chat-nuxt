@@ -27,7 +27,8 @@
       "Bash(netstat:*)",
       "mcp__supabase-NOVO__get_advisors",
       "mcp__supabase-NOVO__get_publishable_keys",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:doc.evolution-api.com)"
     ],
     "deny": [],
     "ask": []

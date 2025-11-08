@@ -275,6 +275,10 @@ const canPlay = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 
+// Throttling para animações suaves
+let lastTimeUpdate = 0
+const THROTTLE_DELAY = 100 // 100ms para atualizações de tempo
+
 // Computados para detectar tipo de mídia
 const isImage = computed(() => {
   return props.message.media_type?.startsWith('image/') ||
@@ -400,8 +404,12 @@ const seekAudio = (event) => {
 }
 
 const onTimeUpdate = () => {
-  if (audioElement.value) {
+  if (!audioElement.value) return
+
+  const now = Date.now()
+  if (now - lastTimeUpdate >= THROTTLE_DELAY) {
     currentTime.value = audioElement.value.currentTime
+    lastTimeUpdate = now
   }
 }
 
@@ -528,7 +536,7 @@ watch(() => audioElement.value, (newAudioElement) => {
 
 /* Estilos melhorados para o player de áudio */
 .audio-player-container {
-  @apply bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-md hover:shadow-lg transition-all duration-300 overflow-hidden;
+  @apply bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-lg hover:shadow-lg transition-all duration-300 overflow-hidden;
 }
 
 .audio-controls {
@@ -540,35 +548,36 @@ watch(() => audioElement.value, (newAudioElement) => {
 }
 
 .audio-progress-bar {
-  @apply flex-1 cursor-pointer transition-colors duration-200 relative;
-  height: 8px !important;
-  min-height: 8px !important;
-  background-color: #d1d5db !important;
-  border-radius: 9999px !important;
-  width: 100% !important;
-  min-width: 50px !important;
-  position: relative !important;
-  z-index: 10 !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  flex: 1 !important;
+  @apply flex-1 cursor-pointer relative;
+  height: 12px;
+  min-height: 12px;
+  background-color: #d1d5db;
+  border-radius: 9999px;
+  width: 100%;
+  min-width: 200px;
+  position: relative;
+  z-index: 10;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  flex: 1;
+  transition: background-color 0.2s ease;
 }
 
 .audio-progress-bar.hover {
-  background-color: #9ca3af !important;
+  background-color: #9ca3af;
 }
 
 .audio-progress-fill {
-  height: 100% !important;
-  min-height: 8px !important;
-  background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247)) !important;
-  border-radius: 9999px !important;
-  position: relative !important;
-  width: 1% !important;
-  min-width: 2px !important;
-  transition: width 0.1s ease !important;
-  z-index: 11 !important;
+  height: 100%;
+  min-height: 12px;
+  background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247));
+  border-radius: 9999px;
+  position: relative;
+  width: 1%;
+  min-width: 2px;
+  transition: width 0.3s ease-out;
+  z-index: 11;
 }
 
 .audio-progress-thumb {
@@ -576,12 +585,17 @@ watch(() => audioElement.value, (newAudioElement) => {
   right: 0;
   top: 50%;
   transform: translate(50%, -50%);
-  height: 12px;
-  width: 12px;
+  height: 16px;
+  width: 16px;
   background-color: white;
   border-radius: 50%;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  border: 1px solid rgb(99 102 241);
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+  border: 2px solid rgb(99 102 241);
+  transition: transform 0.2s ease;
+}
+
+.audio-progress-thumb:hover {
+  transform: translate(50%, -50%) scale(1.1);
 }
 
 .audio-time-display {
@@ -628,6 +642,22 @@ watch(() => audioElement.value, (newAudioElement) => {
 
   .audio-play-button {
     @apply h-8 w-8;
+  }
+
+  .audio-progress-bar {
+    height: 8px;
+    min-height: 8px;
+    min-width: 50px;
+  }
+
+  .audio-progress-fill {
+    min-height: 8px;
+  }
+
+  .audio-progress-thumb {
+    height: 12px;
+    width: 12px;
+    border: 1px solid rgb(99 102 241);
   }
 
   .audio-time-display {
