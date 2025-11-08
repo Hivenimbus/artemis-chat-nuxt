@@ -191,9 +191,9 @@
         <div class="space-y-3">
           <!-- Campo de mensagem maior -->
           <div class="flex items-end space-x-3">
-            <!-- Textarea (esconder durante gravação) -->
+            <!-- Textarea (esconder durante gravação ou envio) -->
             <textarea
-              v-if="!isRecording"
+              v-if="!isRecording && !uploadingFile"
               v-model="newMessage"
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
@@ -202,7 +202,7 @@
             ></textarea>
 
             <!-- Interface de gravação -->
-            <div v-if="isRecording" class="flex-1 flex items-center space-x-4 px-4 py-4 border border-red-300 rounded-lg bg-red-50">
+            <div v-if="isRecording === true" class="flex-1 flex items-center space-x-4 px-4 py-4 border border-red-300 rounded-lg bg-red-50">
               <!-- Indicador de gravação -->
               <div class="flex items-center space-x-2">
                 <div class="h-3 w-3 bg-red-600 rounded-full animate-pulse"></div>
@@ -235,6 +235,12 @@
               </button>
             </div>
 
+            <!-- Interface de envio de áudio -->
+            <div v-if="isRecording === 'sending' || (uploadingFile && !selectedFile)" class="flex-1 flex items-center justify-center space-x-3 px-4 py-4 border border-green-300 rounded-lg bg-green-50">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+              <span class="text-sm font-medium text-gray-700">Enviando áudio...</span>
+            </div>
+
             <!-- Botão de microfone (quando campo vazio e não está gravando) -->
             <button
               v-if="!newMessage.trim() && !selectedFile && !isRecording"
@@ -251,7 +257,8 @@
             <button
               v-if="newMessage.trim() || selectedFile || isRecording"
               @click="isRecording ? stopAudioRecording(true) : sendMessage()"
-              class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              :disabled="uploadingFile || isRecording === 'sending'"
+              class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
               :title="isRecording ? 'Enviar áudio' : 'Enviar mensagem'"
             >
               <svg class="h-5 w-5 send-icon-rotated" fill="none" stroke="currentColor" viewBox="0 0 24 24">
