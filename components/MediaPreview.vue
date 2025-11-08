@@ -66,99 +66,57 @@
     </div>
 
     <!-- Mensagem de Áudio -->
-    <div v-else-if="isAudio" class="audio-message">
-      <div class="bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-        <!-- Player de áudio customizado -->
-        <div class="custom-audio-player min-w-0">
-          <audio
-            ref="audioElement"
-            :src="message.media_url"
-            preload="metadata"
-            @error="onAudioError"
-            @loadstart="onAudioLoadStart"
-            @canplay="onAudioCanPlay"
-            @timeupdate="onTimeUpdate"
-            @loadedmetadata="onLoadedMetadata"
-            class="hidden"
+    <div v-else-if="isAudio" class="audio-player-container">
+      <audio
+        ref="audioElement"
+        :src="message.media_url"
+        preload="metadata"
+        @error="onAudioError"
+        @loadstart="onAudioLoadStart"
+        @canplay="onAudioCanPlay"
+        @timeupdate="onTimeUpdate"
+        @loadedmetadata="onLoadedMetadata"
+        class="hidden"
+      >
+        <source :src="message.media_url" :type="message.media_type">
+        Seu navegador não suporta reprodução de áudio.
+      </audio>
+
+      <!-- Controles customizados -->
+      <div class="audio-controls">
+        <!-- Botão Play/Pause -->
+        <button
+          @click="togglePlayPause"
+          :disabled="!canPlay"
+          class="audio-play-button"
+        >
+          <svg v-if="!isPlaying" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </button>
+
+        <!-- Barra de progresso -->
+        <div
+          @click="seekAudio"
+          class="audio-progress-bar"
+          @mouseenter="$event.target.classList.add('hover')"
+          @mouseleave="$event.target.classList.remove('hover')"
+        >
+          <div
+            class="audio-progress-fill"
+            :style="{ width: Math.max(progressPercentage, 1) + '%' }"
           >
-            <source :src="message.media_url" :type="message.media_type">
-            Seu navegador não suporta reprodução de áudio.
-          </audio>
-
-          <!-- Controles customizados -->
-          <div class="flex items-center gap-3 min-w-0">
-            <!-- Botão Play/Pause -->
-            <button
-              @click="togglePlayPause"
-              :disabled="!canPlay"
-              class="flex-shrink-0 h-10 w-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-            >
-              <svg v-if="!isPlaying" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </button>
-
-            <!-- Barra de progresso -->
-            <div class="flex-1 relative">
-              <div
-                @click="seekAudio"
-                class="progress-bar cursor-pointer transition-colors duration-200"
-                style="
-                  height: 8px !important;
-                  min-height: 8px !important;
-                  background-color: #d1d5db !important;
-                  border-radius: 9999px !important;
-                  width: 100% !important;
-                  min-width: 50px !important;
-                  position: relative !important;
-                  z-index: 10 !important;
-                  display: block !important;
-                  visibility: visible !important;
-                  opacity: 1 !important;
-                  flex: 1 !important;
-                "
-                @mouseenter="$event.target.style.backgroundColor = '#9ca3af'"
-                @mouseleave="$event.target.style.backgroundColor = '#d1d5db'"
-              >
-                <div
-                  style="
-                    height: 100% !important;
-                    min-height: 8px !important;
-                    background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247)) !important;
-                    border-radius: 9999px !important;
-                    position: relative !important;
-                    width: 1% !important;
-                    min-width: 2px !important;
-                    transition: width 0.1s ease !important;
-                    z-index: 11 !important;
-                  "
-                  :style="{ width: Math.max(progressPercentage, 1) + '%' }"
-                >
-                  <div style="
-                    position: absolute;
-                    right: 0;
-                    top: 50%;
-                    transform: translate(50%, -50%);
-                    height: 12px;
-                    width: 12px;
-                    background-color: white;
-                    border-radius: 50%;
-                    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-                    border: 1px solid rgb(99 102 241);
-                  "></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Tempo exibido -->
-            <div class="text-xs text-gray-600 font-mono min-w-[50px] text-right whitespace-nowrap">
-              {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-            </div>
+            <div class="audio-progress-thumb"></div>
           </div>
+        </div>
+
+        <!-- Tempo exibido -->
+        <div class="audio-time-display">
+          {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
         </div>
       </div>
     </div>
@@ -569,6 +527,68 @@ watch(() => audioElement.value, (newAudioElement) => {
 }
 
 /* Estilos melhorados para o player de áudio */
+.audio-player-container {
+  @apply bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-md hover:shadow-lg transition-all duration-300 overflow-hidden;
+}
+
+.audio-controls {
+  @apply flex items-center gap-3 min-w-0;
+}
+
+.audio-play-button {
+  @apply flex-shrink-0 h-10 w-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed;
+}
+
+.audio-progress-bar {
+  @apply flex-1 cursor-pointer transition-colors duration-200 relative;
+  height: 8px !important;
+  min-height: 8px !important;
+  background-color: #d1d5db !important;
+  border-radius: 9999px !important;
+  width: 100% !important;
+  min-width: 50px !important;
+  position: relative !important;
+  z-index: 10 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex: 1 !important;
+}
+
+.audio-progress-bar.hover {
+  background-color: #9ca3af !important;
+}
+
+.audio-progress-fill {
+  height: 100% !important;
+  min-height: 8px !important;
+  background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247)) !important;
+  border-radius: 9999px !important;
+  position: relative !important;
+  width: 1% !important;
+  min-width: 2px !important;
+  transition: width 0.1s ease !important;
+  z-index: 11 !important;
+}
+
+.audio-progress-thumb {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translate(50%, -50%);
+  height: 12px;
+  width: 12px;
+  background-color: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid rgb(99 102 241);
+}
+
+.audio-time-display {
+  @apply text-xs text-gray-600 font-mono min-w-[50px] text-right whitespace-nowrap;
+}
+
+/* Estilos legados para compatibilidade */
 .custom-audio-player {
   @apply bg-white rounded-lg p-4 border border-gray-100 shadow-sm;
 }
@@ -598,38 +618,32 @@ watch(() => audioElement.value, (newAudioElement) => {
   }
 
   /* Ajustes específicos para o player de áudio em mobile */
-  .audio-message .max-w-sm {
-    @apply max-w-full;
+  .audio-player-container {
+    @apply max-w-full p-3;
   }
 
-  .custom-audio-player {
-    @apply p-2;
+  .audio-controls {
+    @apply gap-2;
   }
 
-  .custom-audio-player .space-x-3 {
-    @apply space-x-2;
-  }
-
-  .custom-audio-player .h-10 {
+  .audio-play-button {
     @apply h-8 w-8;
   }
 
-  
-  .custom-audio-player .min-w-[80px] {
-    @apply min-w-[60px] text-xs;
+  .audio-time-display {
+    @apply text-xs;
   }
 
   }
 
 @media (max-width: 480px) {
   /* Ajustes ainda menores para telas muito pequenas */
-  .audio-message .p-4 {
-    @apply p-3;
+  .audio-player-container {
+    @apply p-2;
   }
 
-  .custom-audio-player .flex {
+  .audio-controls {
     @apply flex-wrap gap-2;
   }
-
-  }
+}
 </style>
