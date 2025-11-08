@@ -749,3 +749,187 @@ export function validateWebhookOrigin(headers: any, apiKey: string): boolean {
   // Por enquanto, apenas verifica se tem os dados básicos
   return !!(headers && apiKey)
 }
+
+/**
+ * Envia uma mensagem de texto via Evolution API
+ */
+export async function sendTextMessageToWhatsApp(
+  instanceId: string,
+  phoneNumber: string,
+  messageText: string
+): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
+  try {
+    const evolutionApiUrl = process.env.EVOLUTION_API_URL
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
+      return {
+        success: false,
+        error: 'Configuração da Evolution API não encontrada'
+      }
+    }
+
+    // Remover caracteres não numéricos do telefone
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    console.log(`📤 Enviando mensagem via Evolution API:`, {
+      instance: instanceId,
+      phone: cleanPhone,
+      messageLength: messageText.length
+    })
+
+    // Fazer requisição para Evolution API
+    const url = `${evolutionApiUrl}/message/sendText/${instanceId}`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({
+        number: cleanPhone,
+        text: messageText
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erro na Evolution API:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      return {
+        success: false,
+        error: `Evolution API retornou status ${response.status}: ${errorText}`
+      }
+    }
+
+    const data = await response.json()
+
+    console.log('✅ Mensagem enviada via Evolution API:', {
+      messageId: data.key?.id,
+      status: data.status
+    })
+
+    return {
+      success: true,
+      messageId: data.key?.id,
+      status: data.status || 'PENDING'
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar mensagem via Evolution API:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    }
+  }
+}
+
+/**
+ * Envia uma mídia (imagem, vídeo, documento) via Evolution API
+ */
+export async function sendMediaToWhatsApp(
+  instanceId: string,
+  phoneNumber: string,
+  mediaUrl: string,
+  mediaType: 'image' | 'video' | 'document' | 'audio',
+  caption?: string,
+  mimeType?: string,
+  fileName?: string
+): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
+  try {
+    const evolutionApiUrl = process.env.EVOLUTION_API_URL
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
+      return {
+        success: false,
+        error: 'Configuração da Evolution API não encontrada'
+      }
+    }
+
+    // Remover caracteres não numéricos do telefone
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    console.log(`📤 Enviando mídia via Evolution API:`, {
+      instance: instanceId,
+      phone: cleanPhone,
+      mediaType,
+      mediaUrl,
+      hasCaption: !!caption
+    })
+
+    // Fazer requisição para Evolution API
+    const url = `${evolutionApiUrl}/message/sendMedia/${instanceId}`
+
+    // Montar body baseado no tipo de mídia
+    const body: any = {
+      number: cleanPhone,
+      mediatype: mediaType,
+      media: mediaUrl
+    }
+
+    // Adicionar caption se fornecido (para image, video)
+    if (caption && (mediaType === 'image' || mediaType === 'video')) {
+      body.caption = caption
+    }
+
+    // Adicionar mimetype se fornecido
+    if (mimeType) {
+      body.mimetype = mimeType
+    }
+
+    // Adicionar fileName para documentos
+    if (fileName && mediaType === 'document') {
+      body.fileName = fileName
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erro na Evolution API (mídia):', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      return {
+        success: false,
+        error: `Evolution API retornou status ${response.status}: ${errorText}`
+      }
+    }
+
+    const data = await response.json()
+
+    console.log('✅ Mídia enviada via Evolution API:', {
+      messageId: data.key?.id,
+      status: data.status,
+      mediaType
+    })
+
+    return {
+      success: true,
+      messageId: data.key?.id,
+      status: data.status || 'PENDING'
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar mídia via Evolution API:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    }
+  }
+}

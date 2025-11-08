@@ -207,9 +207,49 @@
             </button>
           </div>
 
+          <!-- Preview do arquivo selecionado -->
+          <div v-if="selectedFile" class="flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2">
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <svg v-if="selectedFile.type.startsWith('image/')" class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <svg v-else-if="selectedFile.type.startsWith('video/')" class="h-8 w-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <svg v-else class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ selectedFile.name }}</p>
+                <p class="text-xs text-gray-500">{{ formatFileSize(selectedFile.size) }}</p>
+              </div>
+            </div>
+            <button
+              @click="clearSelectedFile"
+              class="text-gray-400 hover:text-red-500"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
           <!-- Botões de ação abaixo -->
           <div class="flex justify-start space-x-4">
-            <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
+            <!-- Input file oculto -->
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              @change="handleFileSelect"
+              class="hidden"
+            />
+            <button
+              @click="openFileSelector"
+              class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm"
+            >
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
               </svg>
@@ -400,6 +440,11 @@ const messages = ref([])
 const loadingMessages = ref(false)
 const newTag = ref('')
 
+// Estados para upload de arquivo
+const fileInput = ref(null)
+const selectedFile = ref(null)
+const uploadingFile = ref(false)
+
 // Carregar mensagens do atendimento
 const loadMessages = async (contactId) => {
   if (!contactId) {
@@ -471,31 +516,142 @@ const handleEnterKey = (event) => {
   }
 }
 
-// Enviar mensagem
-const sendMessage = () => {
-  if (!newMessage.value.trim() || !props.selectedContact) return
+// Enviar mensagem (texto ou arquivo)
+const sendMessage = async () => {
+  if ((!newMessage.value.trim() && !selectedFile.value) || !props.selectedContact) return
+  if (uploadingFile.value) return // Evitar múltiplos uploads simultâneos
 
   const messageText = newMessage.value.trim()
+  const file = selectedFile.value
 
-  // Adicionar mensagem otimista localmente
-  const tempMessage = {
-    id: Date.now().toString(), // ID temporário
-    text: messageText,
-    sender: 'user',
-    timestamp: new Date(),
-    lida: true,
-    usuario_name: 'Você'
+  try {
+    uploadingFile.value = true
+
+    // Adicionar mensagem otimista localmente
+    const tempMessage = {
+      id: Date.now().toString(), // ID temporário
+      text: file ? `📎 ${file.name}` : messageText,
+      sender: 'user',
+      timestamp: new Date(),
+      lida: true,
+      usuario_name: 'Você',
+      media_name: file?.name
+    }
+
+    messages.value.push(tempMessage)
+
+    // Preparar envio
+    if (file) {
+      // Enviar com FormData (arquivo)
+      const formData = new FormData()
+      formData.append('file', file)
+      if (messageText) {
+        formData.append('texto', messageText)
+      }
+
+      // Fazer upload via $fetch
+      const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response?.success) {
+        console.log('Arquivo enviado com sucesso:', response.data)
+        // Atualizar mensagem temporária com dados reais
+        const index = messages.value.findIndex(m => m.id === tempMessage.id)
+        if (index > -1) {
+          messages.value[index] = {
+            ...response.data,
+            sender: response.data.sender || 'user'
+          }
+        }
+      }
+    } else {
+      // Enviar apenas texto (comportamento existente)
+      emit('send-message', messageText)
+    }
+
+    // Limpar inputs
+    newMessage.value = ''
+    clearSelectedFile()
+
+    // Rolar para ver a nova mensagem
+    nextTick(() => {
+      scrollToBottom()
+    })
+  } catch (error) {
+    console.error('Erro ao enviar mensagem:', error)
+    // Remover mensagem temporária em caso de erro
+    messages.value = messages.value.filter(m => m.id !== tempMessage.id)
+    alert('Erro ao enviar mensagem. Tente novamente.')
+  } finally {
+    uploadingFile.value = false
+  }
+}
+
+// Funções para gerenciamento de arquivo
+const openFileSelector = () => {
+  if (fileInput.value) {
+    fileInput.value.click()
+  }
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  // Validar tamanho (16MB máximo)
+  const maxSize = 16 * 1024 * 1024 // 16MB
+  if (file.size > maxSize) {
+    alert('Arquivo muito grande. O tamanho máximo é 16MB.')
+    return
   }
 
-  messages.value.push(tempMessage)
+  // Validar tipo de arquivo
+  const allowedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/ogg',
+    'audio/wav',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain'
+  ]
 
-  emit('send-message', messageText)
-  newMessage.value = ''
+  if (!allowedTypes.includes(file.type)) {
+    alert('Tipo de arquivo não suportado. Use imagens, vídeos, áudio ou documentos (PDF, DOC, XLS, TXT).')
+    return
+  }
 
-  // Rolar para ver a nova mensagem
-  nextTick(() => {
-    scrollToBottom()
-  })
+  selectedFile.value = file
+  // Limpar o input para permitir selecionar o mesmo arquivo novamente
+  event.target.value = ''
+}
+
+const clearSelectedFile = () => {
+  selectedFile.value = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
 // Funções de gerenciamento de tags
