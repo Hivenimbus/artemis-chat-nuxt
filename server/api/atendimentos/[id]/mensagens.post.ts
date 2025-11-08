@@ -71,8 +71,8 @@ export default defineEventHandler(async (event) => {
       texto = body.texto || ''
     }
 
-    // Validar: precisa ter texto OU arquivo
-    if ((!texto || !texto.trim()) && !arquivo) {
+    // Validar: precisa ter texto OU arquivo (texto pode ser vazio se houver arquivo)
+    if (!arquivo && (!texto || !texto.trim())) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Texto ou arquivo é obrigatório'

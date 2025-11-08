@@ -545,9 +545,8 @@ const sendMessage = async () => {
       // Enviar com FormData (arquivo)
       const formData = new FormData()
       formData.append('file', file)
-      if (messageText) {
-        formData.append('texto', messageText)
-      }
+      // Sempre adicionar texto, mesmo vazio (para o backend saber que é intencional)
+      formData.append('texto', messageText || '')
 
       // Fazer upload via $fetch
       const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
