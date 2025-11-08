@@ -30,6 +30,20 @@
       <div v-if="showFileName && message.media_name" class="mt-2">
         <p class="text-xs text-gray-500 truncate">{{ message.media_name }}</p>
       </div>
+
+      <!-- Caption/Legenda -->
+      <div v-if="showCaption && (message.text || message.texto)" class="mt-2 px-2 pb-2">
+        <div
+          class="rounded-lg px-3 py-2"
+          :class="message.sender === 'user'
+            ? 'bg-indigo-700 bg-opacity-50'
+            : 'bg-gray-100'"
+        >
+          <p class="text-sm" :class="message.sender === 'user' ? 'text-white' : 'text-gray-900'">
+            {{ message.text || message.texto }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Mensagem de Vídeo -->
@@ -62,6 +76,20 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
         </button>
+      </div>
+
+      <!-- Caption/Legenda -->
+      <div v-if="showCaption && (message.text || message.texto)" class="mt-2 px-2 pb-2">
+        <div
+          class="rounded-lg px-3 py-2"
+          :class="message.sender === 'user'
+            ? 'bg-indigo-700 bg-opacity-50'
+            : 'bg-gray-100'"
+        >
+          <p class="text-sm" :class="message.sender === 'user' ? 'text-white' : 'text-gray-900'">
+            {{ message.text || message.texto }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -119,6 +147,20 @@
           {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
         </div>
       </div>
+
+      <!-- Caption/Legenda -->
+      <div v-if="showCaption && (message.text || message.texto)" class="mt-2">
+        <div
+          class="rounded-lg px-3 py-2"
+          :class="message.sender === 'user'
+            ? 'bg-indigo-700 bg-opacity-50'
+            : 'bg-gray-100'"
+        >
+          <p class="text-sm" :class="message.sender === 'user' ? 'text-white' : 'text-gray-900'">
+            {{ message.text || message.texto }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Mensagem de Documento -->
@@ -165,6 +207,20 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
           </button>
+        </div>
+      </div>
+
+      <!-- Caption/Legenda -->
+      <div v-if="showCaption && (message.text || message.texto)" class="mt-2">
+        <div
+          class="rounded-lg px-3 py-2"
+          :class="message.sender === 'user'
+            ? 'bg-indigo-700 bg-opacity-50'
+            : 'bg-gray-100'"
+        >
+          <p class="text-sm" :class="message.sender === 'user' ? 'text-white' : 'text-gray-900'">
+            {{ message.text || message.texto }}
+          </p>
         </div>
       </div>
     </div>
@@ -256,6 +312,10 @@ const props = defineProps({
     required: true
   },
   showFileName: {
+    type: Boolean,
+    default: true
+  },
+  showCaption: {
     type: Boolean,
     default: true
   }

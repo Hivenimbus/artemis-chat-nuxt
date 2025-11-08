@@ -234,7 +234,7 @@ export default defineEventHandler(async (event) => {
     const mensagemData: any = {
       atendimento_id: atendimentoId,
       usuario_id: user.id,
-      texto: texto?.trim() || (arquivo ? `Arquivo: ${mediaName}` : ''),
+      texto: texto?.trim() || '',
       remetente: 'user',
       lida: true,
       timestamp: new Date().toISOString(),

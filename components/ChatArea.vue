@@ -168,12 +168,13 @@
             <MediaPreview
               v-if="message.media_url || (message.media_type && message.media_type !== 'text')"
               :message="message"
-              :show-file-name="true"
+              :show-file-name="false"
+              :show-caption="true"
               @error="handleMediaError"
             />
 
-            <!-- Mensagem de texto tradicional (fallback) -->
-            <div v-else>
+            <!-- Mensagem de texto tradicional (quando NÃO há mídia) -->
+            <div v-if="!message.media_url && (message.text || message.texto)">
               <p class="text-sm">{{ message.text || message.texto }}</p>
             </div>
 
