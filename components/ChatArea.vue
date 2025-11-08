@@ -321,12 +321,30 @@
               </svg>
               <span>Inteligência Artificial</span>
             </button>
-            <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <span>Emoji</span>
-            </button>
+            <div class="relative">
+              <button
+                @click="toggleEmojiPicker"
+                class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Emoji</span>
+              </button>
+
+              <!-- Emoji Picker Dropdown -->
+              <div
+                v-if="showEmojiPicker"
+                v-click-outside="closeEmojiPicker"
+                class="absolute bottom-full left-0 mb-2 z-50 shadow-lg rounded-lg"
+              >
+                <NuxtEmojiPicker
+                  :hide-search="false"
+                  theme="light"
+                  @select="onSelectEmoji"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -506,6 +524,9 @@ const recordingTime = ref(0)
 const audioBlob = ref(null)
 const mediaRecorder = ref(null)
 const recordingInterval = ref(null)
+
+// Estados para emoji picker
+const showEmojiPicker = ref(false)
 
 // Carregar mensagens do atendimento
 const loadMessages = async (contactId) => {
@@ -921,6 +942,28 @@ const toggleKebabSidebar = () => {
     showTagDropdown.value = false
   }
   showKebabSidebar.value = !showKebabSidebar.value
+}
+
+// Funções para gerenciamento de emoji picker
+const toggleEmojiPicker = () => {
+  showEmojiPicker.value = !showEmojiPicker.value
+}
+
+const closeEmojiPicker = () => {
+  showEmojiPicker.value = false
+}
+
+const onSelectEmoji = (emoji) => {
+  // Adicionar emoji ao campo de mensagem
+  newMessage.value += emoji.i
+  // Fechar o picker
+  showEmojiPicker.value = false
+
+  // Focar no textarea
+  nextTick(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) textarea.focus()
+  })
 }
 
 // Funções utilitárias

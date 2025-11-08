@@ -103,11 +103,17 @@ export async function findOrCreateContact(
   try {
     contatoLogger.logContactProcessing(phone, name, empresaId)
 
+    // Normalizar telefone: adicionar código do país 55 se não estiver presente
+    let normalizedPhone = phone.replace(/\D/g, '')
+    if (!normalizedPhone.startsWith('55')) {
+      normalizedPhone = '55' + normalizedPhone
+    }
+
     // Primeiro, tenta buscar contato existente
     const { data: contato, error: findError } = await supabase
       .from('contatos')
       .select('id')
-      .eq('telefone', phone)
+      .eq('telefone', normalizedPhone)
       .eq('empresa_id', empresaId)
       .single()
 
@@ -117,13 +123,13 @@ export async function findOrCreateContact(
     }
 
     // Se não encontrou, criar novo contato
-    contatoLogger.info('contact.creating', `Criando novo contato: ${name}`, { phone, empresaId })
+    contatoLogger.info('contact.creating', `Criando novo contato: ${name}`, { phone: normalizedPhone, empresaId })
 
     const { data: newContato, error: createError } = await supabase
       .from('contatos')
       .insert({
         nome: name,
-        telefone: phone,
+        telefone: normalizedPhone,
         empresa_id: empresaId,
         total_mensagens: 0,
         data_ultimo_contato: new Date().toISOString()
@@ -132,11 +138,11 @@ export async function findOrCreateContact(
       .single()
 
     if (createError) {
-      contatoLogger.error('contact.create_error', `Erro ao criar contato: ${name}`, createError, { phone, empresaId })
+      contatoLogger.error('contact.create_error', `Erro ao criar contato: ${name}`, createError, { phone: normalizedPhone, empresaId })
       return null
     }
 
-    contatoLogger.logContactCreated(newContato.id, phone, name, empresaId)
+    contatoLogger.logContactCreated(newContato.id, normalizedPhone, name, empresaId)
     return { id: newContato.id, isNew: true }
 
   } catch (error) {
@@ -754,6 +760,79 @@ export function validateWebhookOrigin(headers: any, apiKey: string): boolean {
   // TODO: Implementar validação mais robusta
   // Por enquanto, apenas verifica se tem os dados básicos
   return !!(headers && apiKey)
+}
+
+/**
+ * Verifica se um número de telefone possui WhatsApp ativo
+ */
+export async function checkWhatsAppNumber(
+  instanceId: string,
+  phoneNumber: string
+): Promise<{ exists: boolean; jid?: string; error?: string }> {
+  try {
+    const evolutionApiUrl = process.env.EVOLUTION_API_URL
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
+      return {
+        exists: false,
+        error: 'Configuração da Evolution API não encontrada'
+      }
+    }
+
+    // Limpar telefone (remover caracteres não numéricos)
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    console.log(`🔍 Verificando se número possui WhatsApp:`, {
+      instance: instanceId,
+      phone: cleanPhone
+    })
+
+    const url = `${evolutionApiUrl}/chat/whatsappNumbers/${instanceId}`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({
+        numbers: [cleanPhone]
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`❌ Erro ao verificar WhatsApp (${response.status}):`, errorText)
+      return {
+        exists: false,
+        error: `Erro na Evolution API: ${response.status}`
+      }
+    }
+
+    const data = await response.json()
+
+    if (data && Array.isArray(data) && data.length > 0) {
+      const result = data[0]
+      console.log(`✅ Resultado da verificação WhatsApp:`, result)
+
+      return {
+        exists: result.exists === true,
+        jid: result.jid
+      }
+    }
+
+    console.warn('⚠️ Resposta inesperada da Evolution API:', data)
+    return { exists: false, error: 'Resposta inválida da API' }
+
+  } catch (error) {
+    console.error('❌ Erro ao verificar número WhatsApp:', error)
+    return {
+      exists: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    }
+  }
 }
 
 /**

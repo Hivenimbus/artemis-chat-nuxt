@@ -2,19 +2,6 @@
   <div class="h-full bg-gray-50">
     <!-- Conteúdo principal -->
     <div class="max-w-7xl mx-auto h-full py-4 px-3 sm:py-6 sm:px-6 lg:px-8 flex flex-col">
-      <!-- Mensagem de Sucesso -->
-      <div
-        v-if="updateSuccess"
-        class="mb-4 sm:mb-6 bg-green-50 border border-green-200 rounded-lg p-4 animate-in slide-in-from-top-2 duration-200"
-      >
-        <div class="flex items-center">
-          <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          <span class="text-green-800 font-medium">{{ updateSuccess }}</span>
-        </div>
-      </div>
-
       <!-- Filtros e Ações -->
       <div class="bg-white shadow rounded-lg mb-4 sm:mb-6 flex-shrink-0 flex flex-col h-full">
         <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
@@ -46,7 +33,7 @@
 
             <div class="mt-0 sm:mt-0">
               <button
-                @click="showCreateModal = true"
+                @click="openCreateModal"
                 class="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <svg class="-ml-1 mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,7 +209,6 @@
                           v-model="contact.email"
                           type="email"
                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                          required
                         />
                       </div>
 
@@ -339,7 +325,7 @@
                 </div>
                 <button
                   v-if="!searchTerm"
-                  @click="showCreateModal = true"
+                  @click="openCreateModal"
                   class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,6 +465,7 @@
 <script setup>
 // Composables
 const { fetchContatos, createContato, updateContato, deleteContato, fetchEtiquetas } = useContatos()
+const { showToast } = useToast()
 
 // Estado de dados
 const contacts = ref([])
@@ -498,9 +485,6 @@ const totalPages = ref(0)
 
 // Estado de expansão dos cards
 const expandedContacts = ref([])
-
-// Estado de feedback de atualização
-const updateSuccess = ref(null)
 
 // Estado do modal de criação
 const showCreateModal = ref(false)
@@ -657,13 +641,8 @@ const updateContact = async (contactId) => {
     // Atualizar contato no array local
     contacts.value[contactIndex] = updatedContact
 
-    // Mostrar feedback de sucesso
-    updateSuccess.value = `Contato "${updatedContact.name}" atualizado com sucesso!`
-
-    // Remover o feedback após 3 segundos
-    setTimeout(() => {
-      updateSuccess.value = null
-    }, 3000)
+    // Mostrar toast de sucesso
+    showToast(`Contato "${updatedContact.name}" atualizado com sucesso!`, 'success')
 
     // Colapsar o card após atualizar
     const expandedIndex = expandedContacts.value.indexOf(contactId)
@@ -712,19 +691,27 @@ const handleCreateContact = async (contactData) => {
     // Fechar modal
     showCreateModal.value = false
 
-    // Mostrar feedback de sucesso
-    updateSuccess.value = `Contato "${newContact.name}" criado com sucesso!`
-
-    // Remover o feedback após 3 segundos
-    setTimeout(() => {
-      updateSuccess.value = null
-    }, 3000)
+    // Mostrar toast de sucesso
+    showToast(`Contato "${newContact.name}" criado com sucesso!`, 'success')
 
   } catch (err) {
     console.error('Erro ao criar contato:', err)
-    error.value = err.message || 'Erro ao criar contato'
-    throw err // Propagar erro para o modal tratar
+
+    // Extrair mensagem de erro da API
+    const errorMessage = err?.data?.statusMessage || err?.message || 'Erro ao criar contato'
+
+    // Mostrar toast de erro
+    showToast(errorMessage, 'error')
+
+    // Não fechar o modal - permite ao usuário corrigir o número
+    // showCreateModal.value permanece true
   }
+}
+
+// Método para abrir modal de criação
+const openCreateModal = () => {
+  // Abrir modal
+  showCreateModal.value = true
 }
 
 // Métodos de edição de tags
@@ -811,13 +798,8 @@ const executeDeleteContact = async () => {
       totalItems.value--
     }
 
-    // Mostrar feedback de sucesso
-    updateSuccess.value = `Contato "${contactToDelete.value.name}" excluído com sucesso!`
-
-    // Remover o feedback após 3 segundos
-    setTimeout(() => {
-      updateSuccess.value = null
-    }, 3000)
+    // Mostrar toast de sucesso
+    showToast(`Contato "${contactToDelete.value.name}" excluído com sucesso!`, 'success')
 
     // Fechar modal
     showDeleteModal.value = false

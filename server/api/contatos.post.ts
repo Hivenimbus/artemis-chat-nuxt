@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { checkWhatsAppNumber } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -63,16 +64,59 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Validar telefone (apenas números)
-    const cleanPhone = telefone.replace(/\D/g, '')
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    // Validar e normalizar telefone (apenas números)
+    let cleanPhone = telefone.replace(/\D/g, '')
+
+    // Adicionar código do país 55 se não estiver presente
+    if (!cleanPhone.startsWith('55')) {
+      cleanPhone = '55' + cleanPhone
+    }
+
+    if (cleanPhone.length < 12 || cleanPhone.length > 13) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Telefone inválido'
+        statusMessage: 'Telefone inválido (deve ter 12-13 dígitos com código do país 55)'
       })
     }
 
-    console.log('API /api/contatos (POST): Dados validados, criando contato')
+    // Buscar primeira inbox da empresa para validar WhatsApp
+    console.log('API /api/contatos (POST): Buscando inbox para validação WhatsApp')
+    const { data: inbox, error: inboxError } = await client
+      .from('inboxes')
+      .select('id')
+      .eq('empresa_id', userData.empresa_id)
+      .limit(1)
+      .single()
+
+    if (inboxError || !inbox) {
+      console.error('API /api/contatos (POST): Nenhuma inbox encontrada:', inboxError)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Nenhuma caixa de entrada configurada. Configure uma caixa de entrada antes de criar contatos.'
+      })
+    }
+
+    // Verificar se o número possui WhatsApp ativo
+    console.log('API /api/contatos (POST): Validando se número possui WhatsApp')
+    const whatsappCheck = await checkWhatsAppNumber(inbox.id, cleanPhone)
+
+    if (whatsappCheck.error) {
+      console.error('API /api/contatos (POST): Erro ao verificar WhatsApp:', whatsappCheck.error)
+      throw createError({
+        statusCode: 500,
+        statusMessage: `Erro ao verificar WhatsApp: ${whatsappCheck.error}`
+      })
+    }
+
+    if (!whatsappCheck.exists) {
+      console.warn('API /api/contatos (POST): Número não possui WhatsApp:', cleanPhone)
+      throw createError({
+        statusCode: 400,
+        statusMessage: `O número ${cleanPhone} não possui WhatsApp ativo. Verifique o número e tente novamente.`
+      })
+    }
+
+    console.log('API /api/contatos (POST): ✅ Número validado com WhatsApp, criando contato')
 
     // Iniciar transação
     const { data: novoContato, error: contatoError } = await client

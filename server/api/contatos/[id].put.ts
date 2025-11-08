@@ -82,12 +82,18 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Validar telefone (apenas números)
-    const cleanPhone = telefone.replace(/\D/g, '')
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    // Validar e normalizar telefone (apenas números)
+    let cleanPhone = telefone.replace(/\D/g, '')
+
+    // Adicionar código do país 55 se não estiver presente
+    if (!cleanPhone.startsWith('55')) {
+      cleanPhone = '55' + cleanPhone
+    }
+
+    if (cleanPhone.length < 12 || cleanPhone.length > 13) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Telefone inválido'
+        statusMessage: 'Telefone inválido (deve ter 12-13 dígitos com código do país 55)'
       })
     }
 

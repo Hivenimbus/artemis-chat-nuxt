@@ -92,7 +92,7 @@ export const useContatos = () => {
 
       // Validar telefone
       const cleanPhone = contatoData.telefone.replace(/\D/g, '')
-      if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      if (cleanPhone.length < 10 || cleanPhone.length > 13) {
         throw new Error('Telefone inválido')
       }
 
@@ -146,7 +146,7 @@ export const useContatos = () => {
 
       // Validar telefone
       const cleanPhone = contatoData.telefone.replace(/\D/g, '')
-      if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      if (cleanPhone.length < 10 || cleanPhone.length > 13) {
         throw new Error('Telefone inválido')
       }
 

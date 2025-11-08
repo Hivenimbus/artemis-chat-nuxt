@@ -430,7 +430,7 @@ const validateForm = () => {
   } else {
     const phoneRegex = /^\(?(\d{2})\)?[-. ]?(\d{5})[-. ]?(\d{4})$/
     const cleanPhone = formData.value.phone.replace(/\D/g, '')
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+    if (cleanPhone.length < 10 || cleanPhone.length > 13) {
       errors.value.phone = 'Telefone inválido'
       isValid = false
     }
