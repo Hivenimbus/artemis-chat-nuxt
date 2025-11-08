@@ -67,46 +67,98 @@
 
     <!-- Mensagem de Áudio -->
     <div v-else-if="isAudio" class="audio-message">
-      <div class="bg-gray-50 rounded-lg p-3 shadow-sm max-w-xs">
-        <div class="flex items-center space-x-3">
-          <!-- Ícone de áudio -->
-          <div class="flex-shrink-0">
-            <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-              <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+      <div class="bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+        <!-- Player de áudio customizado -->
+        <div class="custom-audio-player min-w-0">
+          <audio
+            ref="audioElement"
+            :src="message.media_url"
+            preload="metadata"
+            @error="onAudioError"
+            @loadstart="onAudioLoadStart"
+            @canplay="onAudioCanPlay"
+            @timeupdate="onTimeUpdate"
+            @loadedmetadata="onLoadedMetadata"
+            class="hidden"
+          >
+            <source :src="message.media_url" :type="message.media_type">
+            Seu navegador não suporta reprodução de áudio.
+          </audio>
+
+          <!-- Controles customizados -->
+          <div class="flex items-center gap-3 min-w-0">
+            <!-- Botão Play/Pause -->
+            <button
+              @click="togglePlayPause"
+              :disabled="!canPlay"
+              class="flex-shrink-0 h-10 w-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
+            >
+              <svg v-if="!isPlaying" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
+              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </button>
+
+            <!-- Barra de progresso -->
+            <div class="flex-1 relative">
+              <div
+                @click="seekAudio"
+                class="progress-bar cursor-pointer transition-colors duration-200"
+                style="
+                  height: 8px !important;
+                  min-height: 8px !important;
+                  background-color: #d1d5db !important;
+                  border-radius: 9999px !important;
+                  width: 100% !important;
+                  min-width: 50px !important;
+                  position: relative !important;
+                  z-index: 10 !important;
+                  display: block !important;
+                  visibility: visible !important;
+                  opacity: 1 !important;
+                  flex: 1 !important;
+                "
+                @mouseenter="$event.target.style.backgroundColor = '#9ca3af'"
+                @mouseleave="$event.target.style.backgroundColor = '#d1d5db'"
+              >
+                <div
+                  style="
+                    height: 100% !important;
+                    min-height: 8px !important;
+                    background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247)) !important;
+                    border-radius: 9999px !important;
+                    position: relative !important;
+                    width: 1% !important;
+                    min-width: 2px !important;
+                    transition: width 0.1s ease !important;
+                    z-index: 11 !important;
+                  "
+                  :style="{ width: Math.max(progressPercentage, 1) + '%' }"
+                >
+                  <div style="
+                    position: absolute;
+                    right: 0;
+                    top: 50%;
+                    transform: translate(50%, -50%);
+                    height: 12px;
+                    width: 12px;
+                    background-color: white;
+                    border-radius: 50%;
+                    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+                    border: 1px solid rgb(99 102 241);
+                  "></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tempo exibido -->
+            <div class="text-xs text-gray-600 font-mono min-w-[50px] text-right whitespace-nowrap">
+              {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
             </div>
           </div>
-
-          <!-- Player de áudio -->
-          <div class="flex-1">
-            <audio
-              :src="message.media_url"
-              controls
-              class="w-full h-8"
-              preload="metadata"
-              @error="onAudioError"
-              @loadstart="onAudioLoadStart"
-              @canplay="onAudioCanPlay"
-            >
-              <source :src="message.media_url" :type="message.media_type">
-              Seu navegador não suporta reprodução de áudio.
-            </audio>
-          </div>
-        </div>
-
-        <!-- Nome do arquivo e download -->
-        <div v-if="showFileName && message.media_name" class="mt-2 flex items-center justify-between">
-          <p class="text-xs text-gray-500 truncate flex-1">{{ message.media_name }}</p>
-          <button
-            @click="downloadMedia"
-            class="ml-2 text-indigo-600 hover:text-indigo-800 transition-colors"
-            title="Baixar áudio"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -258,6 +310,13 @@ const showImageModal = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
 
+// Estados do player de áudio
+const audioElement = ref(null)
+const isPlaying = ref(false)
+const canPlay = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
+
 // Computados para detectar tipo de mídia
 const isImage = computed(() => {
   return props.message.media_type?.startsWith('image/') ||
@@ -281,6 +340,12 @@ const isDocument = computed(() => {
   return props.message.media_type?.startsWith('application/') ||
          props.message.message_type === 'document' ||
          (props.message.media_url && props.message.media_url.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar)$/i))
+})
+
+// Computed para progresso do áudio
+const progressPercentage = computed(() => {
+  if (duration.value === 0) return 0
+  return (currentTime.value / duration.value) * 100
 })
 
 // Funções para imagens
@@ -340,13 +405,63 @@ const onAudioLoadStart = () => {
 const onAudioCanPlay = () => {
   isLoading.value = false
   hasError.value = false
+  canPlay.value = true
 }
 
 const onAudioError = () => {
   isLoading.value = false
   hasError.value = true
+  canPlay.value = false
   emit('error', { type: 'audio', message: 'Erro ao carregar áudio' })
 }
+
+// Funções para controles customizados do áudio
+const togglePlayPause = () => {
+  if (!audioElement.value || !canPlay.value) return
+
+  if (isPlaying.value) {
+    audioElement.value.pause()
+    isPlaying.value = false
+  } else {
+    audioElement.value.play()
+    isPlaying.value = true
+  }
+}
+
+const seekAudio = (event) => {
+  if (!audioElement.value || !canPlay.value) return
+
+  const rect = event.currentTarget.getBoundingClientRect()
+  const clickX = event.clientX - rect.left
+  const width = rect.width
+  const percentage = clickX / width
+  const seekTime = percentage * duration.value
+
+  audioElement.value.currentTime = seekTime
+  currentTime.value = seekTime
+}
+
+const onTimeUpdate = () => {
+  if (audioElement.value) {
+    currentTime.value = audioElement.value.currentTime
+  }
+}
+
+const onLoadedMetadata = () => {
+  if (audioElement.value) {
+    duration.value = audioElement.value.duration
+  }
+}
+
+
+const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return '0:00'
+
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
 
 // Funções utilitárias
 const getDocumentType = (mimeType) => {
@@ -384,9 +499,33 @@ const downloadMedia = () => {
   }
 }
 
-// Limpar modal ao desmontar
+// Limpar modal e áudio ao desmontar
 onUnmounted(() => {
   document.body.style.overflow = ''
+
+  // Parar áudio e limpar referências
+  if (audioElement.value) {
+    audioElement.value.pause()
+    audioElement.value.removeEventListener('timeupdate', onTimeUpdate)
+    audioElement.value.removeEventListener('loadedmetadata', onLoadedMetadata)
+    audioElement.value.removeEventListener('play', () => { isPlaying.value = true })
+    audioElement.value.removeEventListener('pause', () => { isPlaying.value = false })
+  }
+
+  // Resetar estados
+  isPlaying.value = false
+  canPlay.value = false
+  currentTime.value = 0
+  duration.value = 0
+})
+
+// Adicionar event listeners quando o áudio estiver pronto
+watch(() => audioElement.value, (newAudioElement) => {
+  if (newAudioElement) {
+    newAudioElement.addEventListener('play', () => { isPlaying.value = true })
+    newAudioElement.addEventListener('pause', () => { isPlaying.value = false })
+    newAudioElement.addEventListener('ended', () => { isPlaying.value = false })
+  }
 })
 </script>
 
@@ -429,6 +568,22 @@ onUnmounted(() => {
   max-height: calc(100vh - 2rem);
 }
 
+/* Estilos melhorados para o player de áudio */
+.custom-audio-player {
+  @apply bg-white rounded-lg p-4 border border-gray-100 shadow-sm;
+}
+
+.custom-audio-player:hover {
+  @apply shadow-md border-gray-200;
+}
+
+
+/* Efeito de hover na barra de progresso */
+.custom-audio-player .progress-bar:hover {
+  @apply bg-gray-300;
+}
+
+
 /* Responsividade */
 @media (max-width: 640px) {
   .media-preview {
@@ -441,5 +596,40 @@ onUnmounted(() => {
   .document-message {
     @apply max-w-full;
   }
-}
+
+  /* Ajustes específicos para o player de áudio em mobile */
+  .audio-message .max-w-sm {
+    @apply max-w-full;
+  }
+
+  .custom-audio-player {
+    @apply p-2;
+  }
+
+  .custom-audio-player .space-x-3 {
+    @apply space-x-2;
+  }
+
+  .custom-audio-player .h-10 {
+    @apply h-8 w-8;
+  }
+
+  
+  .custom-audio-player .min-w-[80px] {
+    @apply min-w-[60px] text-xs;
+  }
+
+  }
+
+@media (max-width: 480px) {
+  /* Ajustes ainda menores para telas muito pequenas */
+  .audio-message .p-4 {
+    @apply p-3;
+  }
+
+  .custom-audio-player .flex {
+    @apply flex-wrap gap-2;
+  }
+
+  }
 </style>
