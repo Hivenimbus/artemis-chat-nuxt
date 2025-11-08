@@ -1,5 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
-import { sendTextMessageToWhatsApp, sendMediaToWhatsApp } from '~/server/lib/evolution'
+import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -288,16 +288,24 @@ export default defineEventHandler(async (event) => {
     let evolutionResult: any
 
     if (arquivo && mediaUrl && evolutionMediaType) {
-      // Enviar mídia
-      evolutionResult = await sendMediaToWhatsApp(
-        inboxId,
-        phoneNumber,
-        mediaUrl,
-        evolutionMediaType,
-        texto?.trim(), // caption
-        mediaType || undefined,
-        mediaName || undefined
-      )
+      // Enviar mídia (usar endpoint específico para áudio)
+      if (evolutionMediaType === 'audio') {
+        evolutionResult = await sendAudioToWhatsApp(
+          inboxId,
+          phoneNumber,
+          mediaUrl
+        )
+      } else {
+        evolutionResult = await sendMediaToWhatsApp(
+          inboxId,
+          phoneNumber,
+          mediaUrl,
+          evolutionMediaType,
+          texto?.trim(), // caption
+          mediaType || undefined,
+          mediaName || undefined
+        )
+      }
     } else {
       // Enviar texto
       evolutionResult = await sendTextMessageToWhatsApp(

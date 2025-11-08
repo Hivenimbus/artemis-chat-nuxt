@@ -191,16 +191,68 @@
         <div class="space-y-3">
           <!-- Campo de mensagem maior -->
           <div class="flex items-end space-x-3">
+            <!-- Textarea (esconder durante gravação) -->
             <textarea
+              v-if="!isRecording"
               v-model="newMessage"
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
               class="flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
               rows="3"
             ></textarea>
+
+            <!-- Interface de gravação -->
+            <div v-if="isRecording" class="flex-1 flex items-center space-x-4 px-4 py-4 border border-red-300 rounded-lg bg-red-50">
+              <!-- Indicador de gravação -->
+              <div class="flex items-center space-x-2">
+                <div class="h-3 w-3 bg-red-600 rounded-full animate-pulse"></div>
+                <span class="text-sm font-medium text-gray-700">{{ formatRecordingTime(recordingTime) }}</span>
+              </div>
+
+              <!-- Botão de pausar/continuar -->
+              <button
+                @click="isPaused ? resumeAudioRecording() : pauseAudioRecording()"
+                class="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                title="Pausar/Continuar"
+              >
+                <svg v-if="!isPaused" class="h-5 w-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                </svg>
+                <svg v-else class="h-5 w-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </button>
+
+              <!-- Botão de cancelar -->
+              <button
+                @click="cancelAudioRecording"
+                class="p-2 hover:bg-red-200 rounded-full transition-colors"
+                title="Cancelar"
+              >
+                <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Botão de microfone (quando campo vazio e não está gravando) -->
             <button
-              @click="sendMessage"
+              v-if="!newMessage.trim() && !selectedFile && !isRecording"
+              @click="startAudioRecording"
               class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              title="Gravar áudio"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+              </svg>
+            </button>
+
+            <!-- Botão de enviar (quando há texto, arquivo selecionado, ou está gravando) -->
+            <button
+              v-if="newMessage.trim() || selectedFile || isRecording"
+              @click="isRecording ? stopAudioRecording(true) : sendMessage()"
+              class="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              :title="isRecording ? 'Enviar áudio' : 'Enviar mensagem'"
             >
               <svg class="h-5 w-5 send-icon-rotated" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
@@ -255,12 +307,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
               </svg>
               <span>Anexar arquivo</span>
-            </button>
-            <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-              </svg>
-              <span>Áudio</span>
             </button>
             <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,6 +491,14 @@ const newTag = ref('')
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const uploadingFile = ref(false)
+
+// Estados para gravação de áudio
+const isRecording = ref(false)
+const isPaused = ref(false)
+const recordingTime = ref(0)
+const audioBlob = ref(null)
+const mediaRecorder = ref(null)
+const recordingInterval = ref(null)
 
 // Carregar mensagens do atendimento
 const loadMessages = async (contactId) => {
@@ -652,6 +706,177 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// Funções de gravação de áudio
+const startAudioRecording = async () => {
+  try {
+    // Solicitar permissão de microfone
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+    // Configurar MediaRecorder
+    const recorder = new MediaRecorder(stream)
+    mediaRecorder.value = recorder
+
+    const audioChunks = []
+
+    recorder.ondataavailable = (event) => {
+      audioChunks.push(event.data)
+    }
+
+    recorder.onstop = async () => {
+      // Criar blob do áudio gravado
+      const blob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' })
+      audioBlob.value = blob
+
+      // Parar todas as tracks do stream
+      stream.getTracks().forEach(track => track.stop())
+
+      // Se deve enviar automaticamente
+      if (isRecording.value === 'sending') {
+        await sendAudioRecording()
+      }
+
+      isRecording.value = false
+    }
+
+    // Iniciar gravação
+    recorder.start()
+    isRecording.value = true
+    recordingTime.value = 0
+
+    // Iniciar contador de tempo
+    recordingInterval.value = setInterval(() => {
+      if (!isPaused.value) {
+        recordingTime.value++
+      }
+    }, 1000)
+
+    console.log('🎤 Gravação de áudio iniciada')
+  } catch (error) {
+    console.error('Erro ao iniciar gravação de áudio:', error)
+    alert('Erro ao acessar microfone. Verifique as permissões do navegador.')
+  }
+}
+
+const stopAudioRecording = (shouldSend = false) => {
+  if (mediaRecorder.value && isRecording.value) {
+    // Marcar que deve enviar após parar
+    if (shouldSend) {
+      isRecording.value = 'sending'
+    }
+
+    mediaRecorder.value.stop()
+    isPaused.value = false
+
+    // Parar contador
+    if (recordingInterval.value) {
+      clearInterval(recordingInterval.value)
+      recordingInterval.value = null
+    }
+
+    console.log('🎤 Gravação de áudio finalizada')
+  }
+}
+
+const pauseAudioRecording = () => {
+  if (mediaRecorder.value && isRecording.value && !isPaused.value) {
+    mediaRecorder.value.pause()
+    isPaused.value = true
+    console.log('⏸️ Gravação pausada')
+  }
+}
+
+const resumeAudioRecording = () => {
+  if (mediaRecorder.value && isRecording.value && isPaused.value) {
+    mediaRecorder.value.resume()
+    isPaused.value = false
+    console.log('▶️ Gravação retomada')
+  }
+}
+
+const cancelAudioRecording = () => {
+  if (mediaRecorder.value) {
+    // Parar gravação sem salvar
+    isRecording.value = false
+    isPaused.value = false
+    audioBlob.value = null
+    recordingTime.value = 0
+
+    // Parar contador
+    if (recordingInterval.value) {
+      clearInterval(recordingInterval.value)
+      recordingInterval.value = null
+    }
+
+    // Parar MediaRecorder e stream
+    if (mediaRecorder.value.state !== 'inactive') {
+      mediaRecorder.value.stop()
+    }
+
+    // Parar stream de áudio
+    if (mediaRecorder.value.stream) {
+      mediaRecorder.value.stream.getTracks().forEach(track => track.stop())
+    }
+
+    mediaRecorder.value = null
+    console.log('❌ Gravação cancelada')
+  }
+}
+
+const sendAudioRecording = async () => {
+  if (!audioBlob.value || !props.selectedContact) return
+
+  try {
+    uploadingFile.value = true
+
+    // Criar arquivo do blob
+    const audioFile = new File([audioBlob.value], `audio_${Date.now()}.ogg`, {
+      type: 'audio/ogg; codecs=opus'
+    })
+
+    // Criar FormData
+    const formData = new FormData()
+    formData.append('file', audioFile)
+    formData.append('texto', '')
+
+    // Enviar via API
+    const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
+      method: 'POST',
+      body: formData
+    })
+
+    if (response?.success) {
+      console.log('🎵 Áudio enviado com sucesso:', response.data)
+
+      // Adicionar mensagem à lista
+      messages.value.push({
+        ...response.data,
+        sender: response.data.sender || 'user'
+      })
+
+      // Rolar para o fim
+      nextTick(() => {
+        scrollToBottom()
+      })
+    }
+
+    // Limpar estado de gravação
+    audioBlob.value = null
+    recordingTime.value = 0
+
+  } catch (error) {
+    console.error('Erro ao enviar áudio:', error)
+    alert('Erro ao enviar áudio. Tente novamente.')
+  } finally {
+    uploadingFile.value = false
+  }
+}
+
+const formatRecordingTime = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 // Funções de gerenciamento de tags

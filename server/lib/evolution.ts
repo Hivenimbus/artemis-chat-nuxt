@@ -421,18 +421,18 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
             name: mediaInfo.fileName
           }
 
-          // Criar texto de preview para a mídia
+          // Criar texto de preview para a mídia (usar caption se disponível)
           if (messageType === 'imageMessage') {
-            messageText = `📸 Imagem: ${mediaInfo.fileName}`
+            messageText = mediaInfo.caption || ''
             processedMessageType = 'image'
           } else if (messageType === 'videoMessage') {
-            messageText = `🎥 Vídeo: ${mediaInfo.fileName}`
+            messageText = mediaInfo.caption || ''
             processedMessageType = 'video'
           } else if (messageType === 'audioMessage') {
-            messageText = `🎵 Áudio: ${mediaInfo.fileName}`
+            messageText = ''
             processedMessageType = 'audio'
           } else if (messageType === 'documentMessage') {
-            messageText = `📄 Documento: ${mediaInfo.fileName}`
+            messageText = mediaInfo.caption || ''
             processedMessageType = 'document'
           }
 
@@ -641,6 +641,7 @@ function extractMediaInfo(message: any, messageType: string): {
   base64: string | null
   mimeType: string
   fileName: string
+  caption?: string
   fileLength?: number
   duration?: number
   width?: number
@@ -670,6 +671,7 @@ function extractMediaInfo(message: any, messageType: string): {
     let mediaData = null
     let mimeType = ''
     let fileName = ''
+    let caption = undefined
     let fileLength = 0
     let duration = undefined
     let width = undefined
@@ -682,21 +684,23 @@ function extractMediaInfo(message: any, messageType: string): {
         mediaData = message.imageMessage
         mimeType = mediaData?.mimetype || 'image/jpeg'
         fileName = `image_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        caption = mediaData?.caption
         width = mediaData?.width
         height = mediaData?.height
         fileLength = mediaData?.fileLength
-        console.log(`📸 Metadados da imagem: ${mimeType}, ${width}x${height}, ${fileLength} bytes`)
+        console.log(`📸 Metadados da imagem: ${mimeType}, ${width}x${height}, ${fileLength} bytes, caption: ${caption}`)
         break
 
       case 'videoMessage':
         mediaData = message.videoMessage
         mimeType = mediaData?.mimetype || 'video/mp4'
         fileName = `video_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        caption = mediaData?.caption
         width = mediaData?.width
         height = mediaData?.height
         duration = mediaData?.seconds
         fileLength = mediaData?.fileLength
-        console.log(`🎥 Metadados do vídeo: ${mimeType}, ${width}x${height}, ${duration}s, ${fileLength} bytes`)
+        console.log(`🎥 Metadados do vídeo: ${mimeType}, ${width}x${height}, ${duration}s, ${fileLength} bytes, caption: ${caption}`)
         break
 
       case 'audioMessage':
@@ -712,8 +716,9 @@ function extractMediaInfo(message: any, messageType: string): {
         mediaData = message.documentMessage
         mimeType = mediaData?.mimetype || 'application/pdf'
         fileName = mediaData?.fileName || `document_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        caption = mediaData?.caption
         fileLength = mediaData?.fileLength
-        console.log(`📄 Metadados do documento: ${mimeType}, ${fileName}, ${fileLength} bytes`)
+        console.log(`📄 Metadados do documento: ${mimeType}, ${fileName}, ${fileLength} bytes, caption: ${caption}`)
         break
 
       default:
@@ -728,6 +733,7 @@ function extractMediaInfo(message: any, messageType: string): {
       base64: base64,  // ← CORREÇÃO: base64 vem de message.base64
       mimeType,
       fileName,
+      caption,
       fileLength,
       duration,
       width,
@@ -927,6 +933,87 @@ export async function sendMediaToWhatsApp(
 
   } catch (error) {
     console.error('❌ Erro ao enviar mídia via Evolution API:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    }
+  }
+}
+
+/**
+ * Envia um áudio via Evolution API usando endpoint específico
+ */
+export async function sendAudioToWhatsApp(
+  instanceId: string,
+  phoneNumber: string,
+  audioUrl: string
+): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
+  try {
+    const evolutionApiUrl = process.env.EVOLUTION_API_URL
+    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
+      return {
+        success: false,
+        error: 'Configuração da Evolution API não encontrada'
+      }
+    }
+
+    // Remover caracteres não numéricos do telefone
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    console.log(`🎵 Enviando áudio via Evolution API:`, {
+      instance: instanceId,
+      phone: cleanPhone,
+      audioUrl
+    })
+
+    // Fazer requisição para Evolution API usando endpoint específico de áudio
+    const url = `${evolutionApiUrl}/message/sendWhatsAppAudio/${instanceId}`
+
+    const body = {
+      number: cleanPhone,
+      audio: audioUrl
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Erro na Evolution API (áudio):', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      return {
+        success: false,
+        error: `Evolution API retornou status ${response.status}: ${errorText}`
+      }
+    }
+
+    const data = await response.json()
+
+    console.log('✅ Áudio enviado via Evolution API:', {
+      messageId: data.key?.id,
+      status: data.status
+    })
+
+    return {
+      success: true,
+      messageId: data.key?.id,
+      status: data.status || 'PENDING'
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao enviar áudio via Evolution API:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido'
