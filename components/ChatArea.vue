@@ -136,7 +136,7 @@
       </div>
 
       <!-- Área de mensagens -->
-      <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" style="max-height: calc(100vh - 280px);" id="chat-messages">
+      <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" id="chat-messages">
         <!-- Loading state -->
         <div v-if="loadingMessages" class="flex justify-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -187,7 +187,7 @@
       </div>
 
       <!-- Input de mensagem -->
-      <div class="bg-white border-t border-gray-200 px-6 py-4">
+      <div class="bg-white border-t border-gray-200 px-6 py-4 flex-shrink-0">
         <div class="space-y-3">
           <!-- Campo de mensagem maior -->
           <div class="flex items-end space-x-3">
@@ -197,8 +197,8 @@
               v-model="newMessage"
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
-              class="flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
-              rows="3"
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+              rows="1"
             ></textarea>
 
             <!-- Interface de gravação -->
