@@ -56,6 +56,42 @@ export interface ProcessedMessage {
 }
 
 /**
+ * Encontra o ID interno da instância na Evolution API buscando pelo nome (que usamos como ID da inbox)
+ */
+export async function findEvolutionInstanceId(
+  config: any,
+  instanceName: string
+): Promise<string | null> {
+  try {
+    console.log(`🔍 Buscando ID interno da instância Evolution para: ${instanceName}`)
+    
+    const response = await $fetch(`${config.evolutionApiUrl}/instance/all`, {
+      method: 'GET',
+      headers: {
+        'apikey': config.evolutionApiKey
+      }
+    })
+
+    const instances = (response as any)?.data || []
+    
+    // Procurar instância onde name === instanceName
+    // instanceName no nosso sistema é o ID da inbox
+    const instance = instances.find((inst: any) => inst.name === instanceName)
+
+    if (instance) {
+      console.log(`✅ Instância Evolution encontrada: ID Interno=${instance.id} para Nome=${instanceName}`)
+      return instance.id
+    }
+
+    console.warn(`⚠️ Nenhuma instância Evolution encontrada com nome: ${instanceName}`)
+    return null
+  } catch (error) {
+    console.error('❌ Erro ao buscar instâncias na Evolution API:', error)
+    return null
+  }
+}
+
+/**
  * Encontra a inbox correspondente pelo instanceId da Evolution API
  */
 export async function findInboxByInstance(supabase: SupabaseClient, instanceId: string): Promise<{ id: string, empresa_id: string } | null> {

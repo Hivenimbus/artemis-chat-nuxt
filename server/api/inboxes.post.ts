@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { findEvolutionInstanceId } from '../lib/evolution'
 
 const config = useRuntimeConfig()
 
@@ -88,23 +89,53 @@ export default defineEventHandler(async (event) => {
     // Se a instância foi criada com sucesso, configurar configurações padrão
     if (evolutionResponse) {
       try {
-        // Configurar configurações padrão da instância
-        await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
-          method: 'PUT',
-          headers: {
-            'apikey': config.evolutionApiKey,
-            'Content-Type': 'application/json'
-          },
-          body: {
-            rejectCall: false,
-            msgCall: "Por favor, envie mensagem",
-            groupsIgnore: true,
-            alwaysOnline: true,
-            readMessages: true,
-            syncFullHistory: false,
-            readStatus: true
-          }
-        })
+        // Tentar usar o ID retornado pela criação, se disponível
+        // Dependendo da versão da Evolution, pode retornar { data: { id: ... } } ou apenas { id: ... }
+        let evolutionInstanceId = (evolutionResponse as any)?.data?.id || (evolutionResponse as any)?.id || (evolutionResponse as any)?.instance?.id
+
+        // Se não conseguimos extrair o ID da resposta, buscar via lookup
+        if (!evolutionInstanceId) {
+           evolutionInstanceId = await findEvolutionInstanceId(config, inboxData.id)
+        }
+
+        if (evolutionInstanceId) {
+            // Configurar configurações padrão da instância usando o ID interno
+            await $fetch(`${config.evolutionApiUrl}/instance/${evolutionInstanceId}/advanced-settings`, {
+              method: 'PUT',
+              headers: {
+                'apikey': config.evolutionApiKey,
+                'Content-Type': 'application/json'
+              },
+              body: {
+                rejectCall: false,
+                msgCall: "Por favor, envie mensagem",
+                groupsIgnore: true,
+                alwaysOnline: true,
+                readMessages: true,
+                syncFullHistory: false,
+                readStatus: true
+              }
+            })
+        } else {
+             console.warn(`⚠️ Não foi possível obter ID da instância para configurar settings: ${inboxData.id}`)
+             // Fallback: tentar usar o ID do inbox (caso coincida)
+             await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
+                method: 'PUT',
+                headers: {
+                  'apikey': config.evolutionApiKey,
+                  'Content-Type': 'application/json'
+                },
+                body: {
+                  rejectCall: false,
+                  msgCall: "Por favor, envie mensagem",
+                  groupsIgnore: true,
+                  alwaysOnline: true,
+                  readMessages: true,
+                  syncFullHistory: false,
+                  readStatus: true
+                }
+              })
+        }
 
       } catch (webhookError) {
         console.error('Erro ao configurar settings:', webhookError)

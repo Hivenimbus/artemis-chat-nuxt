@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { findEvolutionInstanceId } from '../../lib/evolution'
 
 const config = useRuntimeConfig()
 
@@ -40,12 +41,33 @@ export default defineEventHandler(async (event) => {
 
     // Deletar instância na Evolution API (se existir)
     try {
-      await $fetch(`${config.evolutionApiUrl}/instance/delete/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': config.evolutionApiKey
+      // Buscar o ID interno da Evolution (necessário para deletar)
+      // O "name" na Evolution é o nosso "id" do inbox
+      const evolutionInstanceId = await findEvolutionInstanceId(config, id)
+
+      if (evolutionInstanceId) {
+        console.log(`🗑️ Deletando instância na Evolution: ${evolutionInstanceId} (Nome: ${id})`)
+        await $fetch(`${config.evolutionApiUrl}/instance/delete/${evolutionInstanceId}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': config.evolutionApiKey
+          }
+        })
+        console.log('✅ Instância deletada com sucesso na Evolution API')
+      } else {
+        console.warn(`⚠️ Instância não encontrada na Evolution para deleção: ${id}`)
+        // Tentar deletar usando o ID do inbox diretamente como fallback, caso coincida
+        try {
+          await $fetch(`${config.evolutionApiUrl}/instance/delete/${id}`, {
+             method: 'DELETE',
+             headers: {
+               'apikey': config.evolutionApiKey
+             }
+           })
+        } catch (e) {
+           // Ignorar erro do fallback
         }
-      })
+      }
     } catch (evolutionError) {
       console.error('Erro ao deletar instância na Evolution API:', evolutionError)
       // Continuar mesmo se der erro na Evolution
