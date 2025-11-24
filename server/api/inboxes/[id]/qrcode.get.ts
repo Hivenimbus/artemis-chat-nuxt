@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     if (userError || !user) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
+        statusMessage: 'Usuário não autenticado' 
       })
     }
 
@@ -40,23 +40,25 @@ export default defineEventHandler(async (event) => {
 
     // Buscar QR Code na Evolution API
     try {
-      const response = await $fetch(`${config.evolutionApiUrl}/instance/qr`, {
+      const response: any = await $fetch(`${config.evolutionApiUrl}/instance/qr`, {
         method: 'GET',
         headers: {
           'apikey': id // Usar o ID da instância
         }
       })
 
+      const qrData = response.data || response
+
       return {
         success: true,
         data: {
-          base64: response.data?.qrcode,
-          code: response.data?.code,
-          pairingCode: response.data?.pairingCode
+          base64: qrData?.Qrcode, // Corrigido: Qrcode em maiúsculo
+          code: qrData?.Code,     // Corrigido: Code em maiúsculo
+          pairingCode: qrData?.pairingCode
         }
       }
 
-    } catch (evolutionError) {
+    } catch (evolutionError: any) {
       console.error('Erro ao buscar QR Code na Evolution API:', evolutionError)
 
       // Verificar se é erro 404 ou similar (instância não encontrada)
@@ -74,7 +76,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de QR Code:', error)
 
     // Se já for um erro criado, retornar como está

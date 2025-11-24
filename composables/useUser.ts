@@ -1,7 +1,7 @@
 export const useUser = () => {
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  const userData = ref<any>(null)
+  const loading = useState('useUser:loading', () => false)
+  const error = useState<string | null>('useUser:error', () => null)
+  const userData = useState<any>('useUser:data', () => null)
 
   const getUserData = async () => {
     loading.value = true
@@ -9,7 +9,8 @@ export const useUser = () => {
 
     try {
       console.log('useUser: Buscando dados do usuário...')
-      const response = await $fetch('/api/user')
+      const headers = useRequestHeaders(['cookie'])
+      const response = await $fetch('/api/user', { headers })
       userData.value = response.data
 
       // Validar se os dados retornados são válidos

@@ -47,10 +47,17 @@ export default defineEventHandler(async (event) => {
         }
       })
 
-      // Mapear resposta do novo endpoint
-      // connected: true, loggedIn: true -> Conectado
-      const isConnected = response.data?.connected && response.data?.loggedIn
-      const state = isConnected ? 'open' : (response.data?.connected ? 'connecting' : 'closed')
+      // Mapear resposta do novo endpoint (PascalCase)
+      // Connected: true, LoggedIn: true -> Conectado
+      const instanceData = response.data || {}
+      
+      // Suporte a ambos formatos (camelCase antigo e PascalCase novo)
+      const connected = instanceData.Connected === true || instanceData.connected === true
+      const loggedIn = instanceData.LoggedIn === true || instanceData.loggedIn === true
+      const name = instanceData.Name || instanceData.name
+
+      const isConnected = connected && loggedIn
+      const state = isConnected ? 'open' : (connected ? 'connecting' : 'closed')
 
       // Se conectou, atualizar no Supabase
       if (isConnected && inbox.status !== 'connected') {
@@ -73,7 +80,7 @@ export default defineEventHandler(async (event) => {
         data: {
           state: state,
           connected: isConnected,
-          instanceName: response.data?.name
+          instanceName: name
         }
       }
 

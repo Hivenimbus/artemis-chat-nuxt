@@ -10,3 +10,4 @@ package.json
 /3000
 .env
 package-lock.json
+.env
