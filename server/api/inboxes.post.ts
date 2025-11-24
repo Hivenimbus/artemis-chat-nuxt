@@ -68,9 +68,16 @@ export default defineEventHandler(async (event) => {
         'Content-Type': 'application/json'
       },
       body: {
-        instanceName: inboxData.id, // Usar o ID do Supabase como nome da instância
-        integration: 'WHATSAPP-BAILEYS',
-        groups_ignore: true
+        name: inboxData.id,
+        token: inboxData.id,
+        webhook: `${config.public.siteUrl}/api/webhook/whatsapp`,
+        webhookEvents: [
+          'messages.upsert',
+          'messages.update',
+          'messages.delete',
+          'send.message',
+          'connection.update'
+        ]
       }
     }).catch((error) => {
       console.error('Erro ao criar instância na Evolution API:', error)
@@ -78,56 +85,30 @@ export default defineEventHandler(async (event) => {
       return null
     })
 
-    // Se a instância foi criada com sucesso, configurar webhook e configurações padrão
+    // Se a instância foi criada com sucesso, configurar configurações padrão
     if (evolutionResponse) {
       try {
-        // Configurar webhook
-        await $fetch(`${config.evolutionApiUrl}/webhook/set/${inboxData.id}`, {
-          method: 'POST',
-          headers: {
-            'apikey': config.evolutionApiKey,
-            'Content-Type': 'application/json'
-          },
-          body: {
-            webhook: {
-              enabled: true,
-              url: `${config.public.siteUrl}/api/webhook/whatsapp`,
-              events: [
-                'MESSAGES_UPSERT',
-                'MESSAGES_EDITED',
-                'SEND_MESSAGE_UPDATE',
-                'INSTANCE_CREATE',
-                'INSTANCE_DELETE',
-                'STATUS_INSTANCE',
-                'MESSAGES_UPDATE'
-              ],
-              base64: true,
-              byEvents: false
-            }
-          }
-        })
-
         // Configurar configurações padrão da instância
-        await $fetch(`${config.evolutionApiUrl}/settings/set/${inboxData.id}`, {
-          method: 'POST',
+        await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
+          method: 'PUT',
           headers: {
             'apikey': config.evolutionApiKey,
             'Content-Type': 'application/json'
           },
           body: {
             rejectCall: false,
-            msgCall: "",
+            msgCall: "Por favor, envie mensagem",
             groupsIgnore: true,
-            alwaysOnline: false,
-            readMessages: false,
+            alwaysOnline: true,
+            readMessages: true,
             syncFullHistory: false,
-            readStatus: false
+            readStatus: true
           }
         })
 
       } catch (webhookError) {
-        console.error('Erro ao configurar webhook/settings:', webhookError)
-        // Não falhar completamente se o webhook não for configurado
+        console.error('Erro ao configurar settings:', webhookError)
+        // Não falhar completamente
       }
     }
 

@@ -40,17 +40,18 @@ export default defineEventHandler(async (event) => {
 
     // Fazer logout na Evolution API
     try {
-      await $fetch(`${config.evolutionApiUrl}/instance/logout/${id}`, {
-        method: 'DELETE',
+      await $fetch(`${config.evolutionApiUrl}/instance/disconnect`, {
+        method: 'POST',
         headers: {
-          'apikey': config.evolutionApiKey
-        }
+          'apikey': id // Usar o ID da instância
+        },
+        body: {}
       })
     } catch (evolutionError) {
       console.error('Erro ao fazer logout na Evolution API:', evolutionError)
 
       // Se for erro 404, a instância pode não existir mais, mas continuamos
-      if (evolutionError.response?.status !== 404) {
+      if (evolutionError.response?.status !== 404 && evolutionError.response?.status !== 403) {
         throw createError({
           statusCode: 500,
           statusMessage: 'Erro ao desconectar WhatsApp. Tente novamente.'

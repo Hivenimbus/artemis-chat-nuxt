@@ -789,16 +789,18 @@ export async function checkWhatsAppNumber(
       phone: cleanPhone
     })
 
-    const url = `${evolutionApiUrl}/chat/whatsappNumbers/${instanceId}`
+    // Endpoint: POST /user/check
+    const url = `${evolutionApiUrl}/user/check`
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': evolutionApiKey
+        'apikey': instanceId
       },
       body: JSON.stringify({
-        numbers: [cleanPhone]
+        number: [cleanPhone],
+        formatJid: false
       })
     })
 
@@ -813,13 +815,13 @@ export async function checkWhatsAppNumber(
 
     const data = await response.json()
 
-    if (data && Array.isArray(data) && data.length > 0) {
-      const result = data[0]
+    if (data?.data?.Users && Array.isArray(data.data.Users) && data.data.Users.length > 0) {
+      const result = data.data.Users[0]
       console.log(`✅ Resultado da verificação WhatsApp:`, result)
 
       return {
-        exists: result.exists === true,
-        jid: result.jid
+        exists: result.IsInWhatsapp === true,
+        jid: result.JID
       }
     }
 
@@ -865,13 +867,13 @@ export async function sendTextMessageToWhatsApp(
     })
 
     // Fazer requisição para Evolution API
-    const url = `${evolutionApiUrl}/message/sendText/${instanceId}`
+    const url = `${evolutionApiUrl}/send/text`
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': evolutionApiKey
+        'apikey': instanceId
       },
       body: JSON.stringify({
         number: cleanPhone,
@@ -895,14 +897,14 @@ export async function sendTextMessageToWhatsApp(
     const data = await response.json()
 
     console.log('✅ Mensagem enviada via Evolution API:', {
-      messageId: data.key?.id,
-      status: data.status
+      messageId: data.data?.Info?.ID,
+      status: 'PENDING'
     })
 
     return {
       success: true,
-      messageId: data.key?.id,
-      status: data.status || 'PENDING'
+      messageId: data.data?.Info?.ID,
+      status: 'PENDING'
     }
 
   } catch (error) {
@@ -950,13 +952,13 @@ export async function sendMediaToWhatsApp(
     })
 
     // Fazer requisição para Evolution API
-    const url = `${evolutionApiUrl}/message/sendMedia/${instanceId}`
+    const url = `${evolutionApiUrl}/send/media`
 
     // Montar body baseado no tipo de mídia
     const body: any = {
       number: cleanPhone,
-      mediatype: mediaType,
-      media: mediaUrl
+      type: mediaType,
+      url: mediaUrl
     }
 
     // Adicionar caption se fornecido (para image, video)
@@ -978,7 +980,7 @@ export async function sendMediaToWhatsApp(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': evolutionApiKey
+        'apikey': instanceId
       },
       body: JSON.stringify(body)
     })
@@ -999,15 +1001,15 @@ export async function sendMediaToWhatsApp(
     const data = await response.json()
 
     console.log('✅ Mídia enviada via Evolution API:', {
-      messageId: data.key?.id,
-      status: data.status,
+      messageId: data.data?.Info?.ID,
+      status: 'PENDING',
       mediaType
     })
 
     return {
       success: true,
-      messageId: data.key?.id,
-      status: data.status || 'PENDING'
+      messageId: data.data?.Info?.ID,
+      status: 'PENDING'
     }
 
   } catch (error) {
@@ -1048,48 +1050,13 @@ export async function sendAudioToWhatsApp(
       audioUrl
     })
 
-    // Fazer requisição para Evolution API usando endpoint específico de áudio
-    const url = `${evolutionApiUrl}/message/sendWhatsAppAudio/${instanceId}`
-
-    const body = {
-      number: cleanPhone,
-      audio: audioUrl
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': evolutionApiKey
-      },
-      body: JSON.stringify(body)
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Erro na Evolution API (áudio):', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      })
-      return {
-        success: false,
-        error: `Evolution API retornou status ${response.status}: ${errorText}`
-      }
-    }
-
-    const data = await response.json()
-
-    console.log('✅ Áudio enviado via Evolution API:', {
-      messageId: data.key?.id,
-      status: data.status
-    })
-
-    return {
-      success: true,
-      messageId: data.key?.id,
-      status: data.status || 'PENDING'
-    }
+    // Fazer requisição para Evolution API usando endpoint genérico de mídia
+    return sendMediaToWhatsApp(
+      instanceId,
+      phoneNumber,
+      audioUrl,
+      'audio'
+    )
 
   } catch (error) {
     console.error('❌ Erro ao enviar áudio via Evolution API:', error)

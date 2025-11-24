@@ -40,14 +40,17 @@ export default defineEventHandler(async (event) => {
 
     // Buscar status da conexão na Evolution API
     try {
-      const response = await $fetch(`${config.evolutionApiUrl}/instance/connectionState/${id}`, {
+      const response = await $fetch(`${config.evolutionApiUrl}/instance/status`, {
         method: 'GET',
         headers: {
-          'apikey': config.evolutionApiKey
+          'apikey': id // Usar o ID da instância
         }
       })
 
-      const isConnected = response.instance?.state === 'open'
+      // Mapear resposta do novo endpoint
+      // connected: true, loggedIn: true -> Conectado
+      const isConnected = response.data?.connected && response.data?.loggedIn
+      const state = isConnected ? 'open' : (response.data?.connected ? 'connecting' : 'closed')
 
       // Se conectou, atualizar no Supabase
       if (isConnected && inbox.status !== 'connected') {
@@ -68,9 +71,9 @@ export default defineEventHandler(async (event) => {
       return {
         success: true,
         data: {
-          state: response.instance?.state || 'unknown',
+          state: state,
           connected: isConnected,
-          instanceName: response.instance?.instanceName
+          instanceName: response.data?.name
         }
       }
 
@@ -78,7 +81,7 @@ export default defineEventHandler(async (event) => {
       console.error('Erro ao buscar status na Evolution API:', evolutionError)
 
       // Se a instância não for encontrada, considera desconectado
-      if (evolutionError.response?.status === 404) {
+      if (evolutionError.response?.status === 404 || evolutionError.response?.status === 403) {
         return {
           success: true,
           data: {

@@ -40,19 +40,19 @@ export default defineEventHandler(async (event) => {
 
     // Buscar QR Code na Evolution API
     try {
-      const response = await $fetch(`${config.evolutionApiUrl}/instance/connect/${id}`, {
+      const response = await $fetch(`${config.evolutionApiUrl}/instance/qr`, {
         method: 'GET',
         headers: {
-          'apikey': config.evolutionApiKey
+          'apikey': id // Usar o ID da instância
         }
       })
 
       return {
         success: true,
         data: {
-          base64: response.base64,
-          code: response.code,
-          pairingCode: response.pairingCode
+          base64: response.data?.qrcode,
+          code: response.data?.code,
+          pairingCode: response.data?.pairingCode
         }
       }
 
@@ -60,10 +60,10 @@ export default defineEventHandler(async (event) => {
       console.error('Erro ao buscar QR Code na Evolution API:', evolutionError)
 
       // Verificar se é erro 404 ou similar (instância não encontrada)
-      if (evolutionError.response?.status === 404) {
+      if (evolutionError.response?.status === 404 || evolutionError.response?.status === 403) {
         throw createError({
           statusCode: 404,
-          statusMessage: 'Instância não encontrada na Evolution API'
+          statusMessage: 'Instância não encontrada ou não autorizada na Evolution API'
         })
       }
 
