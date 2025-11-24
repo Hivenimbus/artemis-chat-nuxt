@@ -38,6 +38,34 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Tentar conectar e configurar webhook antes de buscar QR Code
+    // Isso é necessário pois agora a configuração do webhook é feita no endpoint /connect
+    try {
+      console.log(`🔌 Iniciando conexão da instância ${id}...`)
+      await $fetch(`${config.evolutionApiUrl}/instance/connect`, {
+        method: 'POST',
+        headers: {
+          'apikey': id, // Usar o ID da instância como token
+          'Content-Type': 'application/json'
+        },
+        body: {
+          webhookUrl: `${config.public.siteUrl}/api/webhook/whatsapp`,
+          subscribe: [
+            'messages.upsert',
+            'messages.update',
+            'messages.delete',
+            'send.message',
+            'connection.update'
+          ]
+        }
+      })
+      console.log(`✅ Conexão iniciada e webhook configurado para instância ${id}`)
+    } catch (connectError: any) {
+      // Se der erro de "already connected" ou similar, apenas logamos e continuamos para buscar o QR
+      // Se a instância não existir, vai falhar no próximo passo (busca do QR)
+      console.warn('⚠️ Aviso ao iniciar conexão (pode já estar conectado):', connectError.message)
+    }
+
     // Buscar QR Code na Evolution API
     try {
       const response: any = await $fetch(`${config.evolutionApiUrl}/instance/qr`, {

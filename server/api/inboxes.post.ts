@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
         description: description?.trim() || null,
         empresa_id: userData.empresa_id,
         status: 'disconnected'
-      })
+      } as any)
       .select()
       .single()
 
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Criar instância na Evolution API
+    // Criar instância na Evolution API (sem webhook, pois será configurado no /instance/connect)
     const evolutionResponse = await $fetch(`${config.evolutionApiUrl}/instance/create`, {
       method: 'POST',
       headers: {
@@ -70,15 +70,7 @@ export default defineEventHandler(async (event) => {
       },
       body: {
         name: inboxData.id,
-        token: inboxData.id,
-        webhook: `${config.public.siteUrl}/api/webhook/whatsapp`,
-        webhookEvents: [
-          'messages.upsert',
-          'messages.update',
-          'messages.delete',
-          'send.message',
-          'connection.update'
-        ]
+        token: inboxData.id
       }
     }).catch((error) => {
       console.error('Erro ao criar instância na Evolution API:', error)
@@ -99,11 +91,13 @@ export default defineEventHandler(async (event) => {
         }
 
         if (evolutionInstanceId) {
-            // Configurar configurações padrão da instância usando o ID interno
+            // Configurar configurações padrão da instância usando o ID interno (URL)
+            // E o token da instância (que é o ID da inbox) no Header apikey
+            console.log(`⚙️ Configurando Advanced Settings para instância ${evolutionInstanceId}`)
             await $fetch(`${config.evolutionApiUrl}/instance/${evolutionInstanceId}/advanced-settings`, {
               method: 'PUT',
               headers: {
-                'apikey': config.evolutionApiKey,
+                'apikey': inboxData.id, // USAR O TOKEN DA INSTÂNCIA (INBOX ID)
                 'Content-Type': 'application/json'
               },
               body: {
@@ -118,11 +112,11 @@ export default defineEventHandler(async (event) => {
             })
         } else {
              console.warn(`⚠️ Não foi possível obter ID da instância para configurar settings: ${inboxData.id}`)
-             // Fallback: tentar usar o ID do inbox (caso coincida)
+             // Fallback: tentar usar o ID do inbox (caso coincida) e usar ele como apikey
              await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
                 method: 'PUT',
                 headers: {
-                  'apikey': config.evolutionApiKey,
+                  'apikey': inboxData.id, // USAR O TOKEN DA INSTÂNCIA
                   'Content-Type': 'application/json'
                 },
                 body: {
@@ -151,7 +145,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de criação de inbox:', error)
 
     // Se já for um erro criado, retornar como está
