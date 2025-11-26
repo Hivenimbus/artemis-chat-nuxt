@@ -8,7 +8,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/supabase',
-    'nuxt-emoji-picker'
+    'nuxt-emoji-picker',
+    '@vueuse/nuxt'
   ],
   supabase: {
     url: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',

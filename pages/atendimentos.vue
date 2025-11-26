@@ -73,7 +73,7 @@
 
 <script setup>
 import { nextTick } from 'vue'
-import { useDocumentVisibility } from '@vueuse/core'
+// useDocumentVisibility é auto-importado via @vueuse/nuxt
 
 // Dados carregados da API
 const atendimentos = ref([])
