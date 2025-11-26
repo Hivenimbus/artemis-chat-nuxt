@@ -5,6 +5,12 @@ export default defineNuxtConfig({
   devServer: {
     port: 3000
   },
+  // Configuração do Nitro para incluir módulos no bundle (necessário para Docker)
+  nitro: {
+    externals: {
+      inline: ['@supabase/supabase-js', '@supabase/node-fetch']
+    }
+  },
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/supabase',
