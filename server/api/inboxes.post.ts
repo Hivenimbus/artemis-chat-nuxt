@@ -1,142 +1,243 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { findEvolutionInstanceId } from '../lib/evolution'
 
-const config = useRuntimeConfig()
-
 export default defineEventHandler(async (event) => {
+  console.log('📥 [inboxes.post] Iniciando criação de inbox...')
+  
+  // Obter config dentro do handler para garantir que está disponível
+  const config = useRuntimeConfig()
+  
+  // Verificar se as configurações da Evolution estão disponíveis
+  if (!config.evolutionApiUrl || !config.evolutionApiKey) {
+    console.error('❌ [inboxes.post] Configurações da Evolution API não encontradas:', {
+      evolutionApiUrl: config.evolutionApiUrl ? 'Configurado' : 'FALTANDO',
+      evolutionApiKey: config.evolutionApiKey ? 'Configurado' : 'FALTANDO'
+    })
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Configuração do servidor incompleta: Evolution API não configurada'
+    })
+  }
+  
   try {
-    const body = await readBody(event)
-    const { name, description } = body
+    // 1. Ler body da requisição
+    console.log('📥 [inboxes.post] Lendo body da requisição...')
+    let body
+    try {
+      body = await readBody(event)
+      console.log('✅ [inboxes.post] Body lido:', { name: body?.name, description: body?.description })
+    } catch (bodyError: any) {
+      console.error('❌ [inboxes.post] Erro ao ler body:', bodyError)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Erro ao ler dados da requisição: ' + (bodyError.message || 'Body inválido')
+      })
+    }
+    
+    const { name, description } = body || {}
 
-    // Validação dos campos obrigatórios
+    // 2. Validação dos campos obrigatórios
     if (!name?.trim()) {
+      console.error('❌ [inboxes.post] Nome não fornecido')
       throw createError({
         statusCode: 400,
         statusMessage: 'O nome da caixa de entrada é obrigatório'
       })
     }
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
-
-    if (userError || !user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
-
-    // Buscar empresa do usuário
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userDataError || !userData?.empresa_id) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Usuário não possui empresa vinculada'
-      })
-    }
-
-    // Criar inbox no Supabase vinculando apenas à empresa
-    const { data: inboxData, error: inboxError } = await client
-      .from('inboxes')
-      .insert({
-        name: name.trim(),
-        description: description?.trim() || null,
-        empresa_id: userData.empresa_id,
-        status: 'disconnected'
-      } as any)
-      .select()
-      .single()
-
-    if (inboxError) {
-      console.error('Erro ao criar inbox:', inboxError)
+    // 3. Obter cliente Supabase
+    console.log('📥 [inboxes.post] Obtendo cliente Supabase...')
+    let client
+    try {
+      client = await serverSupabaseClient(event)
+      console.log('✅ [inboxes.post] Cliente Supabase obtido')
+    } catch (clientError: any) {
+      console.error('❌ [inboxes.post] Erro ao obter cliente Supabase:', clientError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Erro ao criar caixa de entrada no banco de dados'
+        statusMessage: 'Erro ao conectar com banco de dados: ' + (clientError.message || 'Falha na conexão')
       })
     }
 
-    // Criar instância na Evolution API (sem webhook, pois será configurado no /instance/connect)
-    const evolutionResponse = await $fetch(`${config.evolutionApiUrl}/instance/create`, {
-      method: 'POST',
-      headers: {
-        'apikey': config.evolutionApiKey,
-        'Content-Type': 'application/json'
-      },
-      body: {
-        name: inboxData.id,
-        token: inboxData.id
+    // 4. Obter usuário autenticado
+    console.log('📥 [inboxes.post] Verificando autenticação do usuário...')
+    let user
+    try {
+      const { data, error: userError } = await client.auth.getUser()
+      if (userError) {
+        console.error('❌ [inboxes.post] Erro de autenticação:', userError)
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Erro de autenticação: ' + (userError.message || 'Token inválido')
+        })
       }
-    }).catch((error) => {
-      console.error('Erro ao criar instância na Evolution API:', error)
-      // Continuar mesmo se der erro na Evolution, pois o inbox já foi criado
-      return null
-    })
+      user = data.user
+      if (!user) {
+        console.error('❌ [inboxes.post] Usuário não encontrado na sessão')
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Usuário não autenticado'
+        })
+      }
+      console.log('✅ [inboxes.post] Usuário autenticado:', user.id)
+    } catch (authError: any) {
+      if (authError.statusCode) throw authError
+      console.error('❌ [inboxes.post] Erro inesperado na autenticação:', authError)
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Falha na autenticação: ' + (authError.message || 'Erro desconhecido')
+      })
+    }
 
-    // Se a instância foi criada com sucesso, configurar configurações padrão
+    // 5. Buscar empresa do usuário
+    console.log('📥 [inboxes.post] Buscando empresa do usuário...')
+    let userData
+    try {
+      const { data, error: userDataError } = await client
+        .from('users')
+        .select('empresa_id')
+        .eq('id', user.id)
+        .single()
+
+      if (userDataError) {
+        console.error('❌ [inboxes.post] Erro ao buscar dados do usuário:', userDataError)
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'Erro ao buscar dados do usuário: ' + (userDataError.message || 'Usuário não encontrado')
+        })
+      }
+      
+      if (!data?.empresa_id) {
+        console.error('❌ [inboxes.post] Usuário sem empresa vinculada:', user.id)
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'Usuário não possui empresa vinculada'
+        })
+      }
+      
+      userData = data
+      console.log('✅ [inboxes.post] Empresa encontrada:', userData.empresa_id)
+    } catch (userDataError: any) {
+      if (userDataError.statusCode) throw userDataError
+      console.error('❌ [inboxes.post] Erro inesperado ao buscar empresa:', userDataError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao buscar empresa: ' + (userDataError.message || 'Erro desconhecido')
+      })
+    }
+
+    // 6. Criar inbox no Supabase
+    console.log('📥 [inboxes.post] Criando inbox no banco de dados...')
+    let inboxData
+    try {
+      const { data, error: inboxError } = await client
+        .from('inboxes')
+        .insert({
+          name: name.trim(),
+          description: description?.trim() || null,
+          empresa_id: userData.empresa_id,
+          status: 'disconnected'
+        } as any)
+        .select()
+        .single()
+
+      if (inboxError) {
+        console.error('❌ [inboxes.post] Erro ao criar inbox no banco:', inboxError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Erro ao criar caixa de entrada: ' + (inboxError.message || 'Falha no insert')
+        })
+      }
+      
+      inboxData = data
+      console.log('✅ [inboxes.post] Inbox criado no banco:', inboxData.id)
+    } catch (inboxCreateError: any) {
+      if (inboxCreateError.statusCode) throw inboxCreateError
+      console.error('❌ [inboxes.post] Erro inesperado ao criar inbox:', inboxCreateError)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Erro ao criar inbox: ' + (inboxCreateError.message || 'Erro desconhecido')
+      })
+    }
+
+    // 7. Criar instância na Evolution API
+    console.log('📥 [inboxes.post] Criando instância na Evolution API...')
+    console.log('📥 [inboxes.post] Evolution URL:', config.evolutionApiUrl)
+    
+    let evolutionResponse = null
+    try {
+      evolutionResponse = await $fetch(`${config.evolutionApiUrl}/instance/create`, {
+        method: 'POST',
+        headers: {
+          'apikey': config.evolutionApiKey as string,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          name: inboxData.id,
+          token: inboxData.id
+        }
+      })
+      console.log('✅ [inboxes.post] Instância criada na Evolution:', evolutionResponse)
+    } catch (evolutionError: any) {
+      console.error('⚠️ [inboxes.post] Erro ao criar instância na Evolution (não crítico):', evolutionError.message || evolutionError)
+      // Continuar mesmo se der erro na Evolution, pois o inbox já foi criado
+    }
+
+    // 8. Configurar settings da instância (se criada com sucesso)
     if (evolutionResponse) {
       try {
-        // Tentar usar o ID retornado pela criação, se disponível
-        // Dependendo da versão da Evolution, pode retornar { data: { id: ... } } ou apenas { id: ... }
         let evolutionInstanceId = (evolutionResponse as any)?.data?.id || (evolutionResponse as any)?.id || (evolutionResponse as any)?.instance?.id
 
-        // Se não conseguimos extrair o ID da resposta, buscar via lookup
         if (!evolutionInstanceId) {
-           evolutionInstanceId = await findEvolutionInstanceId(config, inboxData.id)
+          console.log('📥 [inboxes.post] Buscando ID da instância via lookup...')
+          evolutionInstanceId = await findEvolutionInstanceId(config, inboxData.id)
         }
 
         if (evolutionInstanceId) {
-            // Configurar configurações padrão da instância usando o ID interno (URL)
-            // E o token da instância (que é o ID da inbox) no Header apikey
-            console.log(`⚙️ Configurando Advanced Settings para instância ${evolutionInstanceId}`)
-            await $fetch(`${config.evolutionApiUrl}/instance/${evolutionInstanceId}/advanced-settings`, {
-              method: 'PUT',
-              headers: {
-                'apikey': inboxData.id, // USAR O TOKEN DA INSTÂNCIA (INBOX ID)
-                'Content-Type': 'application/json'
-              },
-              body: {
-                rejectCall: false,
-                msgCall: "Por favor, envie mensagem",
-                groupsIgnore: true,
-                alwaysOnline: true,
-                readMessages: true,
-                syncFullHistory: false,
-                readStatus: true
-              }
-            })
+          console.log(`⚙️ [inboxes.post] Configurando Advanced Settings para instância ${evolutionInstanceId}`)
+          await $fetch(`${config.evolutionApiUrl}/instance/${evolutionInstanceId}/advanced-settings`, {
+            method: 'PUT',
+            headers: {
+              'apikey': inboxData.id,
+              'Content-Type': 'application/json'
+            },
+            body: {
+              rejectCall: false,
+              msgCall: "Por favor, envie mensagem",
+              groupsIgnore: true,
+              alwaysOnline: true,
+              readMessages: true,
+              syncFullHistory: false,
+              readStatus: true
+            }
+          })
+          console.log('✅ [inboxes.post] Settings configurados com sucesso')
         } else {
-             console.warn(`⚠️ Não foi possível obter ID da instância para configurar settings: ${inboxData.id}`)
-             // Fallback: tentar usar o ID do inbox (caso coincida) e usar ele como apikey
-             await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
-                method: 'PUT',
-                headers: {
-                  'apikey': inboxData.id, // USAR O TOKEN DA INSTÂNCIA
-                  'Content-Type': 'application/json'
-                },
-                body: {
-                  rejectCall: false,
-                  msgCall: "Por favor, envie mensagem",
-                  groupsIgnore: true,
-                  alwaysOnline: true,
-                  readMessages: true,
-                  syncFullHistory: false,
-                  readStatus: true
-                }
-              })
+          console.warn(`⚠️ [inboxes.post] Não foi possível obter ID da instância para configurar settings`)
+          // Fallback
+          await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
+            method: 'PUT',
+            headers: {
+              'apikey': inboxData.id,
+              'Content-Type': 'application/json'
+            },
+            body: {
+              rejectCall: false,
+              msgCall: "Por favor, envie mensagem",
+              groupsIgnore: true,
+              alwaysOnline: true,
+              readMessages: true,
+              syncFullHistory: false,
+              readStatus: true
+            }
+          })
         }
-
-      } catch (webhookError) {
-        console.error('Erro ao configurar settings:', webhookError)
-        // Não falhar completamente
+      } catch (settingsError: any) {
+        console.error('⚠️ [inboxes.post] Erro ao configurar settings (não crítico):', settingsError.message || settingsError)
       }
     }
 
+    console.log('✅ [inboxes.post] Inbox criado com sucesso!')
     return {
       success: true,
       data: {
@@ -146,17 +247,18 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-    console.error('Erro no handler de criação de inbox:', error)
+    console.error('❌ [inboxes.post] Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
+    // Se já for um erro criado com statusCode, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
+    // Erro genérico - tentar extrair mais informações
+    const errorMessage = error.message || error.data?.message || 'Erro interno do servidor'
     throw createError({
       statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
+      statusMessage: errorMessage
     })
   }
 })
