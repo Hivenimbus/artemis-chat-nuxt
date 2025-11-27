@@ -419,17 +419,30 @@ const handleTransferChat = () => {
   // TODO: Implementar funcionalidade de transferência de atendimento
 }
 
-const handleDeleteChat = () => {
+const handleDeleteChat = async () => {
   if (!selectedContact.value) return
+  
   const confirmDelete = confirm(`Deseja realmente excluir a conversa com ${selectedContact.value.name}?`)
   if (confirmDelete) {
-    console.log('Excluir conversa:', selectedContact.value.name)
-    const index = atendimentos.value.findIndex(c => c.id === selectedContact.value.id)
-    if (index > -1) {
-      atendimentos.value.splice(index, 1)
+    try {
+      const contactId = selectedContact.value.id
+      
+      // Chamada ao endpoint de exclusão
+      await $fetch(`/api/atendimentos/${contactId}`, {
+        method: 'DELETE'
+      })
+      
+      console.log('Excluir conversa:', selectedContact.value.name)
+      const index = atendimentos.value.findIndex(c => c.id === contactId)
+      if (index > -1) {
+        atendimentos.value.splice(index, 1)
+      }
+      selectedContact.value = null
+      alert('Conversa excluída com sucesso.')
+    } catch (error) {
+      console.error('Erro ao excluir conversa:', error)
+      alert('Erro ao excluir a conversa. Tente novamente.')
     }
-    selectedContact.value = null
-    alert('Conversa excluída com sucesso.')
   }
 }
 
