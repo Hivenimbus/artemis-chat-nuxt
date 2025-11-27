@@ -646,11 +646,11 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       fromMe
     })
 
-    // Ignorar mensagens enviadas por mim
-    if (fromMe === true) {
-      webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance })
-      return null
-    }
+    // Ignorar mensagens enviadas por mim - REMOVIDO: Agora processamos mensagens enviadas pelo usuário
+    // if (fromMe === true) {
+    //   webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance })
+    //   return null
+    // }
 
     if (!remoteJid) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', { instance })
@@ -747,7 +747,10 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
     // 2. Buscar ou criar contato
     const phone = extractPhoneFromRemoteJid(remoteJid)
-    const contato = await findOrCreateContact(supabase, phone, pushName, inbox.empresa_id)
+    // Se a mensagem for minha, não usar meu pushName para o contato
+    // Usar o número de telefone como nome se não tivermos nome melhor
+    const contactName = fromMe ? phone : pushName
+    const contato = await findOrCreateContact(supabase, phone, contactName, inbox.empresa_id)
     if (!contato) {
       webhookLogger.error('contact.not_found', `Não foi possível encontrar/criar contato: ${pushName}`, null, { phone, instance })
       return null
@@ -765,7 +768,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       supabase,
       atendimento.id,
       messageText,
-      'contact',
+      fromMe ? 'user' : 'contact',
       processedMessageType,
       evolutionMessageId,
       messageTimestamp,
@@ -786,7 +789,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       atendimento.id,
       messageText,
       messageTimestamp,
-      true // incrementar não lidas
+      !fromMe // Incrementar não lidas apenas se NÃO for mensagem minha
     )
 
     // 6. Atualizar contato
