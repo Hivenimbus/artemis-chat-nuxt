@@ -696,18 +696,18 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
             name: mediaInfo.fileName
           }
 
-          // Criar texto de preview para a mídia (usar caption se disponível)
+          // Criar texto de preview para a mídia (usar caption se disponível ou fallback)
           if (messageType === 'imageMessage') {
-            messageText = mediaInfo.caption || ''
+            messageText = mediaInfo.caption || '📷 Imagem'
             processedMessageType = 'image'
           } else if (messageType === 'videoMessage') {
-            messageText = mediaInfo.caption || ''
+            messageText = mediaInfo.caption || '🎥 Vídeo'
             processedMessageType = 'video'
           } else if (messageType === 'audioMessage') {
-            messageText = ''
+            messageText = '🎵 Áudio'
             processedMessageType = 'audio'
           } else if (messageType === 'documentMessage') {
-            messageText = mediaInfo.caption || ''
+            messageText = mediaInfo.caption || '📄 Documento'
             processedMessageType = 'document'
           }
 
