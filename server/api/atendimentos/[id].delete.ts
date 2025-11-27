@@ -57,8 +57,65 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Excluir mensagens vinculadas (caso não haja CASCADE)
-    // Isso é uma boa prática para garantir integridade
+    // 1. Buscar mensagens com mídia para exclusão do storage
+    const { data: mensagensComMidia, error: midiaError } = await client
+      .from('mensagens')
+      .select('media_url')
+      .eq('atendimento_id', atendimentoId)
+      .not('media_url', 'is', null)
+
+    if (midiaError) {
+      console.error('Erro ao buscar mídias do atendimento:', midiaError)
+      // Não paramos aqui, tentamos excluir o resto
+    }
+
+    // 2. Excluir arquivos do Storage
+    if (mensagensComMidia && mensagensComMidia.length > 0) {
+      const pathsToDelete: string[] = []
+      
+      mensagensComMidia.forEach(msg => {
+        if (msg.media_url) {
+          try {
+            // URL típica: .../storage/v1/object/public/midias/EMPRESA_ID/ARQUIVO
+            // Queremos extrair tudo depois de "midias/"
+            const urlParts = msg.media_url.split('/midias/')
+            if (urlParts.length > 1) {
+              // O path é a segunda parte
+              // Decode URI component para lidar com espaços e caracteres especiais
+              const path = decodeURIComponent(urlParts[1])
+              pathsToDelete.push(path)
+            }
+          } catch (e) {
+            console.error('Erro ao extrair path da mídia:', msg.media_url, e)
+          }
+        }
+      })
+
+      if (pathsToDelete.length > 0) {
+        console.log(`🗑️ Excluindo ${pathsToDelete.length} arquivos do storage midias`)
+        const { error: storageError } = await client.storage
+          .from('midias')
+          .remove(pathsToDelete)
+
+        if (storageError) {
+          console.error('Erro ao excluir arquivos do storage:', storageError)
+        }
+      }
+    }
+
+    // 3. Desvincular contato (limpar ultimo_atendimento_id)
+    // Isso evita erro de FK na tabela contatos
+    const { error: updateContactError } = await client
+      .from('contatos')
+      .update({ ultimo_atendimento_id: null })
+      .eq('ultimo_atendimento_id', atendimentoId)
+
+    if (updateContactError) {
+      console.error('Erro ao desvincular contato:', updateContactError)
+      // Se der erro aqui, provavelmente vai dar erro no delete do atendimento, mas seguimos
+    }
+
+    // 4. Excluir mensagens vinculadas
     const { error: deleteMessagesError } = await client
       .from('mensagens')
       .delete()
@@ -66,10 +123,9 @@ export default defineEventHandler(async (event) => {
 
     if (deleteMessagesError) {
       console.error('Erro ao excluir mensagens do atendimento:', deleteMessagesError)
-      // Continuamos mesmo assim, pois o banco pode ter CASCADE
     }
 
-    // Excluir o atendimento
+    // 5. Excluir o atendimento
     const { error: deleteError } = await client
       .from('atendimentos')
       .delete()
@@ -79,7 +135,7 @@ export default defineEventHandler(async (event) => {
       console.error('Erro ao excluir atendimento:', deleteError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Erro ao excluir atendimento do banco de dados'
+        statusMessage: 'Erro ao excluir atendimento do banco de dados: ' + deleteError.message
       })
     }
 
@@ -103,4 +159,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
