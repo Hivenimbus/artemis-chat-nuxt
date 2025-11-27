@@ -335,6 +335,10 @@ const props = defineProps({
   selectedInboxId: {
     type: String,
     default: null
+  },
+  serverCounts: {
+    type: Object,
+    default: null
   }
 })
 
@@ -353,6 +357,16 @@ const filterOptions = ref({
 
 // Opções de status com contagens
 const statusOptions = computed(() => {
+  // Se tivermos counts vindos do servidor, usamos eles
+  if (props.serverCounts) {
+    return [
+      { label: 'Minhas', value: 'ativo', count: props.serverCounts.ativo || 0 },
+      { label: 'Aguardando', value: 'aguardando', count: props.serverCounts.aguardando || 0 },
+      { label: 'Todos', value: 'todos', count: props.serverCounts.todos || 0 }
+    ]
+  }
+
+  // Fallback para cálculo local (caso API antiga ou erro)
   if (!props.contacts || !Array.isArray(props.contacts)) {
     return [
       { label: 'Minhas', value: 'ativo', count: 0 },

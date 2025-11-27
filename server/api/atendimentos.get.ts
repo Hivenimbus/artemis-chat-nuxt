@@ -42,6 +42,52 @@ export default defineEventHandler(async (event) => {
     const limit = parseInt(query.limit as string) || 50
     const offset = (page - 1) * limit
 
+    // --- Cálculos de Counts ---
+    // Fazer queries paralelas para obter os counts totais por status
+    // Respeitando o filtro de inbox_id se fornecido
+    
+    const baseCountQuery = client
+      .from('atendimentos')
+      .select('id', { count: 'exact', head: true })
+      .eq('inboxes.empresa_id', userData.empresa_id)
+      
+    // Função auxiliar para aplicar filtro de inbox e executar count
+    const getCount = async (statusFilter?: string) => {
+      let q = client
+        .from('atendimentos')
+        .select('inboxes!inner(empresa_id)', { count: 'exact', head: true })
+        .eq('inboxes.empresa_id', userData.empresa_id)
+
+      if (inboxId) {
+        q = q.eq('inbox_id', inboxId)
+      }
+
+      if (statusFilter) {
+        q = q.eq('status', statusFilter)
+      }
+
+      const { count, error } = await q
+      if (error) console.error('Erro ao contar atendimentos:', error)
+      return count || 0
+    }
+
+    // Executar counts em paralelo
+    const [totalCount, aguardandoCount, ativoCount, concluidoCount] = await Promise.all([
+      getCount(),               // Todos
+      getCount('aguardando'),   // Aguardando
+      getCount('ativo'),        // Minhas (Ativo)
+      getCount('concluido')     // Concluído (opcional)
+    ])
+
+    const counts = {
+      todos: totalCount,
+      aguardando: aguardandoCount,
+      ativo: ativoCount,
+      concluido: concluidoCount
+    }
+
+    // --- Query Principal ---
+
     // Construir query base
     let queryBuilder = client
       .from('atendimentos')
@@ -165,6 +211,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         atendimentos: atendimentosFormatados,
+        counts, // Retornando os counts calculados
         pagination: {
           page,
           limit,

@@ -11,6 +11,7 @@
         :loading="loading"
         :error="error"
         :selected-inbox-id="selectedCaixaEntrada"
+        :server-counts="serverCounts"
         @select-contact="selectContact"
         @assign-to-me="assignToMe"
         @select-inbox="selectCaixaEntrada = $event"
