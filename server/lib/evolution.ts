@@ -360,12 +360,16 @@ export async function findOrCreateContact(
     }
 
     // Primeiro, tenta buscar contato existente
+    // Usamos maybeSingle() + limit(1) + order para evitar erros caso existam duplicatas,
+    // pegando sempre o contato mais recente criado.
     const { data: contato, error: findError } = await supabase
       .from('contatos')
       .select('id')
       .eq('telefone', normalizedPhone)
       .eq('empresa_id', empresaId)
-      .single()
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (!findError && contato) {
       contatoLogger.debug('contact.found', `Contato existente encontrado: ${contato.id}`, { contatoId: contato.id })
@@ -411,13 +415,16 @@ export async function findOrCreateAtendimento(
 ): Promise<{ id: string, isNew: boolean } | null> {
   try {
     // Buscar atendimento em aberto
+    // Usamos maybeSingle() + limit(1) + order para evitar erros caso existam duplicatas
     const { data: atendimento, error: findError } = await supabase
       .from('atendimentos')
       .select('id')
       .eq('contato_id', contatoId)
       .eq('inbox_id', inboxId)
       .in('status', ['aguardando', 'ativo'])
-      .single()
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (!findError && atendimento) {
       console.log('✅ Atendimento encontrado:', atendimento.id)
