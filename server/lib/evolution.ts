@@ -20,7 +20,8 @@ export function createServiceSupabaseClient(): SupabaseClient {
   })
 }
 
-export interface EvolutionWebhookData {
+// Formato antigo do webhook (messages.upsert)
+export interface EvolutionWebhookDataLegacy {
   event: string
   instance: string
   data: {
@@ -47,12 +48,225 @@ export interface EvolutionWebhookData {
   apikey: string
 }
 
+// Formato novo do webhook (Message)
+export interface EvolutionWebhookDataNew {
+  event: string
+  instanceId: string
+  instanceName: string
+  instanceToken?: string
+  data: {
+    Info: {
+      AddressingMode?: string
+      BroadcastListOwner?: string
+      BroadcastRecipients?: any
+      Category?: string
+      Chat: string
+      DeviceSentMeta?: any
+      Edit?: string
+      ID: string
+      IsFromMe: boolean
+      IsGroup: boolean
+      MediaType?: string
+      MsgBotInfo?: any
+      MsgMetaInfo?: any
+      Multicast?: boolean
+      PushName: string
+      RecipientAlt?: string
+      Sender: string
+      SenderAlt?: string
+      ServerID?: number
+      Timestamp: string
+      Type: string
+      VerifiedName?: any
+    }
+    IsBotInvoke?: boolean
+    IsDocumentWithCaption?: boolean
+    IsEdit?: boolean
+    IsEphemeral?: boolean
+    IsLottieSticker?: boolean
+    IsViewOnce?: boolean
+    IsViewOnceV2?: boolean
+    IsViewOnceV2Extension?: boolean
+    Message: {
+      conversation?: string
+      extendedTextMessage?: {
+        text: string
+        contextInfo?: any
+      }
+      imageMessage?: any
+      videoMessage?: any
+      audioMessage?: any
+      documentMessage?: any
+      messageContextInfo?: any
+      [key: string]: any
+    }
+    NewsletterMeta?: any
+    RetryCount?: number
+    SourceWebMsg?: any
+    UnavailableRequestID?: string
+  }
+}
+
+// Tipo unificado que aceita ambos formatos
+export type EvolutionWebhookData = EvolutionWebhookDataLegacy | EvolutionWebhookDataNew
+
+// Interface normalizada para processamento interno
+export interface NormalizedWebhookData {
+  instance: string
+  remoteJid: string
+  fromMe: boolean
+  messageId: string
+  pushName: string
+  messageType: string
+  messageTimestamp: number
+  messageText: string
+  message: any // Objeto message original para extração de mídia
+}
+
 export interface ProcessedMessage {
   contatoId: string
   atendimentoId: string
   mensagemId: string
   inboxId: string
   empresaId: string
+}
+
+/**
+ * Verifica se o webhook está no formato novo (Message)
+ */
+function isNewWebhookFormat(webhookData: any): webhookData is EvolutionWebhookDataNew {
+  return webhookData.event === 'Message' && webhookData.data?.Info !== undefined
+}
+
+/**
+ * Extrai o texto da mensagem do formato novo
+ */
+function extractMessageTextFromNewFormat(message: any): string {
+  // Primeiro tenta extendedTextMessage (mensagens com contexto/resposta)
+  if (message?.extendedTextMessage?.text) {
+    return message.extendedTextMessage.text
+  }
+  
+  // Depois tenta conversation (mensagens simples)
+  if (message?.conversation) {
+    return message.conversation
+  }
+  
+  // Verificar se há caption em mensagens de mídia
+  if (message?.imageMessage?.caption) {
+    return message.imageMessage.caption
+  }
+  if (message?.videoMessage?.caption) {
+    return message.videoMessage.caption
+  }
+  if (message?.documentMessage?.caption) {
+    return message.documentMessage.caption
+  }
+  
+  return ''
+}
+
+/**
+ * Detecta o tipo de mensagem do formato novo
+ */
+function detectMessageTypeFromNewFormat(data: any): string {
+  const infoType = data.Info?.Type?.toLowerCase()
+  const message = data.Message
+  
+  // Primeiro verifica pelo Info.Type
+  if (infoType === 'text') {
+    return 'conversation'
+  }
+  if (infoType === 'image') {
+    return 'imageMessage'
+  }
+  if (infoType === 'video') {
+    return 'videoMessage'
+  }
+  if (infoType === 'audio' || infoType === 'ptt') {
+    return 'audioMessage'
+  }
+  if (infoType === 'document') {
+    return 'documentMessage'
+  }
+  
+  // Fallback: verifica pelos campos do Message
+  if (message?.imageMessage) return 'imageMessage'
+  if (message?.videoMessage) return 'videoMessage'
+  if (message?.audioMessage) return 'audioMessage'
+  if (message?.documentMessage) return 'documentMessage'
+  if (message?.extendedTextMessage) return 'conversation'
+  if (message?.conversation) return 'conversation'
+  
+  return 'conversation'
+}
+
+/**
+ * Converte timestamp ISO para Unix timestamp em segundos
+ */
+function parseTimestamp(timestamp: string | number | undefined): number {
+  if (!timestamp) {
+    return Math.floor(Date.now() / 1000)
+  }
+  
+  if (typeof timestamp === 'number') {
+    // Se for muito grande, já é em milissegundos
+    if (timestamp > 10000000000) {
+      return Math.floor(timestamp / 1000)
+    }
+    return timestamp
+  }
+  
+  // Parse ISO string
+  const parsed = new Date(timestamp).getTime()
+  if (isNaN(parsed)) {
+    return Math.floor(Date.now() / 1000)
+  }
+  return Math.floor(parsed / 1000)
+}
+
+/**
+ * Normaliza os dados do webhook para um formato comum,
+ * suportando tanto o formato antigo (messages.upsert) quanto o novo (Message)
+ */
+export function normalizeWebhookData(webhookData: any): NormalizedWebhookData | null {
+  try {
+    if (isNewWebhookFormat(webhookData)) {
+      // Formato novo (Message)
+      const { data } = webhookData
+      const info = data.Info
+      
+      return {
+        instance: webhookData.instanceName || webhookData.instanceId,
+        remoteJid: info.Chat || info.Sender,
+        fromMe: info.IsFromMe,
+        messageId: info.ID,
+        pushName: info.PushName || 'Contato',
+        messageType: detectMessageTypeFromNewFormat(data),
+        messageTimestamp: parseTimestamp(info.Timestamp),
+        messageText: extractMessageTextFromNewFormat(data.Message),
+        message: data.Message
+      }
+    } else {
+      // Formato antigo (messages.upsert)
+      const { data, instance } = webhookData
+      
+      return {
+        instance: instance,
+        remoteJid: data.key?.remoteJid || '',
+        fromMe: data.key?.fromMe || false,
+        messageId: data.key?.id || '',
+        pushName: data.pushName || 'Contato',
+        messageType: data.messageType || 'conversation',
+        messageTimestamp: data.messageTimestamp || Math.floor(Date.now() / 1000),
+        messageText: data.message?.conversation || '',
+        message: data.message
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao normalizar dados do webhook:', error)
+    return null
+  }
 }
 
 /**
@@ -394,30 +608,42 @@ export async function updateContactData(
 
 /**
  * Processa uma mensagem completa do webhook da Evolution API
+ * Suporta tanto o formato antigo (messages.upsert) quanto o novo (Message)
  */
-export async function processEvolutionMessage(supabase: SupabaseClient, webhookData: EvolutionWebhookData): Promise<ProcessedMessage | null> {
-  const { data, instance } = webhookData
+export async function processEvolutionMessage(supabase: SupabaseClient, webhookData: any): Promise<ProcessedMessage | null> {
+  // Normalizar dados do webhook para formato comum
+  const normalized = normalizeWebhookData(webhookData)
+  
+  if (!normalized) {
+    console.error('❌ Falha ao normalizar dados do webhook')
+    return null
+  }
+
+  const { 
+    instance, 
+    remoteJid, 
+    fromMe, 
+    messageId: evolutionMessageId, 
+    pushName, 
+    messageType, 
+    messageTimestamp, 
+    messageText: initialMessageText,
+    message 
+  } = normalized
 
   try {
     webhookLogger.logWebhookReceived(webhookData.event, instance, {
-      remoteJid: data.key?.remoteJid,
-      pushName: data.pushName,
-      messageType: data.messageType,
-      fromMe: data.key?.fromMe
+      remoteJid,
+      pushName,
+      messageType,
+      fromMe
     })
 
     // Ignorar mensagens enviadas por mim
-    if (data.key?.fromMe === true) {
+    if (fromMe === true) {
       webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance })
       return null
     }
-
-    // Extrair informações básicas
-    const remoteJid = data.key?.remoteJid
-    const pushName = data.pushName || 'Contato'
-    const messageType = data.messageType || 'conversation'
-    const messageTimestamp = data.messageTimestamp || Date.now()
-    const evolutionMessageId = data.key?.id
 
     if (!remoteJid) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', { instance })
@@ -425,7 +651,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     }
 
     // Processar texto ou mídia
-    let messageText = data.message?.conversation || ''
+    let messageText = initialMessageText
     let mediaData = null
     let processedMessageType = 'text'
 
@@ -434,7 +660,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       console.log(`🎯 Detectado tipo de mídia: ${messageType}`)
 
       // Extrair informações da mídia
-      const mediaInfo = extractMediaInfo(data.message, messageType)
+      const mediaInfo = extractMediaInfo(message, messageType)
 
       if (mediaInfo && mediaInfo.base64) {
         console.log(`📸 Processando mídia: ${mediaInfo.fileName}`)

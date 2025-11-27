@@ -11,15 +11,17 @@ export default defineEventHandler(async (event) => {
     // Criar cliente Supabase com service role (webhooks não têm usuário autenticado)
     const supabase = createServiceSupabaseClient()
 
-    console.log(`🔔 [${startTime}] Webhook recebido: ${body.event} (${body.instance})`)
+    // Extrair instance do formato antigo ou novo
+    const instanceName = body.instance || body.instanceName || body.instanceId
+    console.log(`🔔 [${startTime}] Webhook recebido: ${body.event} (${instanceName})`)
 
     // Validar origem do webhook (básico por enquanto)
     if (!validateWebhookOrigin(headers, body.apikey)) {
       console.log('⚠️ Webhook sem validação de origem')
     }
 
-    // Verificar se é um evento de mensagem
-    if (body.event === 'messages.upsert') {
+    // Verificar se é um evento de mensagem (suporta formato antigo e novo)
+    if (body.event === 'messages.upsert' || body.event === 'Message') {
       const result = await processEvolutionMessage(supabase, body)
 
       const processingTime = Date.now() - startTime
