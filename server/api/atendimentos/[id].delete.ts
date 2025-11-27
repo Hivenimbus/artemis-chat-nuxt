@@ -1,4 +1,5 @@
 import { serverSupabaseClient } from '#supabase/server'
+import { createServiceSupabaseClient } from '~/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -31,7 +32,9 @@ export default defineEventHandler(async (event) => {
       .eq('id', user.id)
       .single()
 
-    if (userDataError || !userData?.empresa_id) {
+    const userEmpresaId = (userData as any)?.empresa_id
+
+    if (userDataError || !userEmpresaId) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não está associado a nenhuma empresa'
@@ -50,7 +53,9 @@ export default defineEventHandler(async (event) => {
       .eq('id', atendimentoId)
       .single()
 
-    if (atendimentoError || !atendimento || atendimento.inboxes.empresa_id !== userData.empresa_id) {
+    const atendimentoData = atendimento as any
+
+    if (atendimentoError || !atendimentoData || atendimentoData.inboxes?.empresa_id !== userEmpresaId) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa'
@@ -73,7 +78,7 @@ export default defineEventHandler(async (event) => {
     if (mensagensComMidia && mensagensComMidia.length > 0) {
       const pathsToDelete: string[] = []
       
-      mensagensComMidia.forEach(msg => {
+      mensagensComMidia.forEach((msg: any) => {
         if (msg.media_url) {
           try {
             // URL típica: .../storage/v1/object/public/midias/EMPRESA_ID/ARQUIVO
@@ -84,6 +89,9 @@ export default defineEventHandler(async (event) => {
               // Decode URI component para lidar com espaços e caracteres especiais
               const path = decodeURIComponent(urlParts[1])
               pathsToDelete.push(path)
+              console.log(`🔍 Path identificado para exclusão: ${path} (URL: ${msg.media_url})`)
+            } else {
+              console.warn(`⚠️ Não foi possível extrair path da URL: ${msg.media_url}`)
             }
           } catch (e) {
             console.error('Erro ao extrair path da mídia:', msg.media_url, e)
@@ -92,13 +100,19 @@ export default defineEventHandler(async (event) => {
       })
 
       if (pathsToDelete.length > 0) {
-        console.log(`🗑️ Excluindo ${pathsToDelete.length} arquivos do storage midias`)
-        const { error: storageError } = await client.storage
+        console.log(`🗑️ Tentando excluir ${pathsToDelete.length} arquivos do storage midias`)
+        
+        // Usar Service Role Client para garantir permissão de exclusão
+        const adminClient = createServiceSupabaseClient()
+        
+        const { error: storageError, data: storageData } = await adminClient.storage
           .from('midias')
           .remove(pathsToDelete)
 
         if (storageError) {
-          console.error('Erro ao excluir arquivos do storage:', storageError)
+          console.error('❌ Erro ao excluir arquivos do storage:', storageError)
+        } else {
+          console.log('✅ Arquivos excluídos do storage com sucesso:', storageData)
         }
       }
     }
@@ -107,6 +121,7 @@ export default defineEventHandler(async (event) => {
     // Isso evita erro de FK na tabela contatos
     const { error: updateContactError } = await client
       .from('contatos')
+      // @ts-ignore
       .update({ ultimo_atendimento_id: null })
       .eq('ultimo_atendimento_id', atendimentoId)
 
@@ -146,7 +161,7 @@ export default defineEventHandler(async (event) => {
       message: 'Atendimento excluído com sucesso'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/atendimentos/[id].delete: Erro:', error)
     
     if (error.statusCode) {
