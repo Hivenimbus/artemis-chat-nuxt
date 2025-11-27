@@ -659,6 +659,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
     // Processar texto ou mídia
     let messageText = initialMessageText
+    let previewText = initialMessageText // Texto para mostrar na lista de conversas
     let mediaData = null
     let processedMessageType = 'text'
 
@@ -696,29 +697,38 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
             name: mediaInfo.fileName
           }
 
-          // Criar texto de preview para a mídia (usar caption se disponível ou fallback)
+          // Configurar textos
+          // messageText: corpo da mensagem (vazio se não tiver caption, para não aparecer texto na bolha)
+          // previewText: texto da lista de conversas (fallback para tipo de mídia se vazio)
+          
           if (messageType === 'imageMessage') {
-            messageText = mediaInfo.caption || '📷 Imagem'
+            messageText = mediaInfo.caption || ''
+            previewText = mediaInfo.caption || '📷 Imagem'
             processedMessageType = 'image'
           } else if (messageType === 'videoMessage') {
-            messageText = mediaInfo.caption || '🎥 Vídeo'
+            messageText = mediaInfo.caption || ''
+            previewText = mediaInfo.caption || '🎥 Vídeo'
             processedMessageType = 'video'
           } else if (messageType === 'audioMessage') {
-            messageText = '🎵 Áudio'
+            messageText = ''
+            previewText = '🎵 Áudio'
             processedMessageType = 'audio'
           } else if (messageType === 'documentMessage') {
-            messageText = mediaInfo.caption || '📄 Documento'
+            messageText = mediaInfo.caption || ''
+            previewText = mediaInfo.caption || '📄 Documento'
             processedMessageType = 'document'
           }
 
-          console.log(`✅ Mídia processada: ${messageText}`)
+          console.log(`✅ Mídia processada: Preview="${previewText}" Body="${messageText}"`)
         } else {
           console.log(`❌ Falha no upload da mídia, tratando como mensagem sem conteúdo`)
           messageText = `[Mídia não processada: ${messageType}]`
+          previewText = messageText
         }
       } else {
         console.log(`⚠️ Mídia não pôde ser extraída: ${messageType}`)
         messageText = `[Mídia inválida: ${messageType}]`
+        previewText = messageText
       }
     } else if (!messageText?.trim()) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem conteúdo de texto ou mídia', {
@@ -733,6 +743,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     webhookLogger.info('message.processing', `Processando mensagem de ${pushName}`, {
       remoteJid,
       messageText: messageText.substring(0, 50),
+      previewText: previewText?.substring(0, 50),
       instance,
       messageType: processedMessageType,
       hasMedia: !!mediaData
@@ -787,7 +798,7 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     await updateAtendimentoWithMessage(
       supabase,
       atendimento.id,
-      messageText,
+      previewText, // Usar texto de preview (com fallback para mídia)
       messageTimestamp,
       !fromMe // Incrementar não lidas apenas se NÃO for mensagem minha
     )
