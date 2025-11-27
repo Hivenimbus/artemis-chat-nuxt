@@ -30,6 +30,7 @@
         @transfer-chat="handleTransferChat"
         @block-contact="handleBlockContact"
         @delete-chat="handleDeleteChat"
+        @update-contact="handleUpdateContact"
       />
     </div>
 
@@ -395,6 +396,23 @@ const assignToMe = async (atendimento) => {
   } catch (error) {
     console.error('Erro ao atribuir atendimento:', error)
     alert('Erro ao atribuir atendimento')
+  }
+}
+
+// Função para atualizar contato localmente
+const handleUpdateContact = (updatedContact) => {
+  if (!updatedContact || !selectedContact.value) return
+  
+  // Atualizar contato selecionado
+  selectedContact.value = updatedContact
+  
+  // Atualizar lista de atendimentos
+  const index = atendimentos.value.findIndex(a => a.id === updatedContact.id)
+  if (index > -1) {
+    atendimentos.value[index] = {
+      ...atendimentos.value[index],
+      name: updatedContact.name
+    }
   }
 }
 

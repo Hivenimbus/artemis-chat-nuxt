@@ -383,12 +383,50 @@
               <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Informações</h4>
               <div class="space-y-3">
                 <div class="flex items-center space-x-3">
-                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                     {{ getInitials(selectedContact.name) }}
                   </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">{{ selectedContact.name }}</p>
-                    <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
+                  <div class="flex-1 min-w-0">
+                    <div v-if="!isEditingContact" class="flex items-start justify-between group">
+                      <div class="mr-2 truncate">
+                        <p class="text-sm font-medium text-gray-900 truncate" :title="selectedContact.name">{{ selectedContact.name }}</p>
+                        <p class="text-xs text-gray-500">{{ formatPhone(selectedContact.phone) }}</p>
+                      </div>
+                      <button 
+                        @click="startEditingContact"
+                        class="text-gray-400 hover:text-indigo-600 p-1 rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                        title="Editar nome"
+                      >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div v-else class="space-y-2">
+                      <input 
+                        v-model="editedName"
+                        type="text"
+                        class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        @keyup.enter="saveContactName"
+                        @keyup.esc="cancelEditingContact"
+                        ref="editNameInput"
+                      />
+                      <div class="flex space-x-2">
+                        <button 
+                          @click="saveContactName"
+                          :disabled="savingContact || !editedName.trim()"
+                          class="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {{ savingContact ? '...' : 'Salvar' }}
+                        </button>
+                        <button 
+                          @click="cancelEditingContact"
+                          class="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="bg-gray-50 p-3 rounded-lg">
@@ -499,13 +537,19 @@ const emit = defineEmits([
   'export-chat',
   'transfer-chat',
   'block-contact',
-  'delete-chat'
+  'delete-chat',
+  'update-contact'
 ])
 
 const newMessage = ref('')
 const showTagDropdown = ref(false)
 const showKebabSidebar = ref(false)
 const showAddTagInput = ref(false)
+
+// Estados de edição de contato
+const isEditingContact = ref(false)
+const editedName = ref('')
+const savingContact = ref(false)
 
 // Estados para mensagens
 const messages = ref([])
@@ -964,6 +1008,66 @@ const onSelectEmoji = (emoji) => {
     const textarea = document.querySelector('textarea')
     if (textarea) textarea.focus()
   })
+}
+
+// Funções de edição de contato
+const editNameInput = ref(null)
+
+const startEditingContact = () => {
+  editedName.value = props.selectedContact.name
+  isEditingContact.value = true
+  nextTick(() => {
+    if (editNameInput.value) {
+      editNameInput.value.focus()
+    }
+  })
+}
+
+const cancelEditingContact = () => {
+  isEditingContact.value = false
+  editedName.value = ''
+}
+
+const saveContactName = async () => {
+  if (!editedName.value.trim() || !props.selectedContact) return
+  if (savingContact.value) return
+
+  try {
+    savingContact.value = true
+    const newName = editedName.value.trim()
+    
+    // Usar contato_id se disponível (estrutura de atendimento), senão usar id (estrutura de contato)
+    const contactId = props.selectedContact.contato_id || props.selectedContact.id
+    
+    console.log('Atualizando contato:', { 
+      originalId: props.selectedContact.id, 
+      contatoId: props.selectedContact.contato_id, 
+      finalId: contactId 
+    })
+
+    const response = await $fetch(`/api/contatos/${contactId}`, {
+      method: 'PUT',
+      body: {
+        nome: newName,
+        telefone: props.selectedContact.phone
+      }
+    })
+
+    if (response?.success) {
+      // Emitir evento para atualizar o contato no componente pai
+      emit('update-contact', {
+        ...props.selectedContact,
+        name: newName
+      })
+      
+      isEditingContact.value = false
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar nome do contato:', error)
+    alert('Erro ao atualizar nome do contato.')
+  } finally {
+    savingContact.value = false
+  }
 }
 
 // Funções utilitárias
