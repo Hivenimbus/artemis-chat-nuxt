@@ -1,10 +1,7 @@
 <template>
   <div class="empresa-list-item" :class="statusClasses">
-    <!-- Main Row - Clickable -->
-    <div
-      class="empresa-list-item__main"
-      @click="toggleExpanded"
-    >
+    <!-- Main Row -->
+    <div class="empresa-list-item__main">
       <!-- Company Info -->
       <div class="empresa-list-item__company">
         <div class="empresa-list-item__company-info">
@@ -28,7 +25,7 @@
 
           <!-- Edit Button -->
           <button
-            @click.stop="$emit('edit', empresa)"
+            @click="$emit('edit', empresa)"
             class="empresa-list-item__edit-btn"
             title="Editar empresa"
           >
@@ -59,52 +56,7 @@
           <span class="empresa-list-item__info-value">{{ empresa.totalUsuarios }}</span>
         </div>
       </div>
-
-      <!-- Expand Icon -->
-      <div class="empresa-list-item__expand">
-        <svg
-          class="empresa-list-item__expand-icon"
-          :class="{ 'empresa-list-item__expand-icon--expanded': isExpanded }"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
     </div>
-
-    <!-- Expanded Content -->
-    <Transition name="expand">
-      <div v-if="isExpanded" class="empresa-list-item__expanded">
-        <div class="empresa-list-item__users-section">
-          <div class="empresa-list-item__users-header">
-            <h4 class="empresa-list-item__users-title">
-              Usuários da Empresa ({{ empresa.usuarios.length }})
-            </h4>
-          </div>
-
-          <div class="empresa-list-item__users-list">
-            <div
-              v-for="usuario in empresa.usuarios"
-              :key="usuario.id"
-              class="empresa-list-item__usuario-item"
-            >
-              <div class="empresa-list-item__usuario-avatar">
-                {{ usuario.nome.charAt(0).toUpperCase() }}
-              </div>
-              <div class="empresa-list-item__usuario-info">
-                <div class="empresa-list-item__usuario-nome">{{ usuario.nome }}</div>
-                <div class="empresa-list-item__usuario-email">{{ usuario.email }}</div>
-              </div>
-              <div class="empresa-list-item__usuario-role" :class="getRoleClasses(usuario.role)">
-                {{ getRoleText(usuario.role) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -116,9 +68,6 @@ const props = defineProps({
     required: true
   }
 })
-
-// State
-const isExpanded = ref(false)
 
 // Composables
 const { formatarData, getCorStatusVencimento, getTextoStatusVencimento } = useEmpresas()
@@ -137,33 +86,6 @@ const statusBadgeClasses = computed(() => {
 const textoStatus = computed(() => {
   return getTextoStatusVencimento(props.empresa.statusVencimento, props.empresa.diasParaVencimento)
 })
-
-// Methods
-const toggleExpanded = () => {
-  isExpanded.value = !isExpanded.value
-}
-
-const getRoleClasses = (role) => {
-  switch (role) {
-    case 'superadmin':
-      return 'empresa-list-item__usuario-role--superadmin'
-    case 'admin':
-      return 'empresa-list-item__usuario-role--admin'
-    default:
-      return 'empresa-list-item__usuario-role--user'
-  }
-}
-
-const getRoleText = (role) => {
-  switch (role) {
-    case 'superadmin':
-      return 'Superadmin'
-    case 'admin':
-      return 'Admin'
-    default:
-      return 'Usuário'
-  }
-}
 </script>
 
 <style scoped>
@@ -192,7 +114,6 @@ const getRoleText = (role) => {
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-1);
   transition: all var(--dur-fast) var(--ease-out);
-  margin-bottom: 1rem;
   overflow: hidden;
 }
 
@@ -226,12 +147,7 @@ const getRoleText = (role) => {
   display: flex;
   align-items: center;
   padding: 1.5rem;
-  cursor: pointer;
   gap: 1rem;
-}
-
-.empresa-list-item__main:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Company Info */
@@ -363,145 +279,6 @@ const getRoleText = (role) => {
   white-space: nowrap;
 }
 
-/* Expand Icon */
-.empresa-list-item__expand {
-  flex-shrink: 0;
-}
-
-.empresa-list-item__expand-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: rgb(var(--txt-2));
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.empresa-list-item__expand-icon--expanded {
-  transform: rotate(180deg);
-}
-
-/* Expanded Content */
-.empresa-list-item__expanded {
-  border-top: 1px solid rgba(var(--txt-3), 0.1);
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.empresa-list-item__users-section {
-  padding: 1.5rem;
-}
-
-.empresa-list-item__users-header {
-  margin-bottom: 1rem;
-}
-
-.empresa-list-item__users-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: rgb(var(--txt-1));
-  margin: 0;
-}
-
-.empresa-list-item__users-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.empresa-list-item__usuario-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgb(var(--bg-1));
-  border-radius: var(--radius-xs);
-  border: 1px solid rgba(var(--txt-3), 0.1);
-  transition: all var(--dur-fast) var(--ease-out);
-}
-
-.empresa-list-item__usuario-item:hover {
-  background: rgba(var(--bg-0), 0.5);
-  transform: translateX(2px);
-}
-
-.empresa-list-item__usuario-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgb(var(--ring)), rgb(99 102 241));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
-
-.empresa-list-item__usuario-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.empresa-list-item__usuario-nome {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgb(var(--txt-1));
-  margin-bottom: 0.125rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.empresa-list-item__usuario-email {
-  font-size: 0.75rem;
-  color: rgb(var(--txt-2));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.empresa-list-item__usuario-role {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.375rem 0.625rem;
-  border-radius: 12px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.empresa-list-item__usuario-role--superadmin {
-  background: rgb(239 68 68);
-  color: white;
-}
-
-.empresa-list-item__usuario-role--admin {
-  background: rgb(59 130 246);
-  color: white;
-}
-
-.empresa-list-item__usuario-role--user {
-  background: rgb(156 163 175);
-  color: white;
-}
-
-/* Transitions */
-.expand-enter-active,
-.expand-leave-active {
-  transition: all var(--dur-slow) var(--ease-out);
-  overflow: hidden;
-}
-
-.expand-enter-from,
-.expand-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.expand-enter-to,
-.expand-leave-from {
-  max-height: 1000px;
-  opacity: 1;
-}
-
 /* Responsive */
 @media (max-width: 1024px) {
   .empresa-list-item__main {
@@ -520,10 +297,6 @@ const getRoleText = (role) => {
     justify-content: space-between;
     gap: 1rem;
   }
-
-  .empresa-list-item__expand {
-    align-self: flex-end;
-  }
 }
 
 @media (max-width: 640px) {
@@ -539,22 +312,6 @@ const getRoleText = (role) => {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
-  }
-
-  .empresa-list-item__users-section {
-    padding: 1rem;
-  }
-
-  .empresa-list-item__usuario-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .empresa-list-item__usuario-avatar {
-    width: 2rem;
-    height: 2rem;
-    font-size: 0.75rem;
   }
 }
 </style>
