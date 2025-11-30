@@ -599,46 +599,30 @@ const saveAgent = async () => {
   if (!validateForm()) return
 
   try {
-    // Validar se o usuário está autenticado
-    if (!userData.value?.id) {
-      throw new Error('Usuário não autenticado ou dados inválidos')
-    }
-
-    console.log('Salvando agente com usuário:', userData.value.id)
-
-    // Usar o empresa_id do usuário já carregado
-    if (!userData.value?.empresa_id) {
-      throw new Error('Usuário não está associado a nenhuma empresa')
-    }
-
     if (isEditing.value) {
-      // Editar agente existente no Supabase
-      const { error } = await supabase
-        .from('users')
-        .update({
+      // Editar agente existente via API
+      await $fetch(`/api/agentes/${formData.value.id}`, {
+        method: 'PUT',
+        body: {
           name: formData.value.name,
           email: formData.value.email,
           role: formData.value.role
-        })
-        .eq('id', formData.value.id)
-
-      if (error) throw error
+        }
+      })
 
       // Recarregar dados para atualizar a lista
       await loadAgents()
       closeModal()
     } else {
-      // Criar novo agente no Supabase com o empresa_id do usuário atual
-      const { error } = await supabase
-        .from('users')
-        .insert({
+      // Criar novo agente via API
+      await $fetch('/api/agentes', {
+        method: 'POST',
+        body: {
           name: formData.value.name,
           email: formData.value.email,
-          role: formData.value.role,
-          empresa_id: userData.value.empresa_id
-        })
-
-      if (error) throw error
+          role: formData.value.role
+        }
+      })
 
       // Recarregar dados para atualizar a lista
       await loadAgents()
@@ -646,7 +630,7 @@ const saveAgent = async () => {
     }
   } catch (error) {
     console.error('Erro ao salvar agente:', error)
-    alert('Erro ao salvar agente: ' + (error.message || 'Tente novamente.'))
+    alert('Erro ao salvar agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'))
   }
 }
 
@@ -674,47 +658,17 @@ const deleteAgent = async () => {
   if (!agentToDelete.value) return
 
   try {
-    // Validar se o usuário está autenticado
-    if (!userData.value?.id) {
-      throw new Error('Usuário não autenticado ou dados inválidos')
-    }
-
-    console.log('Excluindo agente com usuário:', userData.value.id)
-
-    // Usar o empresa_id do usuário já carregado
-    if (!userData.value?.empresa_id) {
-      throw new Error('Usuário não está associado a nenhuma empresa')
-    }
-
-    // Verificar se o agente a ser excluído pertence à mesma empresa
-    const { data: agentData, error: agentError } = await supabase
-      .from('users')
-      .select('empresa_id')
-      .eq('id', agentToDelete.value.id)
-      .single()
-
-    if (agentError) {
-      throw agentError
-    }
-
-    if (agentData?.empresa_id !== userData.value.empresa_id) {
-      throw new Error('Sem permissão para excluir este usuário')
-    }
-
-    // Excluir o agente
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', agentToDelete.value.id)
-
-    if (error) throw error
+    // Excluir o agente via API
+    await $fetch(`/api/agentes/${agentToDelete.value.id}`, {
+      method: 'DELETE'
+    })
 
     // Recarregar dados para atualizar a lista
     await loadAgents()
     closeDeleteModal()
   } catch (error) {
     console.error('Erro ao excluir agente:', error)
-    alert('Erro ao excluir agente: ' + (error.message || 'Tente novamente.'))
+    alert('Erro ao excluir agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'))
   }
 }
 
