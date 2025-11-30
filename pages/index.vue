@@ -236,9 +236,8 @@
 </template>
 
 <script setup>
-// Cliente Supabase
-const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+// Auth
+const { login, register, user, loading: authLoading, error: authError } = useAuth()
 
 // Estados reativos
 const form = ref({
@@ -248,11 +247,19 @@ const form = ref({
   rememberMe: false
 })
 
-const isLoading = ref(false)
+// Usar loading e error do useAuth mas manter controle local para UI se necessário
+const isLoading = computed(() => authLoading.value)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showPassword = ref(false)
 const isSignUp = ref(false)
+
+// Monitorar erro do auth
+watch(authError, (newError) => {
+  if (newError) {
+    errorMessage.value = newError
+  }
+})
 
 // Redirecionar se já estiver logado
 watch(user, (newUser) => {
@@ -333,34 +340,21 @@ const handleLogin = async () => {
     return
   }
 
-  isLoading.value = true
   errorMessage.value = ''
   
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    await login({
       email: form.value.email,
       password: form.value.password,
     })
 
-    if (error) {
-      throw error
-    }
-
     successMessage.value = 'Login realizado com sucesso!'
-    console.log('Login realizado com sucesso:', data.user)
+    // Redirecionamento é tratado no watch(user) ou pelo useAuth
     
   } catch (error) {
     console.error('Erro no login:', error)
-    
-    if (error.message === 'Invalid login credentials') {
-      errorMessage.value = 'Email ou senha incorretos'
-    } else if (error.message === 'Email not confirmed') {
-      errorMessage.value = 'Email não confirmado. Verifique sua caixa de entrada.'
-    } else {
-      errorMessage.value = error.message || 'Erro no login. Tente novamente.'
-    }
-  } finally {
-    isLoading.value = false
+    // Erro já definido no watch(authError) ou abaixo
+    // errorMessage é atualizado pelo watcher
   }
 }
 
@@ -376,36 +370,20 @@ const handleSignUp = async () => {
     return
   }
 
-  isLoading.value = true
   errorMessage.value = ''
   
   try {
-    const { data, error } = await supabase.auth.signUp({
+    await register({
       email: form.value.email,
       password: form.value.password,
-      options: {
-        data: {
-          name: form.value.name
-        }
-      }
+      name: form.value.name
     })
 
-    if (error) throw error
-
-    if (data.user && !data.user.email_confirmed_at) {
-      successMessage.value = 'Conta criada! Verifique seu email para confirmar.'
-      setTimeout(() => {
-        isSignUp.value = false
-        form.value.name = ''
-        form.value.password = ''
-      }, 3000)
-    }
+    successMessage.value = 'Conta criada com sucesso!'
+    // Login automático após registro ou redirecionamento
     
   } catch (error) {
     console.error('Erro no cadastro:', error)
-    errorMessage.value = error.message || 'Erro no cadastro. Tente novamente.'
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -495,4 +473,4 @@ input[type="password"]::-webkit-reveal {
   opacity: 0;
   transform: translateY(-10px);
 }
-</style> 
+</style>

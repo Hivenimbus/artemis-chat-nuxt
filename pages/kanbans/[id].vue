@@ -205,7 +205,7 @@ definePageMeta({
 })
 
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { userData: user } = useUser()
 const route = useRoute()
 
 // State

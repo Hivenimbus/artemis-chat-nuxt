@@ -1,17 +1,18 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto
+    const user = event.context.user
 
-    if (userError || !user) {
+    if (!user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Buscar empresa do usuário
     const { data: userData, error: userDataError } = await client

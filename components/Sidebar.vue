@@ -466,15 +466,12 @@ const props = defineProps({
 
 const route = useRoute()
 
-// Dados do usuário do Supabase
-const user = useSupabaseUser()
-
-// Dados completos do usuário com role
-const { isSuperAdmin, isAdmin } = useUser()
+// Dados do usuário (removido useSupabaseUser)
+const { isSuperAdmin, isAdmin, userData: user } = useUser()
 
 // Computados para dados do usuário
 const userName = computed(() => {
-  return user.value?.user_metadata?.display_name || user.value?.user_metadata?.full_name || user.value?.email?.split('@')[0] || 'Usuário'
+  return user.value?.name || user.value?.email?.split('@')[0] || 'Usuário'
 })
 
 const userEmail = computed(() => {

@@ -87,7 +87,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient()
+const { logout } = useAuth()
 
 // Props
 const props = defineProps({
@@ -101,13 +101,13 @@ const props = defineProps({
   }
 })
 
-// Dados do usuário do Supabase
-const user = useSupabaseUser()
+// Dados do usuário
+const { userData: user } = useUser()
 const notificationCount = ref(3)
 
 // Computados para dados do usuário
 const userName = computed(() => {
-  return user.value?.user_metadata?.display_name || user.value?.user_metadata?.full_name || user.value?.email?.split('@')[0] || 'Usuário'
+  return user.value?.name || user.value?.email?.split('@')[0] || 'Usuário'
 })
 
 const userEmail = computed(() => {
@@ -138,9 +138,9 @@ const closeUserMenu = () => {
 
 const handleLogout = async () => {
   try {
-    await supabase.auth.signOut()
+    await logout()
     closeUserMenu()
-    router.push('/')
+    // router.push('/') // logout already handles redirect
   } catch (error) {
     console.error('Erro ao fazer logout:', error)
   }

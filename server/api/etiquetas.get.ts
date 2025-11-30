@@ -1,15 +1,14 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas: Iniciando requisição')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/etiquetas: Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/etiquetas: Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
@@ -17,6 +16,8 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('API /api/etiquetas: Usuário autenticado:', user.id)
+
+    const client = serverSupabaseServiceRole(event)
 
     // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i

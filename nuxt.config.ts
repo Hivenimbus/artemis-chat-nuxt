@@ -20,23 +20,12 @@ export default defineNuxtConfig({
   supabase: {
     url: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
     key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
-    redirectOptions: {
-      login: '/',
-      callback: '/atendimentos',
-      exclude: ['/']
-    },
+    // Desativar redirecionamento automático do Supabase Auth pois estamos usando auth própria
+    redirect: false,
     clientOptions: {
       auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-      },
-    },
-    cookieOptions: {
-      maxAge: 60 * 60 * 8, // 8 horas
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
+        persistSession: false // Não persistir sessão do Supabase Auth
+      }
     }
   },
   runtimeConfig: {
@@ -44,6 +33,7 @@ export default defineNuxtConfig({
     // Aceita tanto NUXT_* (padrão Nuxt) quanto sem prefixo (compatibilidade)
     evolutionApiUrl: process.env.NUXT_EVOLUTION_API_URL || process.env.EVOLUTION_API_URL,
     evolutionApiKey: process.env.NUXT_EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY,
+    jwtSecret: process.env.JWT_SECRET,
 
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
