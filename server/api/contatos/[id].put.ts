@@ -261,8 +261,8 @@ export default defineEventHandler(async (event) => {
         ?.filter((ce: any) => ce.etiquetas)
         ?.map((ce: any) => ({
           id: ce.etiquetas.id,
-          nome: ce.etiquetas.nome,
-          cor: ce.etiquetas.cor
+          name: ce.etiquetas.nome,
+          color: ce.etiquetas.cor
         })) || [],
       name: c.nome,
       lastName: c.sobrenome || '',

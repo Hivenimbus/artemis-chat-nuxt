@@ -4,7 +4,8 @@
     <span
       v-for="tag in currentTags"
       :key="typeof tag === 'object' ? tag.name : tag"
-      :class="getTagColor(tag)"
+      :class="getTagClasses(tag)"
+      :style="getTagStyle(tag)"
       class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium group relative"
     >
       {{ typeof tag === 'object' ? tag.name : tag }}
@@ -184,24 +185,98 @@ const allTagsWithStatus = computed(() => {
 })
 
 // Methods
-const getTagColor = (tag) => {
-  // Se a tag for um objeto com cor definida, usar a cor do banco
-  if (typeof tag === 'object' && tag.color) {
-    // Converter cor hex para classes Tailwind equivalentes
-    return getTailwindColor(tag.color)
-  }
-
-  // Se for string, buscar a cor nas etiquetas disponíveis
+const getTagHex = (tag) => {
+  if (typeof tag === 'object' && tag.color) return tag.color
+  
   const tagName = typeof tag === 'object' ? tag.name : tag
   const availableTag = props.availableTags.find(t =>
     typeof t === 'object' ? t.name === tagName : t === tagName
   )
+  
+  return availableTag && typeof availableTag === 'object' ? availableTag.color : null
+}
 
-  if (availableTag && typeof availableTag === 'object' && availableTag.color) {
-    return getTailwindColor(availableTag.color)
+const getContrastColor = (hexColor) => {
+  if (!hexColor || !hexColor.startsWith('#')) return null
+  
+  // Remove # if present
+  const hex = hexColor.replace('#', '')
+  
+  // Check for valid hex length
+  if (hex.length !== 6) return null
+  
+  // Parse r, g, b
+  const r = parseInt(hex.substr(0, 2), 16)
+  const g = parseInt(hex.substr(2, 2), 16)
+  const b = parseInt(hex.substr(4, 2), 16)
+  
+  // Calculate brightness (YIQ formula)
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+  
+  // Return black or white based on brightness
+  return yiq >= 128 ? '#1F2937' : '#FFFFFF' // gray-800 or white
+}
+
+const getTagStyle = (tag) => {
+  const hex = getTagHex(tag)
+  
+  // Check if it's a mapped color (we'll use classes for those)
+  if (hex && isMappedColor(hex)) {
+    return {}
+  }
+  
+  // For unmapped colors, return inline style
+  if (hex && hex.startsWith('#')) {
+    return {
+      backgroundColor: hex,
+      color: getContrastColor(hex) || '#1F2937'
+    }
+  }
+  
+  return {}
+}
+
+const isMappedColor = (hexColor) => {
+  if (!hexColor || !hexColor.startsWith('#')) return false
+  const map = getColorMap()
+  return !!map[hexColor.toUpperCase()]
+}
+
+const getColorMap = () => ({
+  '#FF0000': 'bg-red-100 text-red-800',     // Vermelho
+  '#FF4500': 'bg-orange-100 text-orange-800', // Laranja
+  '#FFD700': 'bg-yellow-100 text-yellow-800', // Amarelo
+  '#32CD32': 'bg-green-100 text-green-800',   // Verde
+  '#0000FF': 'bg-blue-100 text-blue-800',     // Azul
+  '#800080': 'bg-purple-100 text-purple-800', // Roxo
+  '#FFC0CB': 'bg-pink-100 text-pink-800',     // Rosa
+  '#808080': 'bg-gray-100 text-gray-800',     // Cinza
+  '#000000': 'bg-gray-900 text-white',        // Preto
+  '#FFFFFF': 'bg-white text-gray-900 border border-gray-300', // Branco
+  '#8B5CF6': 'bg-purple-100 text-purple-800', // Roxo (VIP)
+  '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul (Cliente)
+  '#10B981': 'bg-green-100 text-green-800',   // Verde (Novo Lead)
+  '#6366F1': 'bg-indigo-100 text-indigo-800', // Índigo (Empresa)
+  '#EF4444': 'bg-red-500 text-white',         // Vermelho (Teste 2) - Adicionado especificamente
+  '#6B7280': 'bg-gray-100 text-gray-800'      // Cinza padrão
+})
+
+const getTagClasses = (tag) => {
+  const hex = getTagHex(tag)
+  
+  // If we have a mapped color, use it
+  if (hex) {
+    const map = getColorMap()
+    const classes = map[hex.toUpperCase()]
+    if (classes) return classes
+    
+    // If we have a hex but no map, we're using styles, so no specific color class needed
+    // but we return nothing here and let style take over
+    if (hex.startsWith('#')) return ''
   }
 
-  // Fallback para cores fixas (mantidas para compatibilidade)
+  // Fallback for legacy string tags or when no color is found
+  const tagName = typeof tag === 'object' ? tag.name : tag
   const colors = {
     'VIP': 'bg-purple-100 text-purple-800',
     'Cliente': 'bg-blue-100 text-blue-800',
@@ -211,33 +286,17 @@ const getTagColor = (tag) => {
   return colors[tagName] || 'bg-gray-100 text-gray-800'
 }
 
-// Converter cor hex para classes Tailwind
+// Mantido para compatibilidade se usado em outros lugares, mas redireciona para a nova lógica
+const getTagColor = (tag) => getTagClasses(tag)
+
+// Converter cor hex para classes Tailwind (versão legada, agora usa o mapa centralizado)
 const getTailwindColor = (hexColor) => {
   if (!hexColor || !hexColor.startsWith('#')) {
     return 'bg-gray-100 text-gray-800'
   }
-
-  // Mapeamento de cores comuns para classes Tailwind
-  const colorMap = {
-    '#FF0000': 'bg-red-100 text-red-800',     // Vermelho
-    '#FF4500': 'bg-orange-100 text-orange-800', // Laranja
-    '#FFD700': 'bg-yellow-100 text-yellow-800', // Amarelo
-    '#32CD32': 'bg-green-100 text-green-800',   // Verde
-    '#0000FF': 'bg-blue-100 text-blue-800',     // Azul
-    '#800080': 'bg-purple-100 text-purple-800', // Roxo
-    '#FFC0CB': 'bg-pink-100 text-pink-800',     // Rosa
-    '#808080': 'bg-gray-100 text-gray-800',     // Cinza
-    '#000000': 'bg-gray-900 text-white',        // Preto
-    '#FFFFFF': 'bg-white text-gray-900 border border-gray-300', // Branco
-    '#8B5CF6': 'bg-purple-100 text-purple-800', // Roxo (VIP)
-    '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul (Cliente)
-    '#10B981': 'bg-green-100 text-green-800',   // Verde (Novo Lead)
-    '#6366F1': 'bg-indigo-100 text-indigo-800', // Índigo (Empresa)
-    '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul padrão
-    '#6B7280': 'bg-gray-100 text-gray-800'      // Cinza padrão
-  }
-
-  return colorMap[hexColor.toUpperCase()] || 'bg-gray-100 text-gray-800'
+  
+  const map = getColorMap()
+  return map[hexColor.toUpperCase()] || 'bg-gray-100 text-gray-800'
 }
 
 const calculateDropdownPosition = () => {
