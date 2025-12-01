@@ -1820,7 +1820,7 @@ useHead({
   max-width: 32rem;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow-y: visible;
   border: 1px solid rgba(156, 163, 175, 0.1);
 }
 
@@ -1846,6 +1846,7 @@ useHead({
 
 .modal-body {
   padding: 1.5rem;
+  min-height: 300px;
 }
 
 .modal-footer {
