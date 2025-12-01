@@ -565,6 +565,66 @@
         </Transition>
       </div>
     </Transition>
+
+    <!-- Delete Column Confirmation Modal -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showDeleteColumnModal"
+        class="modal-overlay"
+        @click.self="closeDeleteColumnModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-column-modal-title"
+      >
+        <Transition name="modal-pop">
+          <div
+            v-if="showDeleteColumnModal"
+            class="modal-content"
+            style="max-width: 28rem;"
+            @click.stop
+          >
+            <div class="modal-header">
+              <h3 id="delete-column-modal-title" class="modal-title text-red-600" style="color: #dc2626;">
+                <svg class="modal-title-icon text-red-600" style="color: #dc2626;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Excluir Coluna
+              </h3>
+            </div>
+
+            <div class="modal-body" style="min-height: auto;">
+              <p class="text-gray-700 mb-4">
+                Tem certeza que deseja excluir a coluna <strong>{{ columnToDelete?.title }}</strong>?
+              </p>
+              <p class="text-gray-600 text-sm bg-blue-50 p-3 rounded-lg border border-blue-100" style="background-color: #eff6ff; border-color: #dbeafe;">
+                <strong class="text-blue-700 block mb-1" style="color: #1d4ed8;">Atenção:</strong>
+                Os cartões desta coluna serão movidos para a primeira coluna disponível.
+              </p>
+            </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                @click="closeDeleteColumnModal"
+                class="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                @click="confirmDeleteColumn"
+                :disabled="deletingColumn"
+                class="btn btn-primary"
+                style="background: #dc2626; border-color: #dc2626;"
+              >
+                <span v-if="deletingColumn">Excluindo...</span>
+                <span v-else>Sim, Excluir Coluna</span>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
   </div>
 
   <!-- Sistema de Notificações -->
@@ -722,6 +782,11 @@ const addColumnForm = ref({
   icon: 'clipboard',
   color: 'blue'
 })
+
+// Delete Column modal state
+const showDeleteColumnModal = ref(false)
+const columnToDelete = ref(null)
+const deletingColumn = ref(false)
 
 // Kanban modal state
 const showKanbanModal = ref(false)
@@ -1225,12 +1290,27 @@ const handleMoveColumn = async ({ columnId, direction }) => {
   }
 }
 
-const handleDeleteColumn = async (columnId) => {
-  if (!confirm('Tem certeza que deseja excluir esta coluna? Todos os cartões nesta coluna também serão excluídos.')) {
-    return
-  }
+// Handle delete column
+const handleDeleteColumn = (columnId) => {
+  const column = columns.value.find(c => c.id === columnId)
+  if (!column) return
+
+  columnToDelete.value = column
+  showDeleteColumnModal.value = true
+}
+
+const closeDeleteColumnModal = () => {
+  showDeleteColumnModal.value = false
+  columnToDelete.value = null
+}
+
+const confirmDeleteColumn = async () => {
+  if (!columnToDelete.value) return
 
   try {
+    deletingColumn.value = true
+    const columnId = columnToDelete.value.id
+
     // Move cards to first column before deleting
     const firstColumn = columns.value.find(c => c.id !== columnId)
     if (firstColumn) {
@@ -1279,9 +1359,14 @@ const handleDeleteColumn = async (columnId) => {
 
     // Reload data to update cards
     await loadKanbanData()
+    
+    closeDeleteColumnModal()
+    showNotification('Coluna excluída com sucesso.', 'success')
   } catch (error) {
     console.error('Error deleting column:', error)
     showNotification('Erro ao excluir coluna. Tente novamente.', 'error')
+  } finally {
+    deletingColumn.value = false
   }
 }
 

@@ -327,11 +327,9 @@ const startRename = () => {
 }
 
 const deleteColumn = () => {
-  if (confirm(`Tem certeza que deseja excluir a coluna "${props.column.title}"? Todos os cartões serão movidos para "Para Fazer".`)) {
-    // Atualização otimista: remover visualmente imediatamente
-    const originalColumn = { ...props.column }
-    emit('delete-column', props.column.id, originalColumn) // Passar original para rollback
-  }
+  // Atualização otimista: remover visualmente imediatamente
+  const originalColumn = { ...props.column }
+  emit('delete-column', props.column.id, originalColumn) // Passar original para rollback
   showOptions.value = false
 }
 
