@@ -545,7 +545,7 @@ const startPolling = () => {
     clearInterval(pollingInterval)
   }
 
-  // Atualizar a cada 10 segundos
+  // Atualizar a cada 5 segundos
   pollingInterval = setInterval(async () => {
     // Só atualizar se não estiver carregando
     if (!loading.value) {
@@ -557,7 +557,7 @@ const startPolling = () => {
         // Isso pode ser feito via $fetch para /api/atendimentos/[id]/mensagens
       }
     }
-  }, 10000) // 10 segundos
+  }, 5000) // 5 segundos
 }
 
 const stopPolling = () => {
