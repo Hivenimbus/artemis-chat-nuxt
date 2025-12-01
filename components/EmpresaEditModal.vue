@@ -55,6 +55,28 @@
             </p>
           </div>
 
+          <!-- Máximo de Usuários -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Máximo de Usuários *
+            </label>
+            <input
+              v-model.number="formData.max_usuarios"
+              type="number"
+              min="1"
+              required
+              :disabled="loading"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="5"
+            />
+            <p v-if="errors.max_usuarios" class="mt-1 text-sm text-red-600">
+              {{ errors.max_usuarios }}
+            </p>
+            <p class="mt-1 text-sm text-gray-500">
+              Número máximo de usuários que a empresa pode cadastrar
+            </p>
+          </div>
+
           <!-- Informações Atuais -->
           <div class="bg-gray-50 p-3 rounded-lg">
             <h3 class="text-sm font-medium text-gray-700 mb-2">Informações Atuais</h3>
@@ -119,18 +141,20 @@ const loading = ref(false)
 const errorMessage = ref('')
 const errors = ref({
   nome: '',
-  vencimento: ''
+  vencimento: '',
+  max_usuarios: ''
 })
 
 // Form data
 const formData = ref({
   nome: '',
-  vencimento: ''
+  vencimento: '',
+  max_usuarios: 5
 })
 
 // Methods
 const clearErrors = () => {
-  errors.value = { nome: '', vencimento: '' }
+  errors.value = { nome: '', vencimento: '', max_usuarios: '' }
   errorMessage.value = ''
 }
 
@@ -139,7 +163,8 @@ watch(() => props.empresa, (newEmpresa) => {
   if (newEmpresa) {
     formData.value = {
       nome: newEmpresa.nome || '',
-      vencimento: new Date(newEmpresa.vencimento).toISOString().split('T')[0]
+      vencimento: new Date(newEmpresa.vencimento).toISOString().split('T')[0],
+      max_usuarios: newEmpresa.maxUsuarios || 5
     }
     clearErrors()
   }
@@ -170,6 +195,12 @@ const validateForm = () => {
     }
   }
 
+  // Validate max_usuarios
+  if (!formData.value.max_usuarios || formData.value.max_usuarios < 1) {
+    errors.value.max_usuarios = 'Número máximo de usuários deve ser pelo menos 1'
+    isValid = false
+  }
+
   return isValid
 }
 
@@ -185,7 +216,8 @@ const handleSubmit = async () => {
     const updateData = {
       id: props.empresa.id,
       nome: formData.value.nome.trim(),
-      vencimento: formData.value.vencimento
+      vencimento: formData.value.vencimento,
+      max_usuarios: formData.value.max_usuarios
     }
 
     emit('save', updateData)

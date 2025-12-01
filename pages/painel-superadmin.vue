@@ -42,20 +42,20 @@
 
               <!-- Botão de atualização -->
               <button
-                @click="refreshEmpresas"
-                :disabled="loading"
+                @click="refreshData"
+                :disabled="loading || usersLoading"
                 class="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 disabled:opacity-50 shadow-md hover:shadow-lg transform hover:scale-[1.02]"
               >
                 <svg
                   class="h-4 w-4 mr-2"
-                  :class="{ 'animate-spin': loading }"
+                  :class="{ 'animate-spin': loading || usersLoading }"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                {{ loading ? 'Atualizando...' : 'Atualizar' }}
+                {{ (loading || usersLoading) ? 'Atualizando...' : 'Atualizar' }}
               </button>
 
               <!-- Botão de retorno -->
@@ -284,6 +284,9 @@
                       Função
                     </th>
                     <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Empresa
                     </th>
                     <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
@@ -323,7 +326,17 @@
                       </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex flex-col">
+                      <span class="px-3 py-1 inline-flex text-xs font-bold rounded-full shadow-sm"
+                        :class="{
+                          'bg-gradient-to-r from-emerald-500 to-green-500 text-white': user.status === 'active',
+                          'bg-gradient-to-r from-amber-500 to-yellow-500 text-white': user.status === 'pending',
+                          'bg-gray-300 text-gray-600': user.status === 'inactive'
+                        }">
+                        {{ user.status === 'active' ? 'Ativo' : (user.status === 'pending' ? 'Pendente' : 'Inativo') }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div v-if="user.empresaNome" class="flex flex-col">
                         <span class="text-sm text-gray-900 font-semibold">{{ user.empresaNome }}</span>
                         <span class="text-xs flex items-center mt-1 font-medium" :class="{
                           'text-emerald-600': user.empresaStatus === 'normal',
@@ -338,18 +351,31 @@
                           {{ user.empresaStatus === 'normal' ? 'Ativa' : (user.empresaStatus === 'vencido' ? 'Vencida' : 'Atenção') }}
                         </span>
                       </div>
+                      <div v-else class="flex flex-col">
+                        <span class="text-sm text-gray-400 italic">Sem empresa</span>
+                      </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        @click="handleEditEmpresaClick(user.empresaId)" 
-                        class="inline-flex items-center text-indigo-700 hover:text-white bg-indigo-100 hover:bg-indigo-600 px-4 py-2 rounded-xl transition-all duration-200 text-xs font-bold shadow-sm hover:shadow-md"
-                      >
-                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        Gerenciar
-                      </button>
+                      <div class="flex items-center justify-end space-x-3">
+                        <button 
+                          @click="openUserEditModal(user)" 
+                          class="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                          title="Editar Usuário"
+                        >
+                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button 
+                          @click="handleDeleteUser(user)" 
+                          class="p-2 text-rose-600 hover:text-rose-900 hover:bg-rose-50 rounded-lg transition-colors duration-200"
+                          title="Excluir Usuário"
+                        >
+                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -409,14 +435,99 @@
             </div>
           </div>
 
-          <!-- Companies List -->
-          <div v-if="filteredEmpresas.length > 0" class="empresas-list">
-            <EmpresaListItem
-              v-for="empresa in filteredEmpresas"
-              :key="empresa.id"
-              :empresa="empresa"
-              @edit="openEditModal"
-            />
+          <!-- Companies Table -->
+          <div v-if="filteredEmpresas.length > 0" class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/20">
+            <div class="overflow-x-auto">
+              <table class="min-w-full">
+                <thead>
+                  <tr class="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Empresa
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Vencimento
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Usuários
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <tr v-for="(empresa, index) in filteredEmpresas" :key="empresa.id" 
+                      :class="[index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50']"
+                      class="hover:bg-indigo-50/50 transition-colors duration-150">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center">
+                        <div class="flex-shrink-0 h-11 w-11">
+                          <div class="h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white">
+                            {{ empresa.nome?.charAt(0).toUpperCase() || '?' }}
+                          </div>
+                        </div>
+                        <div class="ml-4">
+                          <div class="text-sm font-semibold text-gray-900">
+                            {{ empresa.nome }}
+                          </div>
+                          <div class="text-sm text-gray-500">
+                            Criada em {{ formatarData(empresa.criadaEm) }}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span class="text-sm text-gray-900 font-medium">{{ formatarData(empresa.vencimento) }}</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <div class="flex items-center">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span class="text-sm font-bold" :class="{
+                          'text-rose-600': empresa.totalUsuarios >= empresa.maxUsuarios,
+                          'text-amber-600': empresa.totalUsuarios >= empresa.maxUsuarios * 0.8 && empresa.totalUsuarios < empresa.maxUsuarios,
+                          'text-gray-900': empresa.totalUsuarios < empresa.maxUsuarios * 0.8
+                        }">{{ empresa.totalUsuarios }} / {{ empresa.maxUsuarios }}</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="px-3 py-1 inline-flex text-xs font-bold rounded-full shadow-sm items-center"
+                        :class="{
+                          'bg-gradient-to-r from-emerald-500 to-green-500 text-white': empresa.statusVencimento === 'normal',
+                          'bg-gradient-to-r from-amber-500 to-yellow-500 text-white': empresa.statusVencimento === 'atencao',
+                          'bg-gradient-to-r from-orange-500 to-red-400 text-white': empresa.statusVencimento === 'urgente',
+                          'bg-gradient-to-r from-rose-500 to-red-600 text-white': empresa.statusVencimento === 'vencido'
+                        }">
+                        <span class="w-2 h-2 rounded-full mr-1.5 bg-white/40 animate-pulse"></span>
+                        {{ getTextoStatusVencimento(empresa.statusVencimento, empresa.diasParaVencimento) }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div class="flex items-center justify-end space-x-3">
+                        <button 
+                          @click="openEditModal(empresa)" 
+                          class="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                          title="Editar Empresa"
+                        >
+                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <!-- No Search Results for Companies -->
@@ -456,6 +567,15 @@
       @save="handleSaveEmpresa"
       @close="closeEditModal"
     />
+
+    <!-- User Edit Modal -->
+    <UserEditModal
+      v-if="showUserEditModal"
+      :user="selectedUser"
+      :empresas="empresas"
+      @save="handleSaveUser"
+      @close="closeUserEditModal"
+    />
   </div>
 </template>
 
@@ -469,7 +589,9 @@ const {
   error,
   empresas,
   getEmpresas,
-  createEmpresa
+  createEmpresa,
+  formatarData,
+  getTextoStatusVencimento
 } = useEmpresas()
 
 // Computar estatísticas por status
@@ -488,31 +610,37 @@ const empresasPorStatus = computed(() => {
   return stats
 })
 
+// Users State
+const usersList = ref([])
+const usersLoading = ref(false)
+const usersError = ref(null)
+
+const getUsers = async () => {
+  usersLoading.value = true
+  usersError.value = null
+  try {
+    const response = await $fetch('/api/admin/users')
+    if (response.success) {
+      usersList.value = response.data
+    }
+  } catch (err) {
+    console.error('Erro ao buscar usuários:', err)
+    usersError.value = err.message || 'Erro ao carregar usuários'
+  } finally {
+    usersLoading.value = false
+  }
+}
+
 // Search State
 const searchQuery = ref('')
 const companySearchQuery = ref('')
 
-// Flatten all users from companies
-const allUsers = computed(() => {
-  if (!empresas.value) return []
-  
-  return empresas.value.flatMap(empresa => {
-    return (empresa.usuarios || []).map(usuario => ({
-      ...usuario,
-      empresaId: empresa.id,
-      empresaNome: empresa.nome,
-      empresaVencimento: empresa.vencimento,
-      empresaStatus: empresa.statusVencimento
-    }))
-  })
-})
-
 // Filter users based on search
 const filteredUsers = computed(() => {
-  if (!searchQuery.value) return allUsers.value
+  if (!searchQuery.value) return usersList.value
   
   const query = searchQuery.value.toLowerCase()
-  return allUsers.value.filter(user => 
+  return usersList.value.filter(user => 
     user.nome?.toLowerCase().includes(query) ||
     user.email?.toLowerCase().includes(query) ||
     user.empresaNome?.toLowerCase().includes(query) ||
@@ -521,7 +649,7 @@ const filteredUsers = computed(() => {
 })
 
 // Total de usuários do sistema
-const totalUsers = computed(() => allUsers.value.length)
+const totalUsers = computed(() => usersList.value.length)
 
 // Filter companies based on search
 const filteredEmpresas = computed(() => {
@@ -536,17 +664,31 @@ const filteredEmpresas = computed(() => {
 // Active Tab State
 const activeTab = ref('users') // 'users' or 'companies'
 
+// Initial fetch
+onMounted(() => {
+  // Carregar dados iniciais
+  getEmpresas() // Mantemos para as estatísticas de empresas
+  getUsers()
+})
+
 // Estado do modal
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const selectedEmpresa = ref(null)
 
-// Método para atualizar empresas
-const refreshEmpresas = async () => {
+// User Edit State
+const showUserEditModal = ref(false)
+const selectedUser = ref(null)
+
+// Método para atualizar dados
+const refreshData = async () => {
   try {
-    await getEmpresas()
+    await Promise.all([
+      getEmpresas(),
+      getUsers()
+    ])
   } catch (err) {
-    console.error('Erro ao atualizar empresas:', err)
+    console.error('Erro ao atualizar dados:', err)
   }
 }
 
@@ -578,13 +720,6 @@ const openEditModal = (empresa) => {
   showEditModal.value = true
 }
 
-const handleEditEmpresaClick = (empresaId) => {
-  const empresa = empresas.value.find(e => e.id === empresaId)
-  if (empresa) {
-    openEditModal(empresa)
-  }
-}
-
 const closeEditModal = () => {
   showEditModal.value = false
   selectedEmpresa.value = null
@@ -613,6 +748,55 @@ const handleSaveEmpresa = async (empresaData) => {
     // Aqui você pode mostrar uma notificação de erro
   } finally {
     loading.value = false
+  }
+}
+
+// Métodos de Usuário
+const openUserEditModal = (user) => {
+  selectedUser.value = user
+  showUserEditModal.value = true
+}
+
+const closeUserEditModal = () => {
+  showUserEditModal.value = false
+  selectedUser.value = null
+}
+
+const handleSaveUser = async (userData) => {
+  try {
+    const response = await $fetch(`/api/admin/users/${userData.id}`, {
+      method: 'PUT',
+      body: userData
+    })
+
+    if (response.success) {
+      await getUsers()
+      closeUserEditModal()
+      // Opcional: Toast de sucesso
+    }
+  } catch (err) {
+    console.error('Erro ao salvar usuário:', err)
+    alert(err.statusMessage || 'Erro ao salvar usuário')
+  }
+}
+
+const handleDeleteUser = async (user) => {
+  if (!confirm(`Tem certeza que deseja excluir o usuário "${user.nome}"? Esta ação não pode ser desfeita.`)) {
+    return
+  }
+
+  try {
+    const response = await $fetch(`/api/admin/users/${user.id}`, {
+      method: 'DELETE'
+    })
+
+    if (response.success) {
+      await getUsers()
+      // Opcional: Toast de sucesso
+    }
+  } catch (err) {
+    console.error('Erro ao excluir usuário:', err)
+    alert(err.statusMessage || 'Erro ao excluir usuário')
   }
 }
 
@@ -685,11 +869,4 @@ useHead({
 .stat-card:nth-child(3) { animation-delay: 0.15s; }
 .stat-card:nth-child(4) { animation-delay: 0.2s; }
 .stat-card:nth-child(5) { animation-delay: 0.25s; }
-
-/* Empresas List Styles */
-.empresas-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
 </style>

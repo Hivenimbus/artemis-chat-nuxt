@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
     // Obter dados do corpo da requisição
     const body = await readBody(event)
-    const { nome, vencimento } = body
+    const { nome, vencimento, max_usuarios } = body
 
     // Validar dados obrigatórios
     if (!nome || nome.trim().length < 2) {
@@ -43,6 +43,15 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Data de vencimento é obrigatória'
+      })
+    }
+
+    // Validar max_usuarios (se fornecido)
+    const maxUsers = max_usuarios ? parseInt(max_usuarios) : 5
+    if (isNaN(maxUsers) || maxUsers < 1) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Número máximo de usuários deve ser pelo menos 1'
       })
     }
 
@@ -63,12 +72,14 @@ export default defineEventHandler(async (event) => {
       .from('empresas')
       .insert({
         nome: nome.trim(),
-        vencimento: dataVenc.toISOString().split('T')[0]
+        vencimento: dataVenc.toISOString().split('T')[0],
+        max_usuarios: maxUsers
       })
       .select(`
         id,
         nome,
         vencimento,
+        max_usuarios,
         created_at,
         updated_at
       `)
@@ -100,6 +111,7 @@ export default defineEventHandler(async (event) => {
       id: empresa.id,
       nome: empresa.nome,
       vencimento: empresa.vencimento,
+      maxUsuarios: empresa.max_usuarios,
       diasParaVencimento: diffDias,
       statusVencimento,
       totalUsuarios: 0,

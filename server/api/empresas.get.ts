@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
         id,
         nome,
         vencimento,
+        max_usuarios,
         created_at,
         updated_at,
         users (
@@ -79,6 +80,7 @@ export default defineEventHandler(async (event) => {
         id: empresa.id,
         nome: empresa.nome,
         vencimento: empresa.vencimento,
+        maxUsuarios: empresa.max_usuarios,
         diasParaVencimento: diffDias,
         statusVencimento,
         totalUsuarios,

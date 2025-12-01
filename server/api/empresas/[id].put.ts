@@ -47,6 +47,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Validar max_usuarios se fornecido
+    let maxUsers = undefined
+    if (body.max_usuarios !== undefined) {
+      maxUsers = parseInt(body.max_usuarios)
+      if (isNaN(maxUsers) || maxUsers < 1) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Número máximo de usuários deve ser pelo menos 1'
+        })
+      }
+    }
+
     // Validar formato da data
     const dataVencimento = new Date(body.vencimento)
     if (isNaN(dataVencimento.getTime())) {
@@ -71,13 +83,19 @@ export default defineEventHandler(async (event) => {
     }
 
     // Atualizar empresa
+    const updateData: any = {
+      nome: body.nome.trim(),
+      vencimento: dataVencimento.toISOString().split('T')[0], // Formato YYYY-MM-DD
+      updated_at: new Date().toISOString()
+    }
+    
+    if (maxUsers !== undefined) {
+      updateData.max_usuarios = maxUsers
+    }
+
     const { data: empresaAtualizada, error: updateError } = await client
       .from('empresas')
-      .update({
-        nome: body.nome.trim(),
-        vencimento: dataVencimento.toISOString().split('T')[0], // Formato YYYY-MM-DD
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', empresaId)
       .select()
       .single()
@@ -96,6 +114,7 @@ export default defineEventHandler(async (event) => {
         id: empresaAtualizada.id,
         nome: empresaAtualizada.nome,
         vencimento: empresaAtualizada.vencimento,
+        maxUsuarios: empresaAtualizada.max_usuarios,
         updated_at: empresaAtualizada.updated_at
       }
     }
