@@ -115,7 +115,6 @@
                         </svg>
                         Criada em {{ formatDate(tag.createdAt) }}
                       </span>
-                      <span>{{ tag.usageCount }} usos</span>
                     </div>
                   </div>
                 </div>
@@ -293,9 +292,6 @@
               <p class="mt-2 text-sm text-gray-500">
                 Tem certeza que deseja excluir a etiqueta <strong>"{{ tagToDelete?.name }}"</strong>?
                 Esta ação não pode ser desfeita.
-              </p>
-              <p v-if="tagToDelete && tagToDelete.usageCount > 0" class="mt-2 text-sm text-amber-600">
-                ⚠️ Esta etiqueta está sendo usada em {{ tagToDelete.usageCount }} registro(s).
               </p>
             </div>
           </div>
