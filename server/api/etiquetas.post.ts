@@ -4,19 +4,29 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas POST: Iniciando requisição')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // 1. Tentar obter usuário do contexto (padrão Nuxt Supabase)
+    let user = event.context.user
+    console.log('API /api/etiquetas POST: Usuário do contexto:', user?.id)
 
-    if (userError || !user) {
-      console.error('API /api/etiquetas POST: Erro de autenticação:', userError)
+    // 2. Se não houver usuário no contexto, tentar serverSupabaseUser
+    if (!user) {
+      console.log('API /api/etiquetas POST: Usuário não encontrado no contexto, tentando serverSupabaseUser')
+      user = await serverSupabaseUser(event)
+      console.log('API /api/etiquetas POST: Resultado serverSupabaseUser:', user?.id)
+    }
+
+    if (!user) {
+      console.error('API /api/etiquetas POST: Usuário não autenticado (falha em ambas as tentativas)')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
-    console.log('API /api/etiquetas POST: Usuário autenticado:', user.id)
+    console.log('API /api/etiquetas POST: Usuário autenticado confirmado:', user.id)
+
+    // Inicializar cliente Supabase apenas para operações de banco
+    const client = await serverSupabaseClient(event)
 
     // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
@@ -121,17 +131,15 @@ export default defineEventHandler(async (event) => {
     // Criar nova etiqueta
     console.log('API /api/etiquetas POST: Criando nova etiqueta:', {
       nome: nome.trim(),
-      empresaId: userData.empresa_id,
-      criadoPor: user.id
+      empresaId: userData.empresa_id
     })
-    const { data: etiqueta, error: createError } = await client
+    const { data: etiqueta, error: insertError } = await client
       .from('etiquetas')
       .insert({
         nome: nome.trim(),
         descricao: descricao?.trim() || null,
         cor: cor.toUpperCase(),
-        empresa_id: userData.empresa_id,
-        criado_por: user.id
+        empresa_id: userData.empresa_id
       })
       .select(`
         id,
@@ -139,21 +147,15 @@ export default defineEventHandler(async (event) => {
         descricao,
         cor,
         created_at,
-        updated_at,
-        criado_por,
-        users (
-          id,
-          name,
-          email
-        )
+        updated_at
       `)
       .single()
 
-    if (createError) {
-      console.error('API /api/etiquetas POST: Erro ao criar etiqueta:', createError)
+    if (insertError) {
+      console.error('API /api/etiquetas POST: Erro ao criar etiqueta:', insertError)
       throw createError({
         statusCode: 500,
-        statusMessage: 'Erro ao criar etiqueta'
+        statusMessage: 'Erro ao criar etiqueta: ' + insertError.message
       })
     }
 
@@ -166,8 +168,7 @@ export default defineEventHandler(async (event) => {
         ...etiqueta,
         usageCount: 0,
         createdAt: etiqueta.created_at,
-        updatedAt: etiqueta.updated_at,
-        createdBy: etiqueta.users
+        updatedAt: etiqueta.updated_at
       }
     }
 

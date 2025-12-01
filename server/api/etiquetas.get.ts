@@ -85,13 +85,7 @@ export default defineEventHandler(async (event) => {
         descricao,
         cor,
         created_at,
-        updated_at,
-        criado_por,
-        users (
-          id,
-          name,
-          email
-        )
+        updated_at
       `)
       .eq('empresa_id', userData.empresa_id)
       .order('created_at', { ascending: false })
@@ -116,8 +110,7 @@ export default defineEventHandler(async (event) => {
       ...etiqueta,
       usageCount: 0, // Placeholder - implementar contagem real futuramente
       createdAt: etiqueta.created_at,
-      updatedAt: etiqueta.updated_at,
-      createdBy: etiqueta.users
+      updatedAt: etiqueta.updated_at
     })) || []
 
     console.log('API /api/etiquetas: Retornando dados com sucesso')

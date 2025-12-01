@@ -61,33 +61,23 @@ export default defineEventHandler(async (event) => {
 
     // 4. Obter usuário autenticado
     console.log('📥 [inboxes.post] Verificando autenticação do usuário...')
-    let user
-    try {
-      const { data, error: userError } = await client.auth.getUser()
-      if (userError) {
-        console.error('❌ [inboxes.post] Erro de autenticação:', userError)
-        throw createError({
-          statusCode: 401,
-          statusMessage: 'Erro de autenticação: ' + (userError.message || 'Token inválido')
-        })
-      }
-      user = data.user
-      if (!user) {
-        console.error('❌ [inboxes.post] Usuário não encontrado na sessão')
-        throw createError({
-          statusCode: 401,
-          statusMessage: 'Usuário não autenticado'
-        })
-      }
-      console.log('✅ [inboxes.post] Usuário autenticado:', user.id)
-    } catch (authError: any) {
-      if (authError.statusCode) throw authError
-      console.error('❌ [inboxes.post] Erro inesperado na autenticação:', authError)
+    let user = event.context.user
+    console.log('📥 [inboxes.post] Usuário do contexto:', user?.id)
+
+    if (!user) {
+      console.log('📥 [inboxes.post] Usuário não encontrado no contexto, tentando serverSupabaseUser')
+      user = await serverSupabaseUser(event)
+      console.log('📥 [inboxes.post] Resultado serverSupabaseUser:', user?.id)
+    }
+
+    if (!user) {
+      console.error('❌ [inboxes.post] Usuário não autenticado (falha em ambas as tentativas)')
       throw createError({
         statusCode: 401,
-        statusMessage: 'Falha na autenticação: ' + (authError.message || 'Erro desconhecido')
+        statusMessage: 'Usuário não autenticado'
       })
     }
+    console.log('✅ [inboxes.post] Usuário autenticado:', user.id)
 
     // 5. Buscar empresa do usuário
     console.log('📥 [inboxes.post] Buscando empresa do usuário...')

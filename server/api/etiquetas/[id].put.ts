@@ -4,19 +4,29 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas PUT: Iniciando requisição')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // 1. Tentar obter usuário do contexto (padrão Nuxt Supabase)
+    let user = event.context.user
+    console.log('API /api/etiquetas PUT: Usuário do contexto:', user?.id)
 
-    if (userError || !user) {
-      console.error('API /api/etiquetas PUT: Erro de autenticação:', userError)
+    // 2. Se não houver usuário no contexto, tentar serverSupabaseUser
+    if (!user) {
+      console.log('API /api/etiquetas PUT: Usuário não encontrado no contexto, tentando serverSupabaseUser')
+      user = await serverSupabaseUser(event)
+      console.log('API /api/etiquetas PUT: Resultado serverSupabaseUser:', user?.id)
+    }
+
+    if (!user) {
+      console.error('API /api/etiquetas PUT: Usuário não autenticado (falha em ambas as tentativas)')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
-    console.log('API /api/etiquetas PUT: Usuário autenticado:', user.id)
+    console.log('API /api/etiquetas PUT: Usuário autenticado confirmado:', user.id)
+
+    // Inicializar cliente Supabase apenas para operações de banco
+    const client = await serverSupabaseClient(event)
 
     // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
@@ -174,13 +184,7 @@ export default defineEventHandler(async (event) => {
         descricao,
         cor,
         created_at,
-        updated_at,
-        criado_por,
-        users (
-          id,
-          name,
-          email
-        )
+        updated_at
       `)
       .single()
 
@@ -201,8 +205,7 @@ export default defineEventHandler(async (event) => {
         ...etiqueta,
         usageCount: 0, // Placeholder - implementar contagem real futuramente
         createdAt: etiqueta.created_at,
-        updatedAt: etiqueta.updated_at,
-        createdBy: etiqueta.users
+        updatedAt: etiqueta.updated_at
       }
     }
 

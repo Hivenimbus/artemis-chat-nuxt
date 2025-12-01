@@ -4,19 +4,29 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas DELETE: Iniciando requisição')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // 1. Tentar obter usuário do contexto (padrão Nuxt Supabase)
+    let user = event.context.user
+    console.log('API /api/etiquetas DELETE: Usuário do contexto:', user?.id)
 
-    if (userError || !user) {
-      console.error('API /api/etiquetas DELETE: Erro de autenticação:', userError)
+    // 2. Se não houver usuário no contexto, tentar serverSupabaseUser
+    if (!user) {
+      console.log('API /api/etiquetas DELETE: Usuário não encontrado no contexto, tentando serverSupabaseUser')
+      user = await serverSupabaseUser(event)
+      console.log('API /api/etiquetas DELETE: Resultado serverSupabaseUser:', user?.id)
+    }
+
+    if (!user) {
+      console.error('API /api/etiquetas DELETE: Usuário não autenticado (falha em ambas as tentativas)')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
-    console.log('API /api/etiquetas DELETE: Usuário autenticado:', user.id)
+    console.log('API /api/etiquetas DELETE: Usuário autenticado confirmado:', user.id)
+
+    // Inicializar cliente Supabase apenas para operações de banco
+    const client = await serverSupabaseClient(event)
 
     // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
