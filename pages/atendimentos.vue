@@ -483,9 +483,9 @@ const loadInboxes = async () => {
 }
 
 // Carregar atendimentos do Supabase
-const loadAtendimentos = async (inboxId = null) => {
+const loadAtendimentos = async (inboxId = null, showLoading = true) => {
   try {
-    loading.value = true
+    if (showLoading) loading.value = true
     error.value = null
 
     const params = new URLSearchParams()
@@ -507,7 +507,7 @@ const loadAtendimentos = async (inboxId = null) => {
     error.value = err.message || 'Erro ao carregar atendimentos'
     atendimentos.value = []
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
@@ -549,7 +549,7 @@ const startPolling = () => {
   pollingInterval = setInterval(async () => {
     // Só atualizar se não estiver carregando
     if (!loading.value) {
-      await loadAtendimentos(selectedCaixaEntrada.value)
+      await loadAtendimentos(selectedCaixaEntrada.value, false)
 
       // Se há um contato selecionado, atualizar também as mensagens
       if (selectedContact.value) {
