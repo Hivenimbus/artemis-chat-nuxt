@@ -438,6 +438,133 @@
         </Transition>
       </div>
     </Transition>
+
+    <!-- Add Column Modal -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showAddColumnModal"
+        class="modal-overlay"
+        @click.self="closeAddColumnModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-column-modal-title"
+      >
+        <Transition name="modal-pop">
+          <div
+            v-if="showAddColumnModal"
+            class="modal-content"
+            @click.stop
+          >
+            <form @submit.prevent="confirmAddColumn">
+              <div class="modal-header">
+                <h3 id="add-column-modal-title" class="modal-title">
+                  <svg class="modal-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Adicionar Nova Coluna
+                </h3>
+              </div>
+
+              <div class="modal-body">
+                <div class="form-group">
+                  <label for="new-column-name" class="form-label">
+                    Nome da Coluna
+                  </label>
+                  <input
+                    id="new-column-name"
+                    v-model="addColumnForm.name"
+                    type="text"
+                    required
+                    class="form-input"
+                    placeholder="Ex: Em Revisão, Aguardando..."
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Personalização</label>
+                  <div class="flex gap-4 items-center">
+                    <!-- Icon Selection -->
+                    <div class="column-custom-dropdown-wrapper">
+                      <button
+                        type="button"
+                        @click.stop="toggleAddColumnIconDropdown"
+                        class="btn-column-custom btn-column-icon"
+                        style="width: 3rem; height: 3rem;"
+                        title="Escolher ícone"
+                      >
+                        <svg class="column-custom-icon" style="width: 1.5rem; height: 1.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(addColumnForm.icon)" />
+                        </svg>
+                      </button>
+                      <div v-if="openAddColumnIconDropdown" class="column-custom-dropdown" style="left: 0; right: auto;">
+                        <div
+                          v-for="iconOption in iconOptions"
+                          :key="iconOption.value"
+                          @click="setAddColumnIcon(iconOption.value)"
+                          class="column-custom-option"
+                          :class="{ 'column-custom-option--active': addColumnForm.icon === iconOption.value }"
+                        >
+                          <svg class="column-custom-option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="iconOption.path" />
+                          </svg>
+                          <span>{{ iconOption.label }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Color Selection -->
+                    <div class="column-custom-dropdown-wrapper">
+                      <button
+                        type="button"
+                        @click.stop="toggleAddColumnColorDropdown"
+                        class="btn-column-custom btn-column-color"
+                        style="width: 3rem; height: 3rem;"
+                        :style="{ backgroundColor: getColorData(addColumnForm.color).hex }"
+                        title="Escolher cor"
+                      >
+                      </button>
+                      <div v-if="openAddColumnColorDropdown" class="column-custom-dropdown" style="left: 0; right: auto;">
+                        <div
+                          v-for="colorOption in colorOptions"
+                          :key="colorOption.value"
+                          @click="setAddColumnColor(colorOption.value)"
+                          class="column-custom-option"
+                          :class="{ 'column-custom-option--active': addColumnForm.color === colorOption.value }"
+                        >
+                          <div class="column-color-preview" :style="{ backgroundColor: colorOption.hex }"></div>
+                          <span>{{ colorOption.label }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="form-helper-text">
+                    Escolha um ícone e uma cor para identificar a coluna.
+                  </p>
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  @click="closeAddColumnModal"
+                  class="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  :disabled="savingColumn || !addColumnForm.name.trim()"
+                  class="btn btn-primary"
+                >
+                  <span v-if="savingColumn">Adicionando...</span>
+                  <span v-else>Adicionar Coluna</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
   </div>
 
   <!-- Sistema de Notificações -->
@@ -585,6 +712,15 @@ const cardForm = ref({
   description: '',
   column_id: null,
   is_urgent: false
+})
+
+// Add Column modal state
+const showAddColumnModal = ref(false)
+const savingColumn = ref(false)
+const addColumnForm = ref({
+  name: '',
+  icon: 'clipboard',
+  color: 'blue'
 })
 
 // Kanban modal state
@@ -898,17 +1034,57 @@ const addNewColumn = async () => {
     return
   }
 
-  const title = prompt('Nome da nova coluna:')
-  if (!title || !title.trim()) return
+  addColumnForm.value = {
+    name: '',
+    icon: 'clipboard',
+    color: 'blue'
+  }
+  showAddColumnModal.value = true
+}
+
+// Add Column Modal Logic
+const openAddColumnIconDropdown = ref(false)
+const openAddColumnColorDropdown = ref(false)
+
+const toggleAddColumnIconDropdown = () => {
+  openAddColumnIconDropdown.value = !openAddColumnIconDropdown.value
+  openAddColumnColorDropdown.value = false
+}
+
+const toggleAddColumnColorDropdown = () => {
+  openAddColumnColorDropdown.value = !openAddColumnColorDropdown.value
+  openAddColumnIconDropdown.value = false
+}
+
+const setAddColumnIcon = (icon) => {
+  addColumnForm.value.icon = icon
+  openAddColumnIconDropdown.value = false
+}
+
+const setAddColumnColor = (color) => {
+  addColumnForm.value.color = color
+  openAddColumnColorDropdown.value = false
+}
+
+const closeAddColumnModal = () => {
+  showAddColumnModal.value = false
+  openAddColumnIconDropdown.value = false
+  openAddColumnColorDropdown.value = false
+}
+
+const confirmAddColumn = async () => {
+  if (!addColumnForm.value.name.trim()) return
 
   try {
+    savingColumn.value = true
+
     const { data: newColumn, error } = await supabase
       .from('kanban_columns')
       .insert({
         kanban_id: currentKanbanId.value,
-        title: title.trim(),
-        icon: 'clipboard',
-        color: 'blue',
+        title: addColumnForm.value.name.trim(),
+        icon: addColumnForm.value.icon,
+        color: addColumnForm.value.color,
         position: columns.value.length
       })
       .select()
@@ -928,9 +1104,13 @@ const addNewColumn = async () => {
         })
       }
     })
+
+    closeAddColumnModal()
   } catch (error) {
     console.error('Error adding column:', error)
     showNotification('Erro ao adicionar coluna. Tente novamente.', 'error')
+  } finally {
+    savingColumn.value = false
   }
 }
 
