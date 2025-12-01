@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,17 +25,18 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (GET): Buscando contato:', contatoId)
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário autenticado do contexto (injetado pelo middleware 01-auth-check)
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/contatos/[id] (GET): Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/contatos/[id] (GET): Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Buscar dados completos do usuário na tabela users
     const { data: userData, error } = await client

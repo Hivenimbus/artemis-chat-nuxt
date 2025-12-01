@@ -1,4 +1,14 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
+
+// Definir interface para o tipo de usuário retornado pelo Supabase
+interface DatabaseUser {
+  id: string
+  email: string
+  role: string
+  empresa_id: string
+  created_at: string
+  updated_at: string
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -23,24 +33,28 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário autenticado do contexto (injetado pelo middleware 01-auth-check)
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/contatos/[id] (PUT): Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/contatos/[id] (PUT): Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
+    const client = serverSupabaseServiceRole(event)
+
     // Buscar dados completos do usuário na tabela users
-    const { data: userData, error } = await client
+    const { data: userDataResponse, error } = await client
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
+
+    // Cast para o tipo definido
+    const userData = userDataResponse as unknown as DatabaseUser
 
     if (error) {
       console.error('API /api/contatos/[id] (PUT): Erro ao buscar dados do usuário:', error)
@@ -50,7 +64,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (!userData?.empresa_id) {
+    if (!userData || !userData.empresa_id) {
       console.error('API /api/contatos/[id] (PUT): Usuário não possui empresa vinculada')
       throw createError({
         statusCode: 400,
@@ -130,27 +144,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Não é necessário verificar duplicidade de email já que agora é opcional
-
     // Atualizar dados do contato
-    const { data: contatoAtualizado, error: atualizacaoError } = await client
+    const updateData: any = {
+      nome: nome.trim(),
+      sobrenome: body.sobrenome?.trim() || null,
+      email: email?.trim().toLowerCase() || null,
+      telefone: cleanPhone,
+      cidade: body.cidade?.trim() || null,
+      pais: body.pais?.trim() || null,
+      biografia: body.biografia?.trim() || null,
+      empresa: body.empresa?.trim() || null,
+      endereco: body.endereco?.trim() || null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Usando any para contornar problemas de tipagem com o cliente supabase
+    const { data: contatoAtualizadoResponse, error: atualizacaoError } = await (client
       .from('contatos')
-      .update({
-        nome: nome.trim(),
-        sobrenome: body.sobrenome?.trim() || null,
-        email: email?.trim().toLowerCase() || null,
-        telefone: cleanPhone,
-        cidade: body.cidade?.trim() || null,
-        pais: body.pais?.trim() || null,
-        biografia: body.biografia?.trim() || null,
-        empresa: body.empresa?.trim() || null,
-        endereco: body.endereco?.trim() || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData as never)
       .eq('id', contatoId)
       .eq('empresa_id', userData.empresa_id)
       .select()
-      .single()
+      .single() as any)
+
+    // Cast para any para evitar erros de tipagem estritos do TS com supabase
+    const contatoAtualizado = contatoAtualizadoResponse as any
 
     if (atualizacaoError) {
       console.error('API /api/contatos/[id] (PUT): Erro ao atualizar contato:', atualizacaoError)
@@ -163,7 +181,6 @@ export default defineEventHandler(async (event) => {
     console.log('API /api/contatos/[id] (PUT): Contato atualizado:', contatoAtualizado.id)
 
     // Atualizar etiquetas associadas
-    // Primeiro, remover todas as associações existentes
     const { error: removeAssociacoesError } = await client
       .from('contato_etiquetas')
       .delete()
@@ -171,13 +188,10 @@ export default defineEventHandler(async (event) => {
 
     if (removeAssociacoesError) {
       console.error('API /api/contatos/[id] (PUT): Erro ao remover associações de etiquetas:', removeAssociacoesError)
-      // Não falhar a atualização do contato se der erro nas etiquetas
     } else {
-      // Adicionar novas associações se fornecidas
       if (tags && tags.length > 0) {
         console.log('API /api/contatos/[id] (PUT): Associando novas etiquetas:', tags)
 
-        // Buscar IDs das etiquetas pelo nome
         const { data: etiquetasExistentes, error: etiquetasError } = await client
           .from('etiquetas')
           .select('id, nome')
@@ -186,21 +200,18 @@ export default defineEventHandler(async (event) => {
 
         if (etiquetasError) {
           console.error('API /api/contatos/[id] (PUT): Erro ao buscar etiquetas:', etiquetasError)
-          // Não falhar a atualização do contato se der erro nas etiquetas
         } else if (etiquetasExistentes && etiquetasExistentes.length > 0) {
-          // Criar novas associações
-          const associacoesEtiquetas = etiquetasExistentes.map(etiqueta => ({
+          const associacoesEtiquetas = etiquetasExistentes.map((etiqueta: any) => ({
             contato_id: contatoId,
             etiqueta_id: etiqueta.id
           }))
 
           const { error: associacaoError } = await client
             .from('contato_etiquetas')
-            .insert(associacoesEtiquetas)
+            .insert(associacoesEtiquetas as any)
 
           if (associacaoError) {
             console.error('API /api/contatos/[id] (PUT): Erro ao associar etiquetas:', associacaoError)
-            // Não falhar a atualização do contato se der erro nas associações
           } else {
             console.log('API /api/contatos/[id] (PUT): Etiquetas associadas com sucesso')
           }
@@ -209,7 +220,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Buscar contato completo com etiquetas para retornar
-    const { data: contatoCompleto, error: buscaError } = await client
+    const { data: contatoCompletoResponse, error: buscaError } = await client
       .from('contatos')
       .select(`
         id,
@@ -237,43 +248,36 @@ export default defineEventHandler(async (event) => {
       .eq('id', contatoId)
       .single()
 
+    const contatoCompleto = contatoCompletoResponse as any
+
     if (buscaError) {
       console.error('API /api/contatos/[id] (PUT): Erro ao buscar contato completo:', buscaError)
-      // Retornar contato básico se der erro na busca completa
     }
 
-    // Formatar dados para o frontend
-    const contatoFormatado = contatoCompleto ? {
-      ...contatoCompleto,
-      tags: contatoCompleto.contato_etiquetas
-        ?.filter(ce => ce.etiquetas)
-        ?.map(ce => ({
+    // Helper para formatar
+    const formatContact = (c: any) => ({
+      ...c,
+      tags: c.contato_etiquetas
+        ?.filter((ce: any) => ce.etiquetas)
+        ?.map((ce: any) => ({
           id: ce.etiquetas.id,
           nome: ce.etiquetas.nome,
           cor: ce.etiquetas.cor
         })) || [],
-      name: contatoCompleto.nome,
-      lastName: contatoCompleto.sobrenome || '',
-      phone: contatoCompleto.telefone,
-      country: contatoCompleto.pais || '',
-      company: contatoCompleto.empresa || '',
-      address: contatoCompleto.endereco || '',
-      city: contatoCompleto.cidade || '',
-      biography: contatoCompleto.biografia || '',
-      lastContact: contatoCompleto.created_at
-    } : {
-      ...contatoAtualizado,
-      tags: [],
-      name: contatoAtualizado.nome,
-      lastName: contatoAtualizado.sobrenome || '',
-      phone: contatoAtualizado.telefone,
-      country: contatoAtualizado.pais || '',
-      company: contatoAtualizado.empresa || '',
-      address: contatoAtualizado.endereco || '',
-      city: contatoAtualizado.cidade || '',
-      biography: contatoAtualizado.biografia || '',
-      lastContact: contatoAtualizado.created_at
-    }
+      name: c.nome,
+      lastName: c.sobrenome || '',
+      phone: c.telefone,
+      country: c.pais || '',
+      company: c.empresa || '',
+      address: c.endereco || '',
+      city: c.cidade || '',
+      biography: c.biografia || '',
+      lastContact: c.created_at
+    })
+
+    const contatoFormatado = contatoCompleto 
+      ? formatContact(contatoCompleto)
+      : formatContact({ ...contatoAtualizado, contato_etiquetas: [] })
 
     console.log('API /api/contatos/[id] (PUT): Contato atualizado com sucesso')
 
@@ -282,15 +286,13 @@ export default defineEventHandler(async (event) => {
       data: contatoFormatado
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/contatos/[id] (PUT): Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

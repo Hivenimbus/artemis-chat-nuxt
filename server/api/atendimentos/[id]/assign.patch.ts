@@ -1,15 +1,14 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/atendimentos/[id]/assign: Iniciando atribuição de atendimento')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/atendimentos/[id]/assign: Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/atendimentos/[id]/assign: Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
@@ -24,6 +23,8 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'ID do atendimento é obrigatório'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Obter dados do usuário
     const { data: userData, error: userDataError } = await client

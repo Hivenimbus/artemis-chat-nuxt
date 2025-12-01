@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -25,17 +25,18 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (DELETE): Excluindo contato:', contatoId)
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário autenticado do contexto
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/contatos/[id] (DELETE): Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/contatos/[id] (DELETE): Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Buscar dados completos do usuário na tabela users
     const { data: userData, error } = await client
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (!userData?.empresa_id) {
+    if (!userData || !userData.empresa_id) {
       console.error('API /api/contatos/[id] (DELETE): Usuário não possui empresa vinculada')
       throw createError({
         statusCode: 400,
@@ -119,15 +120,13 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/contatos/[id] (DELETE): Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
