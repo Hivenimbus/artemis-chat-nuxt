@@ -625,6 +625,131 @@
         </Transition>
       </div>
     </Transition>
+
+    <!-- Edit Kanban Modal -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showEditKanbanModal"
+        class="modal-overlay"
+        @click.self="closeEditKanbanModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-kanban-modal-title"
+      >
+        <Transition name="modal-pop">
+          <div
+            v-if="showEditKanbanModal"
+            class="modal-content"
+            @click.stop
+          >
+            <form @submit.prevent="confirmEditKanban">
+              <div class="modal-header">
+                <h3 id="edit-kanban-modal-title" class="modal-title">
+                  <svg class="modal-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Editar Kanban
+                </h3>
+              </div>
+
+              <div class="modal-body">
+                <div class="form-group">
+                  <label for="edit-kanban-name" class="form-label">
+                    Nome do Kanban
+                  </label>
+                  <input
+                    id="edit-kanban-name"
+                    v-model="editKanbanForm.name"
+                    type="text"
+                    required
+                    class="form-input"
+                    placeholder="Ex: Projetos, Pessoal, Trabalho..."
+                  />
+                </div>
+              </div>
+
+              <div class="modal-footer">
+                <button
+                  type="button"
+                  @click="closeEditKanbanModal"
+                  class="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  :disabled="savingEditKanban || !editKanbanForm.name.trim()"
+                  class="btn btn-primary"
+                >
+                  <span v-if="savingEditKanban">Salvando...</span>
+                  <span v-else>Salvar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+
+    <!-- Delete Kanban Confirmation Modal -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showDeleteKanbanModal"
+        class="modal-overlay"
+        @click.self="closeDeleteKanbanModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-kanban-modal-title"
+      >
+        <Transition name="modal-pop">
+          <div
+            v-if="showDeleteKanbanModal"
+            class="modal-content"
+            style="max-width: 28rem;"
+            @click.stop
+          >
+            <div class="modal-header">
+              <h3 id="delete-kanban-modal-title" class="modal-title text-red-600" style="color: #dc2626;">
+                <svg class="modal-title-icon text-red-600" style="color: #dc2626;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Excluir Kanban
+              </h3>
+            </div>
+
+            <div class="modal-body" style="min-height: auto;">
+              <p class="text-gray-700 mb-4">
+                Tem certeza que deseja excluir o kanban <strong>{{ kanbanToDelete?.title }}</strong>?
+              </p>
+              <p class="text-gray-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100" style="background-color: #fef2f2; border-color: #fee2e2;">
+                <strong class="text-red-700 block mb-1" style="color: #b91c1c;">Atenção:</strong>
+                Todos os cartões e colunas deste kanban serão excluídos permanentemente. Esta ação não pode ser desfeita.
+              </p>
+            </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                @click="closeDeleteKanbanModal"
+                class="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                @click="confirmDeleteKanban"
+                :disabled="deletingKanban"
+                class="btn btn-primary"
+                style="background: #dc2626; border-color: #dc2626;"
+              >
+                <span v-if="deletingKanban">Excluindo...</span>
+                <span v-else>Sim, Excluir Kanban</span>
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
   </div>
 
   <!-- Sistema de Notificações -->
@@ -788,6 +913,19 @@ const showDeleteColumnModal = ref(false)
 const columnToDelete = ref(null)
 const deletingColumn = ref(false)
 
+// Edit Kanban modal state
+const showEditKanbanModal = ref(false)
+const savingEditKanban = ref(false)
+const editKanbanForm = ref({
+  id: null,
+  name: ''
+})
+
+// Delete Kanban modal state
+const showDeleteKanbanModal = ref(false)
+const kanbanToDelete = ref(null)
+const deletingKanban = ref(false)
+
 // Kanban modal state
 const showKanbanModal = ref(false)
 const savingKanban = ref(false)
@@ -867,30 +1005,53 @@ const loadKanbanData = async () => {
 }
 
 // Edit kanban
-const editKanban = async (kanban) => {
-  const newName = prompt('Novo nome do kanban:', kanban.title)
-  if (newName && newName.trim() && newName.trim() !== kanban.title) {
-    try {
-      const { error } = await supabase
-        .from('kanbans')
-        .update({
-          title: newName.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', kanban.id)
+const editKanban = (kanban) => {
+  editKanbanForm.value = {
+    id: kanban.id,
+    name: kanban.title
+  }
+  showEditKanbanModal.value = true
+  showKanbanMenu.value = false
+}
 
-      if (error) throw error
+const closeEditKanbanModal = () => {
+  showEditKanbanModal.value = false
+  editKanbanForm.value = { id: null, name: '' }
+}
 
-      kanban.title = newName.trim()
-    } catch (error) {
-      console.error('Error updating kanban:', error)
-      showNotification('Erro ao atualizar kanban. Tente novamente.', 'error')
+const confirmEditKanban = async () => {
+  const { id, name } = editKanbanForm.value
+  if (!id || !name.trim()) return
+
+  try {
+    savingEditKanban.value = true
+    const { error } = await supabase
+      .from('kanbans')
+      .update({
+        title: name.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    const kanban = kanbans.value.find(k => k.id === id)
+    if (kanban) {
+      kanban.title = name.trim()
     }
+    
+    closeEditKanbanModal()
+    showNotification('Kanban atualizado com sucesso.', 'success')
+  } catch (error) {
+    console.error('Error updating kanban:', error)
+    showNotification('Erro ao atualizar kanban. Tente novamente.', 'error')
+  } finally {
+    savingEditKanban.value = false
   }
 }
 
 // Delete kanban
-const deleteKanban = async (kanbanId) => {
+const deleteKanban = (kanbanId) => {
   const kanban = kanbans.value.find(k => k.id === kanbanId)
   if (!kanban) return
 
@@ -899,11 +1060,23 @@ const deleteKanban = async (kanbanId) => {
     return
   }
 
-  if (!confirm(`Tem certeza que deseja excluir o kanban "${kanban.title}"? Todos os cartões serão perdidos.`)) {
-    return
-  }
+  kanbanToDelete.value = kanban
+  showDeleteKanbanModal.value = true
+  showKanbanMenu.value = false
+}
+
+const closeDeleteKanbanModal = () => {
+  showDeleteKanbanModal.value = false
+  kanbanToDelete.value = null
+}
+
+const confirmDeleteKanban = async () => {
+  if (!kanbanToDelete.value) return
+
+  const kanbanId = kanbanToDelete.value.id
 
   try {
+    deletingKanban.value = true
     const { error } = await supabase
       .from('kanbans')
       .delete()
@@ -925,10 +1098,13 @@ const deleteKanban = async (kanbanId) => {
       }
     }
 
-    showKanbanMenu.value = false
+    closeDeleteKanbanModal()
+    showNotification('Kanban excluído com sucesso.', 'success')
   } catch (error) {
     console.error('Error deleting kanban:', error)
     showNotification('Erro ao excluir kanban. Tente novamente.', 'error')
+  } finally {
+    deletingKanban.value = false
   }
 }
 
