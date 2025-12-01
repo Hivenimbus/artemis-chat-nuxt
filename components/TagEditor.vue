@@ -1,63 +1,62 @@
 <template>
   <div class="flex flex-wrap items-center gap-1">
-    <!-- Tags Display/Edit -->
-    <div class="flex flex-wrap gap-1 items-center">
-      <!-- Tags atuais -->
-      <span
-        v-for="tag in currentTags"
-        :key="typeof tag === 'object' ? tag.name : tag"
-        :class="getTagColor(tag)"
-        class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium group relative"
-      >
-        {{ typeof tag === 'object' ? tag.name : tag }}
-        <!-- Botão de remover tag (visível apenas no modo de edição) -->
-        <button
-          v-if="editing"
-          @click.stop="removeTag(tag)"
-          class="ml-1 text-current hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
-        >
-          <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-          </svg>
-        </button>
-      </span>
-
-      <!-- Botão de adicionar tag (visível apenas no modo de edição) -->
+    <!-- Tags atuais -->
+    <span
+      v-for="tag in currentTags"
+      :key="typeof tag === 'object' ? tag.name : tag"
+      :class="getTagColor(tag)"
+      class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium group relative"
+    >
+      {{ typeof tag === 'object' ? tag.name : tag }}
+      <!-- Botão de remover tag (visível apenas no modo de edição) -->
       <button
-        ref="addButtonRef"
         v-if="editing"
-        @click="toggleDropdown"
-        class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors border border-gray-300 border-dashed"
+        @click.stop="removeTag(tag)"
+        class="ml-1 text-current hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
       >
-        <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+        <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
         </svg>
-        Adicionar
       </button>
-    </div>
+    </span>
 
-    <!-- Botão de editar tags -->
+    <!-- Botão de adicionar tag (visível apenas no modo de edição) -->
+    <button
+      ref="addButtonRef"
+      v-if="editing"
+      @click="toggleDropdown"
+      class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors border border-gray-300 border-dashed"
+    >
+      <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+      </svg>
+      Adicionar
+    </button>
+
+    <!-- Botão de editar tags (agora com texto explícito) -->
     <button
       v-if="!editing"
       @click="$emit('toggle-edit')"
-      class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
+      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
       title="Editar tags"
     >
-      <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
       </svg>
+      Editar tag
     </button>
 
     <!-- Botão de sair do modo de edição (visível apenas no modo de edição) -->
     <button
       v-if="editing"
       @click="cancelEdit"
-      class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
-      title="Sair da edição"
+      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+      title="Concluir edição"
     >
-      <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
       </svg>
+      Concluir
     </button>
   </div>
 
