@@ -43,6 +43,13 @@ export default defineEventHandler(async (event) => {
         ),
         inbox_agents (
           inbox_id
+        ),
+        equipes_agentes (
+          equipe_id,
+          equipes (
+            id,
+            nome
+          )
         )
       `)
       .in('role', ['user', 'admin'])

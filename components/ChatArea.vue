@@ -461,33 +461,13 @@
               <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Ações</h4>
               <div class="space-y-2">
                 <button
-                  @click="$emit('export-chat')"
-                  class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
-                >
-                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                  </svg>
-                  <span>Exportar conversa</span>
-                </button>
-                
-                <button
-                  @click="$emit('transfer-chat')"
+                  @click="openTransferModal"
                   class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
                 >
                   <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                   </svg>
                   <span>Transferir atendimento</span>
-                </button>
-                
-                <button
-                  @click="$emit('block-contact')"
-                  class="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center space-x-3 transition-colors duration-200 border border-gray-200"
-                >
-                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                  </svg>
-                  <span>Bloquear contato</span>
                 </button>
               </div>
             </div>
@@ -507,6 +487,114 @@
           </div>
         </div>
       </transition>
+
+      <!-- Modal de Transferência -->
+      <div v-if="showTransferModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeTransferModal"></div>
+
+        <div class="relative bg-white rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full sm:p-6">
+          <div class="absolute top-0 right-0 pt-4 pr-4">
+            <button
+              @click="closeTransferModal"
+              type="button"
+              class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <span class="sr-only">Fechar</span>
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div class="sm:flex sm:items-start">
+            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+              <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+              <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                Transferir Atendimento
+              </h3>
+              <div class="mt-2">
+                <p class="text-sm text-gray-500 mb-4">
+                  Selecione um agente ou equipe para transferir este atendimento.
+                </p>
+
+                <!-- Loading State -->
+                <div v-if="loadingAgents" class="flex justify-center py-4">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                </div>
+
+                <!-- Lista de Agentes e Equipes -->
+                <div v-else class="mt-4 max-h-60 overflow-y-auto space-y-4">
+                  <!-- Equipes e seus membros -->
+                  <div v-for="equipe in groupedAgents.teams" :key="equipe.id">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">
+                      {{ equipe.nome }}
+                    </h4>
+                    <ul class="space-y-1">
+                      <li v-for="agente in equipe.membros" :key="agente.id">
+                        <button
+                          @click="transferToAgent(agente)"
+                          class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center justify-between group transition-colors"
+                          :disabled="transferringChat"
+                        >
+                          <div class="flex items-center">
+                            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-medium mr-3">
+                              {{ getInitials(agente.name) }}
+                            </div>
+                            <div>
+                              <p class="text-sm font-medium text-gray-900">{{ agente.name }}</p>
+                              <p class="text-xs text-gray-500">{{ agente.email }}</p>
+                            </div>
+                          </div>
+                          <svg class="h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <!-- Agentes sem equipe -->
+                  <div v-if="groupedAgents.others.length > 0">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">
+                      Outros Agentes
+                    </h4>
+                    <ul class="space-y-1">
+                      <li v-for="agente in groupedAgents.others" :key="agente.id">
+                        <button
+                          @click="transferToAgent(agente)"
+                          class="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center justify-between group transition-colors"
+                          :disabled="transferringChat"
+                        >
+                          <div class="flex items-center">
+                            <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-medium mr-3">
+                              {{ getInitials(agente.name) }}
+                            </div>
+                            <div>
+                              <p class="text-sm font-medium text-gray-900">{{ agente.name }}</p>
+                              <p class="text-xs text-gray-500">{{ agente.email }}</p>
+                            </div>
+                          </div>
+                          <svg class="h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div v-if="groupedAgents.teams.length === 0 && groupedAgents.others.length === 0" class="text-center py-4 text-gray-500 text-sm">
+                    Nenhum agente disponível para transferência.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -1070,13 +1158,114 @@ const saveContactName = async () => {
   }
 }
 
+// Estados para transferência de atendimento
+const showTransferModal = ref(false)
+const agentsList = ref([])
+const loadingAgents = ref(false)
+const transferringChat = ref(false)
+
+const groupedAgents = computed(() => {
+  const teamsMap = new Map()
+  const others = []
+
+  agentsList.value.forEach(agent => {
+    // Verificar se o agente tem equipes
+    if (agent.equipes_agentes && agent.equipes_agentes.length > 0) {
+      agent.equipes_agentes.forEach(relation => {
+        const team = relation.equipes
+        if (!teamsMap.has(team.id)) {
+          teamsMap.set(team.id, {
+            id: team.id,
+            nome: team.nome,
+            membros: []
+          })
+        }
+        // Evitar duplicatas na mesma equipe (caso venha sujo do backend)
+        const teamGroup = teamsMap.get(team.id)
+        if (!teamGroup.membros.find(m => m.id === agent.id)) {
+          teamGroup.membros.push(agent)
+        }
+      })
+    } else {
+      others.push(agent)
+    }
+  })
+
+  // Converter Map para Array
+  const teams = Array.from(teamsMap.values())
+
+  return { teams, others }
+})
+
+const openTransferModal = async () => {
+  showTransferModal.value = true
+  if (agentsList.value.length === 0) {
+    await loadAgents()
+  }
+}
+
+const closeTransferModal = () => {
+  showTransferModal.value = false
+}
+
+const loadAgents = async () => {
+  loadingAgents.value = true
+  try {
+    const response = await $fetch('/api/agentes')
+    if (response?.success) {
+      // Filtrar o próprio usuário da lista (opcional, mas faz sentido não transferir para si mesmo se já é o dono)
+      // Mas o requisito diz "lista de todos os agentes", então mantemos todos.
+      agentsList.value = response.data
+    }
+  } catch (error) {
+    console.error('Erro ao carregar agentes:', error)
+    alert('Erro ao carregar lista de agentes.')
+  } finally {
+    loadingAgents.value = false
+  }
+}
+
+const transferToAgent = async (agent) => {
+  if (!props.selectedContact || transferringChat.value) return
+
+  const confirmTransfer = confirm(`Deseja transferir o atendimento para ${agent.name}?`)
+  if (!confirmTransfer) return
+
+  transferringChat.value = true
+  try {
+    const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/assign`, {
+      method: 'PATCH',
+      body: { userId: agent.id }
+    })
+
+    if (response?.success) {
+      alert(`Atendimento transferido com sucesso para ${agent.name}`)
+      closeTransferModal()
+      emit('transfer-chat', agent) // Notificar pai para atualizar UI (ex: remover da lista se necessário)
+    }
+  } catch (error) {
+    console.error('Erro ao transferir atendimento:', error)
+    alert('Erro ao transferir atendimento. Tente novamente.')
+  } finally {
+    transferringChat.value = false
+  }
+}
+
 // Funções utilitárias
 const getInitials = (name) => {
+  if (!name) return ''
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 }
 
 const getCaixaEntradaNome = (caixaId) => {
+  // Prioridade 1: Nome vindo diretamente no objeto do contato (se disponível e id corresponder)
+  if (props.selectedContact?.inbox_id === caixaId && props.selectedContact?.inbox_name) {
+    return props.selectedContact.inbox_name
+  }
+  
   if (!caixaId) return 'Não definida'
+  
+  // Prioridade 2: Mapa de inboxes carregadas
   return props.caixasEntradaMap[caixaId] || caixaId
 }
 
@@ -1154,7 +1343,6 @@ const handleMediaError = (error) => {
   console.error('Erro ao carregar mídia:', error)
   // Aqui você pode adicionar lógica adicional, como mostrar uma notificação
 }
-
 </script>
 
 <style scoped>

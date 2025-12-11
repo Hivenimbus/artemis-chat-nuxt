@@ -62,27 +62,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se atendimento já está atribuído
-    if (atendimento.usuario_responsavel_id) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Atendimento já está atribuído a outro usuário'
-      })
-    }
-
-    // Verificar se atendimento pode ser atribuído (status deve ser 'aguardando')
-    if (atendimento.status !== 'aguardando') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Apenas atendimentos com status "aguardando" podem ser atribuídos'
-      })
+    // Verificar se foi fornecido um ID de usuário alvo para transferência
+    const body = await readBody(event).catch(() => ({}))
+    const targetUserId = body?.userId || user.id
+    
+    // Verificar se o usuário alvo existe e pertence à mesma empresa (se for diferente do usuário atual)
+    if (targetUserId !== user.id) {
+      const { data: targetUser, error: targetError } = await client
+        .from('users')
+        .select('id, empresa_id')
+        .eq('id', targetUserId)
+        .single()
+        
+      if (targetError || !targetUser || targetUser.empresa_id !== userData.empresa_id) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Usuário de destino inválido ou de outra empresa'
+        })
+      }
     }
 
     // Atualizar atendimento
     const { data: atendimentoAtualizado, error: updateError } = await client
       .from('atendimentos')
       .update({
-        usuario_responsavel_id: user.id,
+        usuario_responsavel_id: targetUserId,
         status: 'ativo',
         data_atribuicao: new Date().toISOString(),
         updated_at: new Date().toISOString()

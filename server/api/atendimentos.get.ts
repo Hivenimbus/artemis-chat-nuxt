@@ -86,20 +86,9 @@ export default defineEventHandler(async (event) => {
       const directIds = directAssignments?.map(a => a.inbox_id) || []
       allowedInboxIds = [...new Set([...directIds, ...teamInboxIds])]
       
-      // Se não tiver nenhuma atribuída, retornar vazio imediatamente
-      if (allowedInboxIds.length === 0) {
-        return {
-          success: true,
-          data: {
-            atendimentos: [],
-            counts: { todos: 0, aguardando: 0, ativo: 0, concluido: 0 },
-            pagination: {
-              page: 1, limit: 50, totalItems: 0, totalPages: 0,
-              startItem: 0, endItem: 0, hasNextPage: false, hasPreviousPage: false
-            }
-          }
-        }
-      }
+      // Se não tiver nenhuma atribuída, mas pode ter atendimentos transferidos diretamente
+      // não retornamos vazio imediatamente, apenas allowedInboxIds fica vazio
+      // e a query principal cuidará de filtrar apenas os atribuídos
     }
 
     // Obter query parameters
@@ -118,23 +107,21 @@ export default defineEventHandler(async (event) => {
 
     // --- Cálculos de Counts ---
     // Fazer queries paralelas para obter os counts totais por status
-    // Respeitando o filtro de inbox_id se fornecido e as permissões
+    // Respeitando o filtro de permissão (inbox OU responsavel)
     
-    const baseCountQuery = client
-      .from('atendimentos')
-      .select('id', { count: 'exact', head: true })
-      .eq('inboxes.empresa_id', userData.empresa_id)
-      
-    // Função auxiliar para aplicar filtro de inbox e executar count
+    // Função auxiliar para aplicar filtro de permissão e executar count
     const getCount = async (statusFilter?: string) => {
       let q = client
         .from('atendimentos')
         .select('inboxes!inner(empresa_id)', { count: 'exact', head: true })
         .eq('inboxes.empresa_id', userData.empresa_id)
 
-      // Aplicar filtro de permissão
+      // Aplicar filtro de permissão composto: (inbox_id IN allowedInboxIds) OR (usuario_responsavel_id = user.id)
       if (allowedInboxIds.length > 0) {
-        q = q.in('inbox_id', allowedInboxIds)
+        q = q.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
+      } else {
+        // Se não tiver inboxes permitidas, só vê os que é responsável
+        q = q.eq('usuario_responsavel_id', user.id)
       }
 
       if (inboxId) {
@@ -214,8 +201,11 @@ export default defineEventHandler(async (event) => {
       .order('ultimo_mensagem_time', { ascending: false })
 
     // Aplicar filtro de permissão na query principal
+    // Permite ver se tem acesso à inbox OU se é o responsável
     if (allowedInboxIds.length > 0) {
-      queryBuilder = queryBuilder.in('inbox_id', allowedInboxIds)
+      queryBuilder = queryBuilder.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
+    } else {
+      queryBuilder = queryBuilder.eq('usuario_responsavel_id', user.id)
     }
 
     // Aplicar filtros
