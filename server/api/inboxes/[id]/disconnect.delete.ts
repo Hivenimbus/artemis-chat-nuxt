@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 const config = useRuntimeConfig()
 
@@ -13,22 +13,40 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto (definido no middleware 01-auth-check.ts)
+    const user = event.context.user
 
-    if (userError || !user) {
+    if (!user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
-    // Verificar se o inbox existe e pertence à empresa do usuário (RLS já faz essa verificação)
+    // Usar Service Role para bypass no RLS e autenticação customizada
+    const client = serverSupabaseServiceRole(event)
+
+    // Buscar dados do usuário para obter empresa_id e verificar permissões
+    const { data: userData, error: userDataError } = await client
+      .from('users')
+      .select('empresa_id, role')
+      .eq('id', user.id)
+      .single()
+
+    if (userDataError || !userData?.empresa_id) {
+       console.error('Erro ao buscar dados do usuário:', userDataError)
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Erro ao verificar permissões do usuário'
+      })
+    }
+
+    // Verificar se o inbox existe e pertence à empresa do usuário
     const { data: inbox, error: fetchError } = await client
       .from('inboxes')
       .select('*')
       .eq('id', id)
+      .eq('empresa_id', userData.empresa_id)
       .single()
 
     if (fetchError || !inbox) {
