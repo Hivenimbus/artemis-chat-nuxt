@@ -430,10 +430,6 @@
                   </div>
                 </div>
                 <div class="bg-gray-50 p-3 rounded-lg">
-                  <p class="text-xs text-gray-500">Status</p>
-                  <p class="text-sm font-medium text-gray-900 mt-1">{{ getStatusLabel(selectedContact.status) }}</p>
-                </div>
-                <div class="bg-gray-50 p-3 rounded-lg">
                   <p class="text-xs text-gray-500">Caixa de Entrada</p>
                   <p class="text-sm font-medium text-gray-900 mt-1">{{ getCaixaEntradaNome(selectedContact.caixa_entrada) }}</p>
                 </div>
