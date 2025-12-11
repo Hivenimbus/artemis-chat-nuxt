@@ -34,6 +34,74 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // --- Verificar Permissões de Inboxes ---
+    let allowedInboxIds: string[] = []
+    
+    // Se não for admin, filtrar apenas as inboxes atribuídas
+    if (userData.role !== 'admin' && userData.role !== 'superadmin') {
+      // 1. Buscar IDs das inboxes atribuídas diretamente ao agente
+      const { data: directAssignments, error: directError } = await client
+        .from('inbox_agents')
+        .select('inbox_id')
+        .eq('user_id', user.id)
+
+      if (directError) {
+        console.error('Erro ao buscar atribuições diretas:', directError)
+        throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões' })
+      }
+
+      // 2. Buscar equipes que o agente participa
+      const { data: userTeams, error: teamsError } = await client
+        .from('equipes_agentes')
+        .select('equipe_id')
+        .eq('agente_id', user.id)
+
+      if (teamsError) {
+        console.error('Erro ao buscar equipes do usuário:', teamsError)
+        throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões de equipe' })
+      }
+
+      const teamIds = userTeams?.map(t => t.equipe_id) || []
+      
+      let teamInboxIds: string[] = []
+
+      // 3. Se participa de equipes, buscar inboxes atribuídas a essas equipes
+      if (teamIds.length > 0) {
+        const { data: teamAssignments, error: teamInboxError } = await client
+          .from('inbox_teams')
+          .select('inbox_id')
+          .in('equipe_id', teamIds)
+
+        if (teamInboxError) {
+          console.error('Erro ao buscar atribuições de equipe:', teamInboxError)
+          throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões de inboxes da equipe' })
+        }
+        
+        if (teamAssignments) {
+          teamInboxIds = teamAssignments.map(t => t.inbox_id)
+        }
+      }
+
+      // Unir IDs únicos (diretos + equipes)
+      const directIds = directAssignments?.map(a => a.inbox_id) || []
+      allowedInboxIds = [...new Set([...directIds, ...teamInboxIds])]
+      
+      // Se não tiver nenhuma atribuída, retornar vazio imediatamente
+      if (allowedInboxIds.length === 0) {
+        return {
+          success: true,
+          data: {
+            atendimentos: [],
+            counts: { todos: 0, aguardando: 0, ativo: 0, concluido: 0 },
+            pagination: {
+              page: 1, limit: 50, totalItems: 0, totalPages: 0,
+              startItem: 0, endItem: 0, hasNextPage: false, hasPreviousPage: false
+            }
+          }
+        }
+      }
+    }
+
     // Obter query parameters
     const query = getQuery(event)
     const inboxId = query.inbox_id as string
@@ -43,9 +111,14 @@ export default defineEventHandler(async (event) => {
     const limit = parseInt(query.limit as string) || 50
     const offset = (page - 1) * limit
 
+    // Se usuário solicitou uma inbox específica, verificar se ele tem acesso
+    if (inboxId && allowedInboxIds.length > 0 && !allowedInboxIds.includes(inboxId)) {
+      throw createError({ statusCode: 403, statusMessage: 'Sem permissão para esta caixa de entrada' })
+    }
+
     // --- Cálculos de Counts ---
     // Fazer queries paralelas para obter os counts totais por status
-    // Respeitando o filtro de inbox_id se fornecido
+    // Respeitando o filtro de inbox_id se fornecido e as permissões
     
     const baseCountQuery = client
       .from('atendimentos')
@@ -58,6 +131,11 @@ export default defineEventHandler(async (event) => {
         .from('atendimentos')
         .select('inboxes!inner(empresa_id)', { count: 'exact', head: true })
         .eq('inboxes.empresa_id', userData.empresa_id)
+
+      // Aplicar filtro de permissão
+      if (allowedInboxIds.length > 0) {
+        q = q.in('inbox_id', allowedInboxIds)
+      }
 
       if (inboxId) {
         q = q.eq('inbox_id', inboxId)
@@ -134,6 +212,11 @@ export default defineEventHandler(async (event) => {
       `, { count: 'exact' })
       .eq('inboxes.empresa_id', userData.empresa_id)
       .order('ultimo_mensagem_time', { ascending: false })
+
+    // Aplicar filtro de permissão na query principal
+    if (allowedInboxIds.length > 0) {
+      queryBuilder = queryBuilder.in('inbox_id', allowedInboxIds)
+    }
 
     // Aplicar filtros
     if (inboxId) {

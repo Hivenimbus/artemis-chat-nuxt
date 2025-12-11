@@ -488,6 +488,15 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
     if (showLoading) loading.value = true
     error.value = null
 
+    // Verificar se há caixas de entrada disponíveis
+    // Se a lista de inboxes estiver vazia e não estiver carregando, significa que o usuário não tem acesso a nenhuma
+    if (!inboxesLoading.value && (!inboxesData.value || inboxesData.value.length === 0)) {
+      atendimentos.value = []
+      // Opcional: Definir uma mensagem de erro ou aviso
+      // error.value = 'Você não tem acesso a nenhuma caixa de entrada.'
+      return
+    }
+
     const params = new URLSearchParams()
     if (inboxId) {
       params.append('inbox_id', inboxId)
@@ -570,11 +579,11 @@ const stopPolling = () => {
 // Carregar dados ao montar a página
 onMounted(async () => {
   await nextTick()
-  await Promise.all([
-    loadInboxes(),
-    loadTags()
-  ])
-  // Carregar atendimentos após carregar inboxes
+  // Carregar tags
+  loadTags()
+  
+  // Carregar inboxes e depois atendimentos (dependência)
+  await loadInboxes()
   await loadAtendimentos()
 
   // Iniciar polling
