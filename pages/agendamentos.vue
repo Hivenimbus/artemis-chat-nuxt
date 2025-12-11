@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Agendamentos</h1>
-        <p class="mt-2 text-gray-600">Gerencie seus compromissos e tarefas</p>
+        <p class="mt-2 text-gray-600">Gerencie seus compromissos, lembretes e agendamentos de mensagens</p>
       </div>
 
       <!-- Actions Bar -->
@@ -41,12 +41,27 @@
           <option value="scheduled">Agendado</option>
           <option value="completed">Concluído</option>
           <option value="cancelled">Cancelado</option>
+          <option value="failed">Falhou</option>
           <option value="no_show">Não compareceu</option>
+        </select>
+        
+        <select
+          v-model="typeFilter"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="reminder">Lembretes</option>
+          <option value="message_schedule">Mensagens</option>
         </select>
       </div>
 
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+
       <!-- Calendar View -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Calendar -->
         <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div class="flex items-center justify-between mb-6">
@@ -89,7 +104,7 @@
               :key="day.date"
               @click="selectDate(day)"
               :class="[
-                'min-h-20 p-2 border border-gray-200 rounded-lg cursor-pointer transition-colors',
+                'min-h-24 p-2 border border-gray-200 rounded-lg cursor-pointer transition-colors',
                 day.isCurrentMonth ? 'bg-white' : 'bg-gray-50',
                 day.isToday ? 'border-indigo-500 border-2' : 'border-gray-200',
                 isSelectedDate(day.date) ? 'bg-indigo-50' : 'hover:bg-gray-50'
@@ -100,17 +115,19 @@
               </div>
               <div class="mt-1 space-y-1">
                 <div
-                  v-for="appointment in day.appointments.slice(0, 2)"
+                  v-for="appointment in day.appointments.slice(0, 3)"
                   :key="appointment.id"
                   :class="[
-                    'text-xs px-1 py-0.5 rounded truncate',
-                    getStatusColor(appointment.status)
+                    'text-xs px-1 py-0.5 rounded truncate flex items-center gap-1',
+                    getAppointmentColor(appointment)
                   ]"
                 >
+                  <span v-if="appointment.type === 'message_schedule'" title="Mensagem">💬</span>
+                  <span v-else title="Lembrete">🔔</span>
                   {{ appointment.title }}
                 </div>
-                <div v-if="day.appointments.length > 2" class="text-xs text-gray-500">
-                  +{{ day.appointments.length - 2 }}
+                <div v-if="day.appointments.length > 3" class="text-xs text-gray-500">
+                  +{{ day.appointments.length - 3 }}
                 </div>
               </div>
             </div>
@@ -118,12 +135,12 @@
         </div>
 
         <!-- Appointments List -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col h-full">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">
             {{ selectedDate ? `Agendamentos - ${selectedDate.toLocaleDateString('pt-BR')}` : 'Agendamentos de Hoje' }}
           </h3>
 
-          <div class="space-y-3">
+          <div class="space-y-3 flex-1 overflow-y-auto">
             <div
               v-for="appointment in filteredAppointments"
               :key="appointment.id"
@@ -132,19 +149,31 @@
             >
               <div class="flex items-start justify-between">
                 <div class="flex-1">
-                  <h4 class="font-medium text-gray-900">{{ appointment.title }}</h4>
-                  <p class="text-sm text-gray-600 mt-1">{{ appointment.description }}</p>
+                  <div class="flex items-center gap-2">
+                     <span v-if="appointment.type === 'message_schedule'" class="text-blue-500" title="Mensagem">💬</span>
+                     <span v-else class="text-yellow-500" title="Lembrete">🔔</span>
+                     <h4 class="font-medium text-gray-900">{{ appointment.title }}</h4>
+                  </div>
+                  
+                  <p class="text-sm text-gray-600 mt-1 line-clamp-2">
+                    {{ appointment.description || appointment.message_text }}
+                  </p>
+                  
                   <div class="flex items-center gap-2 mt-2 text-sm text-gray-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    {{ formatTime(appointment.date_time) }}
+                    {{ formatTime(appointment.start_time) }}
+                    <span v-if="appointment.end_time && appointment.type === 'appointment'">
+                       - {{ formatTime(appointment.end_time) }}
+                    </span>
                   </div>
-                  <div class="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                  
+                  <div v-if="appointment.agendamento_contatos?.length > 0" class="flex items-center gap-2 mt-1 text-sm text-gray-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                     </svg>
-                    {{ getContactName(appointment.contact_id) }}
+                    {{ getContactsNames(appointment) }}
                   </div>
                 </div>
                 <span
@@ -170,7 +199,8 @@
     <AppointmentModal
       v-if="showModal"
       :appointment="selectedAppointment"
-      :contacts="mockContacts"
+      :contacts="contacts"
+      :inboxes="inboxes"
       @save="saveAppointment"
       @delete="deleteAppointment"
       @close="closeModal"
@@ -181,6 +211,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import AppointmentModal from '~/components/AppointmentModal.vue'
+import { useContatos } from '~/composables/useContatos'
+import { useInboxes } from '~/composables/useInboxes'
+import { useToast } from '~/composables/useToast'
 
 // State
 const currentDate = ref(new Date())
@@ -189,52 +222,54 @@ const showModal = ref(false)
 const selectedAppointment = ref(null)
 const searchQuery = ref('')
 const statusFilter = ref('')
+const typeFilter = ref('')
+const loading = ref(false)
 
-// Mock data
-const mockContacts = ref([
-  { id: 1, name: 'João Silva', email: 'joao@email.com', phone: '(11) 99999-0001' },
-  { id: 2, name: 'Maria Santos', email: 'maria@email.com', phone: '(11) 99999-0002' },
-  { id: 3, name: 'Pedro Oliveira', email: 'pedro@email.com', phone: '(11) 99999-0003' },
-  { id: 4, name: 'Ana Costa', email: 'ana@email.com', phone: '(11) 99999-0004' },
-  { id: 5, name: 'Carlos Lima', email: 'carlos@email.com', phone: '(11) 99999-0005' }
-])
+const appointments = ref([])
+const contacts = ref([])
+const inboxes = ref([])
 
-const mockAppointments = ref([
-  {
-    id: 1,
-    contact_id: 1,
-    title: 'Reunião de acompanhamento',
-    description: 'Discutir andamento do projeto',
-    date_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 60,
-    status: 'scheduled'
-  },
-  {
-    id: 2,
-    contact_id: 2,
-    title: 'Apresentação de proposta',
-    description: 'Apresentar proposta comercial',
-    date_time: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 30,
-    status: 'scheduled'
-  },
-  {
-    id: 3,
-    contact_id: 3,
-    title: 'Follow-up vendas',
-    description: 'Contato pós-venda',
-    date_time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 15,
-    status: 'completed'
+const { fetchContatos } = useContatos()
+const { getInboxes } = useInboxes()
+const toast = useToast()
+
+// Load data
+const loadData = async () => {
+  loading.value = true
+  try {
+    // Parallel fetch
+    const [appsRes, contactsRes, inboxesRes] = await Promise.all([
+      $fetch('/api/agendamentos'),
+      fetchContatos({ limit: 100 }), // Get up to 100 contacts for selection
+      getInboxes()
+    ])
+
+    if (appsRes.success) {
+      appointments.value = appsRes.data
+    }
+    
+    if (contactsRes && contactsRes.contatos) {
+      contacts.value = contactsRes.contatos
+    }
+
+    if (inboxesRes.success) {
+      inboxes.value = inboxesRes.data
+    } else if (Array.isArray(inboxesRes)) {
+       inboxes.value = inboxesRes
+    } else if (inboxesRes.data) {
+       inboxes.value = inboxesRes.data
+    }
+
+  } catch (error) {
+    console.error('Error loading data:', error)
+    if (toast) toast.error('Erro ao carregar dados')
+  } finally {
+    loading.value = false
   }
-])
+}
 
-// Load from localStorage on mount
 onMounted(() => {
-  const savedAppointments = localStorage.getItem('appointments')
-  if (savedAppointments) {
-    mockAppointments.value = JSON.parse(savedAppointments)
-  }
+  loadData()
 })
 
 // Computed
@@ -247,11 +282,11 @@ const calendarDays = computed(() => {
   const month = currentDate.value.getMonth()
 
   const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
+  const lastDay = new Date(year, month + 1, 0) // Not used directly but good to know
 
   const days = []
   const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - firstDay.getDay())
+  startDate.setDate(startDate.getDate() - firstDay.getDay()) // Go to Sunday
 
   const today = new Date()
 
@@ -259,8 +294,8 @@ const calendarDays = computed(() => {
     const date = new Date(startDate)
     date.setDate(startDate.getDate() + i)
 
-    const appointments = mockAppointments.value.filter(app => {
-      const appDate = new Date(app.date_time)
+    const dayAppointments = appointments.value.filter(app => {
+      const appDate = new Date(app.start_time)
       return appDate.toDateString() === date.toDateString()
     })
 
@@ -269,7 +304,7 @@ const calendarDays = computed(() => {
       day: date.getDate(),
       isCurrentMonth: date.getMonth() === month,
       isToday: date.toDateString() === today.toDateString(),
-      appointments
+      appointments: dayAppointments
     })
   }
 
@@ -277,32 +312,40 @@ const calendarDays = computed(() => {
 })
 
 const filteredAppointments = computed(() => {
-  let filtered = mockAppointments.value
+  let filtered = appointments.value
 
   if (selectedDate.value) {
     filtered = filtered.filter(app => {
-      const appDate = new Date(app.date_time)
+      const appDate = new Date(app.start_time)
       return appDate.toDateString() === selectedDate.value.toDateString()
     })
   } else {
+    // Default to today if no date selected
+    const today = new Date()
     filtered = filtered.filter(app => {
-      const appDate = new Date(app.date_time)
-      return appDate.toDateString() === new Date().toDateString()
+      const appDate = new Date(app.start_time)
+      return appDate.toDateString() === today.toDateString()
     })
   }
 
   if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(app =>
-      app.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      app.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+      app.title.toLowerCase().includes(query) ||
+      (app.description && app.description.toLowerCase().includes(query)) ||
+      (app.message_text && app.message_text.toLowerCase().includes(query))
     )
   }
 
   if (statusFilter.value) {
     filtered = filtered.filter(app => app.status === statusFilter.value)
   }
+  
+  if (typeFilter.value) {
+    filtered = filtered.filter(app => app.type === typeFilter.value)
+  }
 
-  return filtered.sort((a, b) => new Date(a.date_time) - new Date(b.date_time))
+  return filtered.sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
 })
 
 // Methods
@@ -336,27 +379,61 @@ const editAppointment = (appointment) => {
   showModal.value = true
 }
 
-const saveAppointment = (appointment) => {
-  if (appointment.id) {
-    // Update existing
-    const index = mockAppointments.value.findIndex(app => app.id === appointment.id)
-    if (index !== -1) {
-      mockAppointments.value[index] = appointment
+const saveAppointment = async (appointmentData) => {
+  try {
+    let result
+    if (appointmentData.id) {
+      // Update
+      const res = await $fetch(`/api/agendamentos/${appointmentData.id}`, {
+        method: 'PUT',
+        body: appointmentData
+      })
+      result = res.data
+      
+      // Update local state
+      const index = appointments.value.findIndex(a => a.id === appointmentData.id)
+      if (index !== -1) {
+        // Need to merge with existing or re-fetch to get contact details resolved
+        // For simplicity, just update fields we know, but fetching again is safer for relations
+        appointments.value[index] = { ...appointments.value[index], ...result }
+        // To get contacts populated properly in list without reload, we might need to manually update:
+        // But agendamento_contatos is nested.
+        loadData() // Reload to be safe and simple
+      }
+    } else {
+      // Create
+      const res = await $fetch('/api/agendamentos', {
+        method: 'POST',
+        body: appointmentData
+      })
+      result = res.data
+      // Refresh list
+      loadData()
     }
-  } else {
-    // Create new
-    appointment.id = Date.now()
-    mockAppointments.value.push(appointment)
-  }
+    
+    closeModal()
+    if (toast) toast.success('Agendamento salvo com sucesso')
 
-  localStorage.setItem('appointments', JSON.stringify(mockAppointments.value))
-  closeModal()
+  } catch (error) {
+    console.error('Error saving appointment:', error)
+    if (toast) toast.error('Erro ao salvar agendamento')
+  }
 }
 
-const deleteAppointment = (id) => {
-  mockAppointments.value = mockAppointments.value.filter(app => app.id !== id)
-  localStorage.setItem('appointments', JSON.stringify(mockAppointments.value))
-  closeModal()
+const deleteAppointment = async (id) => {
+  try {
+    await $fetch(`/api/agendamentos/${id}`, {
+      method: 'DELETE'
+    })
+    
+    appointments.value = appointments.value.filter(app => app.id !== id)
+    closeModal()
+    if (toast) toast.success('Agendamento excluído')
+
+  } catch (error) {
+    console.error('Error deleting appointment:', error)
+    if (toast) toast.error('Erro ao excluir agendamento')
+  }
 }
 
 const closeModal = () => {
@@ -364,9 +441,15 @@ const closeModal = () => {
   selectedAppointment.value = null
 }
 
-const getContactName = (contactId) => {
-  const contact = mockContacts.value.find(c => c.id === contactId)
-  return contact ? contact.name : 'Contato não encontrado'
+const getContactsNames = (appointment) => {
+  if (!appointment.agendamento_contatos || appointment.agendamento_contatos.length === 0) return ''
+  const names = appointment.agendamento_contatos
+    .map(ac => ac.contatos?.nome)
+    .filter(n => n)
+  
+  if (names.length === 0) return 'Contato desconhecido'
+  if (names.length === 1) return names[0]
+  return `${names[0]} +${names.length - 1}`
 }
 
 const formatTime = (dateTime) => {
@@ -376,12 +459,33 @@ const formatTime = (dateTime) => {
   })
 }
 
+const getAppointmentColor = (appointment) => {
+  if (appointment.color) {
+     // Map color names to classes if needed, or use inline style.
+     // Assuming color is one of our preset names:
+     const map = {
+        blue: 'bg-blue-100 text-blue-800',
+        green: 'bg-green-100 text-green-800',
+        yellow: 'bg-yellow-100 text-yellow-800',
+        red: 'bg-red-100 text-red-800',
+        purple: 'bg-purple-100 text-purple-800'
+     }
+     if (map[appointment.color]) return map[appointment.color]
+  }
+
+  if (appointment.type === 'message_schedule') return 'bg-blue-100 text-blue-800'
+  if (appointment.type === 'reminder') return 'bg-yellow-100 text-yellow-800'
+  // appointment default
+  return getStatusColor(appointment.status)
+}
+
 const getStatusColor = (status) => {
   const colors = {
-    scheduled: 'bg-blue-100 text-blue-800',
+    scheduled: 'bg-indigo-100 text-indigo-800',
     completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    no_show: 'bg-yellow-100 text-yellow-800'
+    cancelled: 'bg-gray-100 text-gray-800',
+    failed: 'bg-red-100 text-red-800',
+    no_show: 'bg-orange-100 text-orange-800'
   }
   return colors[status] || 'bg-gray-100 text-gray-800'
 }
@@ -391,6 +495,7 @@ const getStatusText = (status) => {
     scheduled: 'Agendado',
     completed: 'Concluído',
     cancelled: 'Cancelado',
+    failed: 'Falhou',
     no_show: 'Não compareceu'
   }
   return texts[status] || status
