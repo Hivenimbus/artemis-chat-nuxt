@@ -662,15 +662,11 @@ const resetForm = () => {
 const handleSaveTemplate = async () => {
   if (!messageText.value.trim()) return
   
-  // Salvar direto como rascunho
-  const draftName = `Rascunho - ${new Date().toLocaleString('pt-BR')}`
-  
   submitting.value = true
   try {
     await $fetch('/api/templates', {
       method: 'POST',
       body: {
-        name: draftName,
         content: messageText.value
       }
     })

@@ -21,8 +21,8 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
-    if (!body.name || !body.content) {
-      throw createError({ statusCode: 400, statusMessage: 'Nome e conteúdo são obrigatórios' })
+    if (!body.content) {
+      throw createError({ statusCode: 400, statusMessage: 'Conteúdo é obrigatório' })
     }
 
     // Insert template
@@ -31,7 +31,6 @@ export default defineEventHandler(async (event) => {
       .insert({
         empresa_id: userData.empresa_id,
         user_id: user.id,
-        name: body.name,
         content: body.content
       })
       .select()
@@ -55,4 +54,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-
