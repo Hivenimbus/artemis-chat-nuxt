@@ -25,20 +25,23 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Conteúdo é obrigatório' })
     }
 
-    // Insert template
+    // Upsert template (update if exists for user, insert if not)
     const { data: template, error: insertError } = await client
       .from('message_templates')
-      .insert({
-        empresa_id: userData.empresa_id,
+      .upsert({
         user_id: user.id,
-        content: body.content
+        empresa_id: userData.empresa_id,
+        content: body.content,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       })
       .select()
       .single()
 
     if (insertError) {
-      console.error('Error creating template:', insertError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao criar modelo de mensagem' })
+      console.error('Error saving template:', insertError)
+      throw createError({ statusCode: 500, statusMessage: 'Erro ao salvar modelo de mensagem' })
     }
 
     return {
@@ -50,7 +53,7 @@ export default defineEventHandler(async (event) => {
     console.error('API templates/index.post:', error)
     throw createError({ 
       statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao criar modelo' 
+      statusMessage: error.statusMessage || 'Erro interno ao salvar modelo' 
     })
   }
 })
