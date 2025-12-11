@@ -68,15 +68,16 @@
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="tag in availableTags"
-                :key="tag.id || tag"
+                :key="getTagId(tag)"
                 type="button"
                 @click="toggleTag(tag)"
-                class="px-3 py-1.5 text-sm font-medium rounded-full border transition-colors"
+                class="px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200"
                 :class="isTagSelected(tag) 
-                  ? 'border-indigo-500 bg-indigo-100 text-indigo-700' 
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'"
+                  ? 'ring-2 ring-offset-2 ring-indigo-500 scale-105' 
+                  : 'hover:scale-105 opacity-80 hover:opacity-100'"
+                :style="getTagStyle(tag)"
               >
-                {{ tag.nome || tag }}
+                {{ getTagName(tag) }}
               </button>
             </div>
             
@@ -462,9 +463,51 @@ const loadData = async () => {
   }
 }
 
+// Funções auxiliares para tags
+const getTagId = (tag) => {
+  if (typeof tag === 'string') return tag
+  return tag?.id || tag?.nome || String(tag)
+}
+
+const getTagName = (tag) => {
+  if (typeof tag === 'string') return tag
+  return tag?.nome || tag?.name || 'Tag'
+}
+
+const getTagColor = (tag) => {
+  if (typeof tag === 'string') return '#6366f1' // indigo default
+  return tag?.cor || tag?.color || '#6366f1'
+}
+
+const getContrastColor = (hexColor) => {
+  // Remove o # se existir
+  const hex = hexColor.replace('#', '')
+  
+  // Converte para RGB
+  const r = parseInt(hex.substr(0, 2), 16)
+  const g = parseInt(hex.substr(2, 2), 16)
+  const b = parseInt(hex.substr(4, 2), 16)
+  
+  // Calcula luminância
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  
+  // Retorna cor escura ou clara baseado na luminância
+  return luminance > 0.5 ? '#1f2937' : '#ffffff'
+}
+
+const getTagStyle = (tag) => {
+  const bgColor = getTagColor(tag)
+  const textColor = getContrastColor(bgColor)
+  
+  return {
+    backgroundColor: bgColor,
+    color: textColor
+  }
+}
+
 const toggleTag = (tag) => {
-  const tagId = tag.id || tag
-  const index = selectedTags.value.findIndex(t => (t.id || t) === tagId)
+  const tagId = getTagId(tag)
+  const index = selectedTags.value.findIndex(t => getTagId(t) === tagId)
   
   if (index > -1) {
     selectedTags.value.splice(index, 1)
@@ -474,8 +517,8 @@ const toggleTag = (tag) => {
 }
 
 const isTagSelected = (tag) => {
-  const tagId = tag.id || tag
-  return selectedTags.value.some(t => (t.id || t) === tagId)
+  const tagId = getTagId(tag)
+  return selectedTags.value.some(t => getTagId(t) === tagId)
 }
 
 const validateForm = () => {
