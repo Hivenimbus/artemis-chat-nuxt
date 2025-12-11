@@ -517,9 +517,37 @@ const loadInboxes = async () => {
     const response = await getInboxes()
     if (response.success) {
       inboxes.value = response.data
+      
+      // Verificar status de conexão de cada inbox em segundo plano
+      inboxes.value.forEach(inbox => {
+        checkInboxConnection(inbox.id)
+      })
     }
   } catch (err) {
     console.error('Erro ao carregar inboxes:', err)
+  }
+}
+
+// Verificar status de conexão de uma inbox específica (para atualização em lista)
+const checkInboxConnection = async (inboxId) => {
+  try {
+    const response = await $fetch(`/api/inboxes/${inboxId}/connection-status`)
+
+    if (response.success) {
+      const isConnected = response.data.connected
+      const status = isConnected ? 'connected' : 'disconnected'
+      
+      // Atualizar status na lista local
+      const inboxIndex = inboxes.value.findIndex(i => i.id === inboxId)
+      if (inboxIndex !== -1) {
+        // Apenas atualizar se o status for diferente para evitar renderizações desnecessárias
+        if (inboxes.value[inboxIndex].status !== status) {
+          inboxes.value[inboxIndex].status = status
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`Erro ao verificar conexão para inbox ${inboxId}:`, err)
   }
 }
 
