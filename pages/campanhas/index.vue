@@ -614,6 +614,17 @@ const confirmSubmit = async () => {
 
         attachmentUrl = publicUrl
         attachmentType = file.type
+        
+        // Salvar metadados do anexo
+        await $fetch('/api/attachments', {
+          method: 'POST',
+          body: {
+            fileUrl: attachmentUrl,
+            fileType: attachmentType,
+            fileName: file.name,
+            caption: attachmentCaption.value
+          }
+        })
       }
     }
 
