@@ -349,7 +349,10 @@ const handleLogin = async () => {
     })
 
     successMessage.value = 'Login realizado com sucesso!'
-    // Redirecionamento é tratado no watch(user) ou pelo useAuth
+    
+    // Forçar recarregamento completo para evitar problemas de sessão/cache
+    // em vez de usar navigateTo
+    window.location.href = '/atendimentos'
     
   } catch (error) {
     console.error('Erro no login:', error)

@@ -25,12 +25,18 @@ export const useAuth = () => {
   const login = async ({ email, password }) => {
     loading.value = true
     error.value = null
+    // Limpar estado atual antes de tentar novo login
+    user.value = null 
+    
     try {
       const data = await $fetch('/api/auth/login', {
         method: 'POST',
         body: { email, password }
       })
+      
+      // Atualizar estado com novos dados
       user.value = data.user
+      
       return data
     } catch (e) {
       error.value = e.data?.statusMessage || 'Erro ao fazer login'
@@ -63,7 +69,15 @@ export const useAuth = () => {
     try {
       await $fetch('/api/auth/logout', { method: 'POST' })
       user.value = null
-      navigateTo('/')
+      
+      // Forçar recarregamento da página para limpar qualquer estado persistente
+      if (typeof window !== 'undefined') {
+        // Limpar qualquer estado local/cache do Nuxt antes de recarregar
+        clearNuxtState('auth:user')
+        window.location.href = '/'
+      } else {
+        navigateTo('/')
+      }
     } catch (e) {
       console.error('Erro ao fazer logout', e)
     } finally {
