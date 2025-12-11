@@ -29,3 +29,22 @@ export const verifyUserToken = (token: string): UserPayload | null => {
   }
 }
 
+interface InvitePayload {
+  email: string
+  role: string
+  name: string
+  empresa_id: string
+}
+
+export const signInviteToken = (payload: InvitePayload): string => {
+  return jwt.sign(payload, SECRET, { expiresIn: '24h' })
+}
+
+export const verifyInviteToken = (token: string): InvitePayload | null => {
+  try {
+    return jwt.verify(token, SECRET) as InvitePayload
+  } catch (error) {
+    return null
+  }
+}
+

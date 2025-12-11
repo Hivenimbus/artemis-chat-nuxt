@@ -1,5 +1,6 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { hashPassword } from '~/server/utils/password'
+import { signInviteToken } from '~/server/utils/jwt'
+import { sendEmail } from '~/server/utils/email'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,7 +8,7 @@ export default defineEventHandler(async (event) => {
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
     const body = await readBody(event)
-    const { name, email, role, password } = body
+    const { name, email, role } = body
 
     if (!name || !email || !role) {
       throw createError({ statusCode: 400, statusMessage: 'Dados incompletos' })
@@ -37,20 +38,17 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Email já cadastrado' })
     }
 
-    // Senha padrão se não fornecida (poderia ser gerada aleatoriamente)
-    const defaultPassword = password || 'Mudar123!'
-    const hashedPassword = await hashPassword(defaultPassword)
-
-    // Criar usuário
+    // Criar usuário com status pending
     const { data: newUser, error } = await client
       .from('users')
       .insert({
         name,
         email,
         role,
-        password: hashedPassword,
         empresa_id: creatorData.empresa_id,
-        status: 'active'
+        status: 'pending',
+        invited_by: user.id,
+        invited_at: new Date().toISOString()
       })
       .select()
       .single()
@@ -60,11 +58,40 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agente' })
     }
 
-    return { success: true, data: newUser }
+    // Gerar token de convite
+    const inviteToken = signInviteToken({
+      email: newUser.email,
+      role: newUser.role,
+      name: newUser.name,
+      empresa_id: newUser.empresa_id
+    })
+
+    // URL do convite
+    const config = useRuntimeConfig()
+    const inviteUrl = `${config.public.siteUrl}/convite?token=${inviteToken}`
+
+    // Enviar email
+    const emailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Olá ${name},</h2>
+        <p>Você foi convidado para se juntar à equipe no Artemis Chat.</p>
+        <p>Para aceitar o convite e definir sua senha, clique no botão abaixo:</p>
+        <a href="${inviteUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+          Aceitar Convite
+        </a>
+        <p>Este link é válido por 24 horas.</p>
+        <p>Se você não esperava este convite, pode ignorar este email.</p>
+      </div>
+    `
+
+    // Enviar email em background para não travar a request se demorar
+    // Mas aguardar erro se for crítico? O ideal é usar fila, mas aqui vamos await para feedback imediato
+    await sendEmail(email, 'Convite para Artemis Chat', emailHtml)
+
+    return { success: true, message: 'Convite enviado com sucesso', data: newUser }
 
   } catch (error) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }
 })
-

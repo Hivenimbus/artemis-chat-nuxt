@@ -407,6 +407,7 @@ const loadAgents = async () => {
         email,
         name,
         role,
+        status,
         created_at,
         empresas (
           id,
@@ -429,7 +430,7 @@ const loadAgents = async () => {
       role: user.role,
       empresa_id: user.empresas?.id,
       empresa_nome: user.empresas?.nome || 'Sem empresa',
-      status: 'active', // Por padrão, todos os usuários são considerados ativos
+      status: user.status || 'active',
       createdAt: user.created_at,
       lastLogin: null // Esta informação não está disponível na tabela users
     }))
@@ -512,13 +513,21 @@ const getRoleText = (role) => {
 }
 
 const getStatusClass = (status) => {
-  return status === 'active'
-    ? 'bg-green-100 text-green-800'
-    : 'bg-gray-100 text-gray-800'
+  switch (status) {
+    case 'active': return 'bg-green-100 text-green-800'
+    case 'pending': return 'bg-yellow-100 text-yellow-800'
+    case 'inactive': return 'bg-red-100 text-red-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }
 }
 
 const getStatusText = (status) => {
-  return status === 'active' ? 'Ativo' : 'Inativo'
+  switch (status) {
+    case 'active': return 'Ativo'
+    case 'pending': return 'Pendente'
+    case 'inactive': return 'Inativo'
+    default: return status
+  }
 }
 
 const openCreateModal = () => {
@@ -613,6 +622,7 @@ const saveAgent = async () => {
       // Recarregar dados para atualizar a lista
       await loadAgents()
       closeModal()
+      alert('Usuário atualizado com sucesso!')
     } else {
       // Criar novo agente via API
       await $fetch('/api/agentes', {
@@ -627,6 +637,7 @@ const saveAgent = async () => {
       // Recarregar dados para atualizar a lista
       await loadAgents()
       closeModal()
+      alert('Convite enviado com sucesso! O usuário receberá um email para definir a senha.')
     }
   } catch (error) {
     console.error('Erro ao salvar agente:', error)

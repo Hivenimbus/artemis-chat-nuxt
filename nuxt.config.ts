@@ -34,6 +34,11 @@ export default defineNuxtConfig({
     evolutionApiUrl: process.env.NUXT_EVOLUTION_API_URL || process.env.EVOLUTION_API_URL,
     evolutionApiKey: process.env.NUXT_EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY,
     jwtSecret: process.env.JWT_SECRET,
+    smtpHost: process.env.NUXT_SMTP_HOST || process.env.SMTP_HOST,
+    smtpPort: process.env.NUXT_SMTP_PORT || process.env.SMTP_PORT,
+    smtpUser: process.env.NUXT_SMTP_USER || process.env.SMTP_USER,
+    smtpPass: process.env.NUXT_SMTP_PASS || process.env.SMTP_PASS,
+    smtpFrom: process.env.NUXT_SMTP_FROM || process.env.SMTP_FROM,
 
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
