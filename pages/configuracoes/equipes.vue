@@ -140,6 +140,12 @@
                         </svg>
                         Criada em {{ formatDate(team.created_at) }}
                       </span>
+                      <span class="flex items-center" title="Caixas de entrada atribuídas">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        {{ team.inbox_ids?.length || 0 }} inboxes
+                      </span>
                     </div>
                     <!-- Visualização de agentes -->
                     <div v-if="getTeamAgents(team.id).length > 0" class="mt-2 flex items-center space-x-2">
@@ -317,6 +323,36 @@
               placeholder="Descreva as responsabilidades da equipe..."
               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none transition-colors duration-200"
             ></textarea>
+          </div>
+
+          <!-- Atribuição de Caixas de Entrada -->
+          <div class="space-y-2">
+            <label class="block text-sm font-medium text-gray-700 flex items-center">
+              <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+              </svg>
+              Caixas de Entrada Atribuídas
+            </label>
+            <div class="border border-gray-200 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50/50">
+              <div v-if="allInboxes.length === 0" class="text-sm text-gray-500 italic text-center py-2">
+                Nenhuma caixa de entrada disponível
+              </div>
+              <div v-for="inbox in allInboxes" :key="inbox.id" class="flex items-center py-1.5 px-2 hover:bg-gray-100 rounded transition-colors duration-150">
+                <input
+                  type="checkbox"
+                  :id="'inbox-' + inbox.id"
+                  :value="inbox.id"
+                  v-model="formData.inbox_ids"
+                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label :for="'inbox-' + inbox.id" class="ml-2.5 block text-sm text-gray-900 cursor-pointer flex-1">
+                  {{ inbox.name }}
+                </label>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 italic">
+              Os agentes desta equipe herdarão o acesso a estas caixas de entrada.
+            </p>
           </div>
         </div>
 
@@ -585,6 +621,7 @@ definePageMeta({
 // Cliente Supabase
 const supabase = useSupabaseClient()
 const { userData } = useUser()
+const { getInboxes } = useInboxes()
 
 // Estado
 const searchTerm = ref('')
@@ -603,7 +640,8 @@ const filterEmpresa = ref('')
 const formData = ref({
   name: '',
   description: '',
-  empresa_id: ''
+  empresa_id: '',
+  inbox_ids: []
 })
 
 const errors = ref({
@@ -617,6 +655,17 @@ const agents = ref([])
 const empresas = ref([])
 const teamAgents = ref([])
 const currentUserEmpresa = ref(null)
+const allInboxes = ref([])
+
+// Função para carregar inboxes
+const loadInboxesData = async () => {
+  try {
+    const response = await getInboxes()
+    allInboxes.value = response.data || []
+  } catch (err) {
+    console.error('Erro ao carregar inboxes:', err)
+  }
+}
 
 // Função para carregar dados do Supabase
 const loadData = async () => {
@@ -631,6 +680,9 @@ const loadData = async () => {
 
     console.log('Carregando dados para o usuário:', userData.value.id)
 
+    // Carregar inboxes primeiro
+    await loadInboxesData()
+
     // Usar dados do usuário já carregado
     if (userData.value?.empresa_id) {
       const { data: empresaData, error: empresaError } = await supabase
@@ -643,26 +695,10 @@ const loadData = async () => {
       currentUserEmpresa.value = empresaData
     }
 
-    // Carregar equipes com informações da empresa
-    let teamsQuery = supabase
-      .from('equipes')
-      .select(`
-        *,
-        empresas (
-          id,
-          nome
-        )
-      `)
-      .order('created_at', { ascending: false })
-
-    // Se não for superadmin, filtrar apenas equipes da própria empresa
-    if (currentUserEmpresa.value && userData.value?.role !== 'superadmin') {
-      teamsQuery = teamsQuery.eq('empresa_id', currentUserEmpresa.value.id)
-    }
-
-    const { data: teamsData, error: teamsError } = await teamsQuery
-
-    if (teamsError) throw teamsError
+    // Carregar equipes com informações da empresa e inboxes via API (para pegar o join)
+    // Usando $fetch para a API que criamos/atualizamos
+    const response = await $fetch('/api/equipes')
+    const teamsData = response.data || []
 
     // Carregar agentes (users com role 'user' ou 'admin')
     let agentsQuery = supabase
@@ -713,14 +749,15 @@ const loadData = async () => {
     if (teamAgentsError) throw teamAgentsError
 
     // Formatar dados
-    teams.value = (teamsData || []).map(team => ({
+    teams.value = teamsData.map(team => ({
       id: team.id,
       name: team.nome,
       description: team.descricao,
       empresa_id: team.empresas?.id,
       empresa_nome: team.empresas?.nome || 'Sem empresa',
       created_at: team.created_at,
-      updated_at: team.updated_at
+      updated_at: team.updated_at,
+      inbox_ids: team.inbox_teams?.map(it => it.inbox_id) || []
     }))
 
     agents.value = (agentsData || []).map(agent => ({
@@ -824,7 +861,8 @@ const openCreateModal = () => {
   formData.value = {
     name: '',
     description: '',
-    empresa_id: currentUserEmpresa.value?.id || ''
+    empresa_id: currentUserEmpresa.value?.id || '',
+    inbox_ids: []
   }
   errors.value = {
     name: ''
@@ -838,7 +876,8 @@ const openEditModal = (team) => {
     id: team.id,
     name: team.name,
     description: team.description || '',
-    empresa_id: team.empresa_id // Manter empresa original na edição
+    empresa_id: team.empresa_id, // Manter empresa original na edição
+    inbox_ids: [...(team.inbox_ids || [])]
   }
   errors.value = {
     name: ''
@@ -851,7 +890,8 @@ const closeModal = () => {
   formData.value = {
     name: '',
     description: '',
-    empresa_id: currentUserEmpresa.value?.id || ''
+    empresa_id: currentUserEmpresa.value?.id || '',
+    inbox_ids: []
   }
   errors.value = {
     name: ''
@@ -971,30 +1011,26 @@ const saveTeam = async () => {
     }
 
     if (isEditing.value) {
-      // Editar equipe existente no Supabase
-      const { error } = await supabase
-        .from('equipes')
-        .update({
+      // Editar equipe existente via API
+      await $fetch(`/api/equipes/${formData.value.id}`, {
+        method: 'PUT',
+        body: {
           nome: formData.value.name,
           descricao: formData.value.description,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', formData.value.id)
-        // Garantir que só pode editar se for da mesma empresa
-        .eq('empresa_id', empresaId)
-
-      if (error) throw error
+          inbox_ids: formData.value.inbox_ids
+        }
+      })
     } else {
-      // Criar nova equipe no Supabase usando a empresa do usuário
-      const { error } = await supabase
-        .from('equipes')
-        .insert({
+      // Criar nova equipe via API
+      await $fetch('/api/equipes', {
+        method: 'POST',
+        body: {
           nome: formData.value.name,
           descricao: formData.value.description,
-          empresa_id: empresaId
-        })
-
-      if (error) throw error
+          empresa_id: empresaId,
+          inbox_ids: formData.value.inbox_ids
+        }
+      })
     }
 
     closeModal()
@@ -1019,13 +1055,10 @@ const deleteTeam = async () => {
   if (!teamToDelete.value) return
 
   try {
-    // Excluir equipe no Supabase ( CASCADE vai excluir os relacionamentos automaticamente)
-    const { error } = await supabase
-      .from('equipes')
-      .delete()
-      .eq('id', teamToDelete.value.id)
-
-    if (error) throw error
+    // Excluir equipe via API
+    await $fetch(`/api/equipes/${teamToDelete.value.id}`, {
+      method: 'DELETE'
+    })
 
     closeDeleteModal()
     await loadData()

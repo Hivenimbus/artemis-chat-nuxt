@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
     const body = await readBody(event)
-    const { name, email, role } = body
+    const { name, email, role, inbox_ids } = body
 
     if (!name || !email || !role) {
       throw createError({ statusCode: 400, statusMessage: 'Dados incompletos' })
@@ -56,6 +56,23 @@ export default defineEventHandler(async (event) => {
     if (error) {
       console.error('Erro ao criar agente:', error)
       throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agente' })
+    }
+
+    // Associar caixas de entrada se fornecidas
+    if (inbox_ids && Array.isArray(inbox_ids) && inbox_ids.length > 0) {
+      const inboxAgents = inbox_ids.map((inboxId: string) => ({
+        user_id: newUser.id,
+        inbox_id: inboxId
+      }))
+      
+      const { error: inboxError } = await client
+        .from('inbox_agents')
+        .insert(inboxAgents)
+
+      if (inboxError) {
+        console.error('Erro ao associar inboxes:', inboxError)
+        // Não falhar a criação do usuário, mas logar erro
+      }
     }
 
     // Gerar token de convite

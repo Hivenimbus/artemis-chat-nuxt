@@ -148,6 +148,12 @@
                         </svg>
                         Último acesso {{ formatDateTime(agent.lastLogin) }}
                       </span>
+                      <span v-if="agent.role === 'user'" class="flex items-center" title="Caixas de entrada atribuídas">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        {{ agent.inbox_ids?.length || 0 }} inboxes
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -280,6 +286,33 @@
             </select>
             <p v-if="errors.role" class="mt-1 text-sm text-red-600">{{ errors.role }}</p>
           </div>
+
+          <!-- Atribuição de Caixas de Entrada -->
+          <div v-if="formData.role === 'user'">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Caixas de Entrada Atribuídas
+            </label>
+            <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              <div v-if="allInboxes.length === 0" class="text-sm text-gray-500 italic">
+                Nenhuma caixa de entrada disponível
+              </div>
+              <div v-for="inbox in allInboxes" :key="inbox.id" class="flex items-center">
+                <input
+                  type="checkbox"
+                  :id="'inbox-' + inbox.id"
+                  :value="inbox.id"
+                  v-model="formData.inbox_ids"
+                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label :for="'inbox-' + inbox.id" class="ml-2 block text-sm text-gray-900 cursor-pointer">
+                  {{ inbox.name }}
+                </label>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              Selecione as caixas de entrada que este agente poderá acessar.
+            </p>
+          </div>
         </div>
 
         <!-- Rodapé do Modal -->
@@ -351,6 +384,7 @@ definePageMeta({
 // Cliente Supabase
 const supabase = useSupabaseClient()
 const { userData } = useUser()
+const { getInboxes } = useInboxes()
 
 // Estado
 const searchTerm = ref('')
@@ -367,7 +401,8 @@ const error = ref('')
 const formData = ref({
   name: '',
   email: '',
-  role: ''
+  role: '',
+  inbox_ids: []
 })
 
 const errors = ref({
@@ -378,6 +413,18 @@ const errors = ref({
 
 // Dados dos agentes (carregados do Supabase)
 const agents = ref([])
+// Todas as inboxes disponíveis para seleção
+const allInboxes = ref([])
+
+// Função para carregar inboxes
+const loadInboxesData = async () => {
+  try {
+    const response = await getInboxes()
+    allInboxes.value = response.data || []
+  } catch (err) {
+    console.error('Erro ao carregar inboxes:', err)
+  }
+}
 
 // Função para carregar agentes do Supabase
 const loadAgents = async () => {
@@ -398,6 +445,8 @@ const loadAgents = async () => {
       throw new Error('Usuário não está associado a nenhuma empresa')
     }
 
+    // Carregar inboxes primeiro
+    await loadInboxesData()
   
     // Carregar apenas os usuários da mesma empresa
     const { data, error: fetchError } = await supabase
@@ -412,6 +461,9 @@ const loadAgents = async () => {
         empresas (
           id,
           nome
+        ),
+        inbox_agents (
+          inbox_id
         )
       `)
       .in('role', ['user', 'admin'])
@@ -432,7 +484,8 @@ const loadAgents = async () => {
       empresa_nome: user.empresas?.nome || 'Sem empresa',
       status: user.status || 'active',
       createdAt: user.created_at,
-      lastLogin: null // Esta informação não está disponível na tabela users
+      lastLogin: null, // Esta informação não está disponível na tabela users
+      inbox_ids: user.inbox_agents?.map(ia => ia.inbox_id) || []
     }))
 
   } catch (err) {
@@ -535,7 +588,8 @@ const openCreateModal = () => {
   formData.value = {
     name: '',
     email: '',
-    role: ''
+    role: '',
+    inbox_ids: []
   }
   errors.value = {
     name: '',
@@ -551,7 +605,8 @@ const openEditModal = (agent) => {
     id: agent.id,
     name: agent.name,
     email: agent.email,
-    role: agent.role
+    role: agent.role,
+    inbox_ids: [...(agent.inbox_ids || [])]
   }
   errors.value = {
     name: '',
@@ -566,7 +621,8 @@ const closeModal = () => {
   formData.value = {
     name: '',
     email: '',
-    role: ''
+    role: '',
+    inbox_ids: []
   }
   errors.value = {
     name: '',
@@ -615,7 +671,8 @@ const saveAgent = async () => {
         body: {
           name: formData.value.name,
           email: formData.value.email,
-          role: formData.value.role
+          role: formData.value.role,
+          inbox_ids: formData.value.inbox_ids
         }
       })
 
@@ -630,7 +687,8 @@ const saveAgent = async () => {
         body: {
           name: formData.value.name,
           email: formData.value.email,
-          role: formData.value.role
+          role: formData.value.role,
+          inbox_ids: formData.value.inbox_ids
         }
       })
 

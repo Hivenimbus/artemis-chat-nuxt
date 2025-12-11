@@ -40,6 +40,9 @@ export default defineEventHandler(async (event) => {
         empresas (
           id,
           nome
+        ),
+        inbox_agents (
+          inbox_id
         )
       `)
       .in('role', ['user', 'admin'])
