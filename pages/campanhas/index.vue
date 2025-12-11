@@ -466,7 +466,9 @@ const loadData = async () => {
 // Funções auxiliares para tags
 const getTagId = (tag) => {
   if (typeof tag === 'string') return tag
-  return tag?.id || tag?.nome || String(tag)
+  // Tenta usar ID, nome ou name como identificador único
+  // Se for objeto sem esses campos, usa JSON.stringify para garantir unicidade e evitar [object Object]
+  return tag?.id || tag?.nome || tag?.name || JSON.stringify(tag)
 }
 
 const getTagName = (tag) => {
