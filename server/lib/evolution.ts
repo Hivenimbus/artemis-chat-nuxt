@@ -6,10 +6,10 @@ import { webhookLogger, contatoLogger, atendimentoLogger, messageLogger } from '
 // Criar cliente Supabase com service role key para webhooks (sem autenticação de usuário)
 export function createServiceSupabaseClient(): SupabaseClient {
   const supabaseUrl = process.env.SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórios para webhooks')
+    throw new Error('SUPABASE_URL e SUPABASE_SECRET_KEY são obrigatórios para webhooks')
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
