@@ -3,54 +3,16 @@
     <!-- Toolbar -->
     <div class="flex flex-wrap items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-t-lg">
       <!-- Botão Spintax -->
-      <div class="relative">
-        <button
-          type="button"
-          @click="toggleSpintaxMenu"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Spintax
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        
-        <!-- Menu Spintax -->
-        <div
-          v-if="showSpintaxMenu"
-          class="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
-        >
-          <div class="p-3">
-            <p class="text-xs text-gray-500 mb-2">Insira variações separadas por |</p>
-            <input
-              v-model="spintaxInput"
-              type="text"
-              placeholder="opção1|opção2|opção3"
-              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              @keyup.enter="insertSpintax"
-            />
-            <div class="flex gap-2 mt-2">
-              <button
-                type="button"
-                @click="insertSpintax"
-                class="flex-1 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Inserir
-              </button>
-              <button
-                type="button"
-                @click="showSpintaxMenu = false"
-                class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        @click="openSpintaxModal"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+      >
+        <svg class="w-4 h-4 text-indigo-500" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Spintax
+      </button>
 
       <!-- Botão Variáveis -->
       <div class="relative">
@@ -141,6 +103,123 @@
         <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ previewMessage }}</p>
       </div>
     </div>
+
+    <!-- Modal de Spintax -->
+    <Teleport to="body">
+      <div
+        v-if="showSpintaxModal"
+        class="fixed inset-0 bg-black/20 backdrop-blur-[2px] flex items-center justify-center z-50 p-4"
+        @click.self="closeSpintaxModal"
+      >
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+          <!-- Header do Modal -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900">Gerar Spintax</h3>
+            </div>
+            <button
+              type="button"
+              @click="closeSpintaxModal"
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Conteúdo do Modal -->
+          <div class="px-6 py-5">
+            <p class="text-sm text-gray-600 mb-6">
+              Adicione variações de palavras para criar mensagens dinâmicas. Cada campo receberá uma única palavra.
+            </p>
+
+            <!-- Campos de Variação -->
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-3">
+                <label class="text-sm font-medium text-gray-700">Variações de Palavras</label>
+                <span class="text-sm text-gray-500">{{ usedFieldsCount }} de {{ maxSpintaxFields }} campos utilizados</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div
+                  v-for="(field, index) in spintaxFields"
+                  :key="index"
+                  class="relative"
+                >
+                  <label class="block text-xs font-medium text-gray-500 mb-1">
+                    Spintax {{ index + 1 }}
+                  </label>
+                  <div class="relative">
+                    <input
+                      v-model="spintaxFields[index]"
+                      type="text"
+                      :placeholder="`Opção ${index + 1}`"
+                      class="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-8"
+                    />
+                    <button
+                      v-if="spintaxFields.length > 1"
+                      type="button"
+                      @click="removeSpintaxField(index)"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botão Adicionar Campo -->
+            <button
+              v-if="spintaxFields.length < maxSpintaxFields"
+              type="button"
+              @click="addSpintaxField"
+              class="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+              Adicionar campo
+            </button>
+
+            <!-- Preview do Spintax Gerado -->
+            <div v-if="usedFieldsCount > 0" class="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p class="text-xs text-gray-500 mb-1">Preview do spintax:</p>
+              <code class="text-sm text-indigo-600 font-mono">
+                {{'{'}}{{ spintaxFields.filter(f => f.trim()).join('|') }}{{'}'}}
+              </code>
+            </div>
+          </div>
+
+          <!-- Footer do Modal -->
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              @click="closeSpintaxModal"
+              class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              @click="generateSpintax"
+              :disabled="usedFieldsCount === 0"
+              class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Gerar Spintax
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -186,9 +265,10 @@ const textareaRef = ref(null)
 const cursorPosition = ref(0)
 
 // State
-const showSpintaxMenu = ref(false)
+const showSpintaxModal = ref(false)
 const showVariablesMenu = ref(false)
-const spintaxInput = ref('')
+const spintaxFields = ref(['', '', ''])
+const maxSpintaxFields = 9
 
 // Variáveis disponíveis
 const availableVariables = [
@@ -227,6 +307,11 @@ const previewMessage = computed(() => {
   return message
 })
 
+// Computed
+const usedFieldsCount = computed(() => {
+  return spintaxFields.value.filter(f => f.trim() !== '').length
+})
+
 // Methods
 const handleInput = (event) => {
   emit('update:modelValue', event.target.value)
@@ -237,20 +322,44 @@ const handleFocus = () => {
 }
 
 const closeAllMenus = () => {
-  showSpintaxMenu.value = false
+  showSpintaxModal.value = false
   showVariablesMenu.value = false
 }
 
-const toggleSpintaxMenu = () => {
+const openSpintaxModal = () => {
   showVariablesMenu.value = false
-  showSpintaxMenu.value = !showSpintaxMenu.value
-  if (showSpintaxMenu.value) {
-    spintaxInput.value = ''
+  spintaxFields.value = ['', '', '']
+  showSpintaxModal.value = true
+}
+
+const closeSpintaxModal = () => {
+  showSpintaxModal.value = false
+  spintaxFields.value = ['', '', '']
+}
+
+const addSpintaxField = () => {
+  if (spintaxFields.value.length < maxSpintaxFields) {
+    spintaxFields.value.push('')
   }
 }
 
+const removeSpintaxField = (index) => {
+  if (spintaxFields.value.length > 1) {
+    spintaxFields.value.splice(index, 1)
+  }
+}
+
+const generateSpintax = () => {
+  const validOptions = spintaxFields.value.filter(f => f.trim() !== '')
+  if (validOptions.length === 0) return
+  
+  const spintaxText = `{${validOptions.join('|')}}`
+  insertAtCursor(spintaxText)
+  closeSpintaxModal()
+}
+
 const toggleVariablesMenu = () => {
-  showSpintaxMenu.value = false
+  showSpintaxModal.value = false
   showVariablesMenu.value = !showVariablesMenu.value
 }
 
@@ -273,26 +382,16 @@ const insertAtCursor = (text) => {
   })
 }
 
-const insertSpintax = () => {
-  if (!spintaxInput.value.trim()) return
-  
-  const spintaxText = `{${spintaxInput.value.trim()}}`
-  insertAtCursor(spintaxText)
-  
-  spintaxInput.value = ''
-  showSpintaxMenu.value = false
-}
-
 const insertVariable = (variable) => {
   insertAtCursor(variable)
   showVariablesMenu.value = false
 }
 
-// Click outside handler
+// Click outside handler para o menu de variáveis
 const handleClickOutside = (event) => {
   const target = event.target
-  if (!target.closest('.campaign-message-editor')) {
-    closeAllMenus()
+  if (!target.closest('.campaign-message-editor') && !target.closest('[data-spintax-modal]')) {
+    showVariablesMenu.value = false
   }
 }
 
