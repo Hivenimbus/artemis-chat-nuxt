@@ -224,7 +224,13 @@ export default defineEventHandler(async (event) => {
     }
 
     if (status) {
-      queryBuilder = queryBuilder.eq('status', status)
+      // Se status for 'todos', não filtramos por status (útil para ver tudo, inclusive concluídos se desejado)
+      if (status !== 'todos') {
+        queryBuilder = queryBuilder.eq('status', status)
+      }
+    } else {
+      // Comportamento padrão: excluir atendimentos concluídos
+      queryBuilder = queryBuilder.neq('status', 'concluido')
     }
 
     if (responsavelId) {

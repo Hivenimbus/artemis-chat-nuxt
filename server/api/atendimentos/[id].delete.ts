@@ -1,20 +1,21 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 import { createServiceSupabaseClient } from '~/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/atendimentos/[id].delete: Iniciando exclusão de atendimento')
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário autenticado do contexto
+    const user = event.context.user
 
-    if (userError || !user) {
+    if (!user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Obter ID do atendimento
     const atendimentoId = getRouterParam(event, 'id')

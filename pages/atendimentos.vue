@@ -359,8 +359,9 @@ const confirmResolveChat = async () => {
       // Atualizar atendimento local
       const atendimentoIndex = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
       if (atendimentoIndex > -1) {
-        atendimentos.value[atendimentoIndex].status = 'concluido'
-        atendimentos.value[atendimentoIndex].unreadCount = 0
+        // Remover da lista se o filtro atual não incluir resolvidos
+        atendimentos.value.splice(atendimentoIndex, 1)
+        selectedContact.value = null // Deselecionar contato
       }
 
       showResolveModal.value = false
