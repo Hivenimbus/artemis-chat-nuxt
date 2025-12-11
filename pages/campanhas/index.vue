@@ -112,6 +112,7 @@
             :error="errors.message"
             :show-preview="true"
             :sample-contact="sampleContact"
+            @save-template="handleSaveTemplate"
           />
         </div>
 
@@ -343,16 +344,21 @@ import { useToast } from '~/composables/useToast'
 const { fetchContatos, fetchEtiquetas } = useContatos()
 const { getInboxes } = useInboxes()
 const toast = useToast()
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
 
 // State
 const loading = ref(true)
 const submitting = ref(false)
 const showConfirmModal = ref(false)
+// const showTemplateModal = ref(false) // Removido
+// const newTemplateName = ref('') // Removido
 
 // Dados carregados
 const contacts = ref([])
 const availableTags = ref([])
 const inboxes = ref([])
+const realFilteredCount = ref(0)
 
 // Formulário
 const recipientType = ref('all')
@@ -370,20 +376,39 @@ const errors = ref({
   inbox: ''
 })
 
+// Watchers para contagem de contatos
+watch([recipientType, selectedTags], async () => {
+  if (recipientType.value === 'all') {
+    realFilteredCount.value = totalContacts.value
+    return
+  }
+  
+  if (selectedTags.value.length === 0) {
+    realFilteredCount.value = 0
+    return
+  }
+
+  try {
+    const tagsIds = selectedTags.value.map(t => t.id || t)
+    const { count } = await $fetch('/api/contatos/count', {
+      query: {
+        type: 'tags',
+        tags: tagsIds
+      }
+    })
+    realFilteredCount.value = count
+  } catch (error) {
+    console.error('Erro ao contar contatos:', error)
+  }
+}, { deep: true })
+
 // Computed
-const totalContacts = computed(() => contacts.value.length)
+const totalContacts = computed(() => contacts.value.length) // Nota: Isso conta apenas os carregados na memória (limit 1000). Idealmente deveria vir do backend também.
 
 const filteredContactsCount = computed(() => {
-  if (recipientType.value === 'all') return totalContacts.value
+  if (recipientType.value === 'all') return realFilteredCount.value
   if (selectedTags.value.length === 0) return 0
-  
-  // Simular filtragem por tags
-  // No frontend, vamos apenas estimar baseado na quantidade de tags
-  // O backend fará a filtragem real
-  return Math.min(
-    totalContacts.value,
-    Math.ceil(totalContacts.value * (selectedTags.value.length / Math.max(availableTags.value.length, 1)))
-  )
+  return realFilteredCount.value
 })
 
 const minDateTime = computed(() => {
@@ -434,14 +459,23 @@ const sampleContact = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const [contactsRes, tagsRes, inboxesRes] = await Promise.all([
+    const [contactsRes, tagsRes, inboxesRes, countRes] = await Promise.all([
       fetchContatos({ limit: 1000 }),
       fetchEtiquetas(),
-      getInboxes()
+      getInboxes(),
+      $fetch('/api/contatos/count?type=all')
     ])
 
     if (contactsRes?.contatos) {
       contacts.value = contactsRes.contatos
+    }
+
+    if (countRes && typeof countRes.count === 'number') {
+       realFilteredCount.value = countRes.count
+       // Se recipientType for all, o watcher pode não disparar inicialmente se já for o padrão
+       if (recipientType.value === 'all') {
+         realFilteredCount.value = countRes.count
+       }
     }
 
     if (Array.isArray(tagsRes)) {
@@ -549,23 +583,51 @@ const confirmSubmit = async () => {
   submitting.value = true
   
   try {
+    let attachmentUrl = null
+    let attachmentType = null
+
+    // Upload anexo se existir
+    if (attachment.value) {
+      const file = attachment.value
+      // Garantir que é um arquivo
+      if (file instanceof File) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `campaigns/${user.value.id}/${fileName}`
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from('midias')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('midias')
+          .getPublicUrl(filePath)
+
+        attachmentUrl = publicUrl
+        attachmentType = file.type
+      }
+    }
+
     // Preparar dados da campanha
     const campaignData = {
       recipientType: recipientType.value,
       selectedTags: recipientType.value === 'tags' ? selectedTags.value.map(t => t.id || t) : [],
-      messageText: messageText.value,
-      attachment: attachment.value,
-      attachmentCaption: attachmentCaption.value,
+      messageText: messageText.value || attachmentCaption.value, // Fallback para caption se messageText vazio
+      attachmentUrl: attachmentUrl,
+      attachmentType: attachmentType,
       sendType: sendType.value,
       scheduledDateTime: sendType.value === 'scheduled' ? scheduledDateTime.value : null,
       inboxId: selectedInboxId.value
     }
 
-    // TODO: Implementar chamada à API quando backend estiver pronto
-    console.log('Dados da campanha:', campaignData)
-    
-    // Simular delay de processamento
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await $fetch('/api/campanhas', {
+      method: 'POST',
+      body: campaignData
+    })
     
     toast.showToast(
       sendType.value === 'now' 
@@ -595,6 +657,31 @@ const resetForm = () => {
   scheduledDateTime.value = ''
   selectedInboxId.value = ''
   errors.value = { message: '', inbox: '' }
+}
+
+const handleSaveTemplate = async () => {
+  if (!messageText.value.trim()) return
+  
+  // Salvar direto como rascunho
+  const draftName = `Rascunho - ${new Date().toLocaleString('pt-BR')}`
+  
+  submitting.value = true
+  try {
+    await $fetch('/api/templates', {
+      method: 'POST',
+      body: {
+        name: draftName,
+        content: messageText.value
+      }
+    })
+    
+    toast.showToast('Mensagem salva com sucesso!', 'success')
+  } catch (error) {
+    console.error('Erro ao salvar mensagem:', error)
+    toast.showToast('Erro ao salvar mensagem', 'error')
+  } finally {
+    submitting.value = false
+  }
 }
 
 const formatDateTime = (dateTimeStr) => {
