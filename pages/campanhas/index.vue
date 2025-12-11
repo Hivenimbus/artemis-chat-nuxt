@@ -459,11 +459,12 @@ const sampleContact = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const [contactsRes, tagsRes, inboxesRes, countRes] = await Promise.all([
+    const [contactsRes, tagsRes, inboxesRes, countRes, templateRes] = await Promise.all([
       fetchContatos({ limit: 1000 }),
       fetchEtiquetas(),
       getInboxes(),
-      $fetch('/api/contatos/count?type=all')
+      $fetch('/api/contatos/count?type=all'),
+      $fetch('/api/templates')
     ])
 
     if (contactsRes?.contatos) {
@@ -476,6 +477,10 @@ const loadData = async () => {
        if (recipientType.value === 'all') {
          realFilteredCount.value = countRes.count
        }
+    }
+
+    if (templateRes?.data?.content) {
+      messageText.value = templateRes.data.content
     }
 
     if (Array.isArray(tagsRes)) {
