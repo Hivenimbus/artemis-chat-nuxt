@@ -391,12 +391,26 @@ const statusOptions = computed(() => {
 
 // Computed para obter o nome da caixa de entrada selecionada para exibição
 const selectedCaixaEntradaName = computed(() => {
-  if (!selectedCaixaEntrada.value) {
+  // Tentar encontrar a caixa selecionada nas opções
+  const selectedInbox = props.caixasEntradaOptions.find(caixa => caixa.value === selectedCaixaEntrada.value)
+  if (selectedInbox) {
+    return selectedInbox.label
+  }
+
+  // Se não encontrou (pode ser null ou inválido), verificar casos especiais
+  
+  // Se existe a opção de "Nenhuma disponível" (array vazio de inboxes), retornar ela
+  const noneOption = props.caixasEntradaOptions.find(c => c.value === 'none')
+  if (noneOption) {
+    return noneOption.label
+  }
+
+  // Se estiver carregando
+  if (props.loading || props.caixasEntradaOptions.some(c => c.value === 'loading')) {
     return 'Carregando...'
   }
 
-  const selectedInbox = props.caixasEntradaOptions.find(caixa => caixa.value === selectedCaixaEntrada.value)
-  return selectedInbox ? selectedInbox.label : 'Nenhuma'
+  return 'Selecione uma caixa'
 })
 
 // Computed para filtrar caixas de entrada no dropdown
@@ -419,13 +433,13 @@ const filteredContacts = computed(() => {
 
   let filtered = props.contacts.filter(contact => contact != null)
 
-  // Filtrar por caixa de entrada (apenas se houver uma selecionada)
-  if (selectedCaixaEntrada.value) {
+  // Filtrar por caixa de entrada (apenas se houver uma selecionada e não for 'all')
+  if (selectedCaixaEntrada.value && selectedCaixaEntrada.value !== 'all' && selectedCaixaEntrada.value !== 'none') {
     filtered = filtered.filter(contact =>
       contact.caixa_entrada === selectedCaixaEntrada.value
     )
   }
-  // Se não houver caixa selecionada, mostra todos os contatos
+  // Se for 'all', não filtra por caixa (mostra todas)
 
   // Filtrar por status
   if (selectedStatus.value !== 'todos') {
@@ -573,7 +587,14 @@ const getTagName = (tag) => {
 // Watcher para selecionar automaticamente a primeira inbox quando carregar
 watch(() => props.caixasEntradaOptions, (newOptions) => {
   if (newOptions && newOptions.length > 0 && !selectedCaixaEntrada.value) {
-    // Se há inboxes disponíveis e nenhuma está selecionada, seleciona a primeira real
+    // Tentar selecionar "Todas" (valor 'all') se existir
+    const allOption = newOptions.find(c => c.value === 'all')
+    if (allOption) {
+      selectedCaixaEntrada.value = 'all'
+      return
+    }
+
+    // Se não tiver "Todas", tenta a primeira real
     const firstRealInbox = newOptions.find(caixa =>
       caixa.value !== 'loading' &&
       caixa.value !== 'none' &&
@@ -582,6 +603,12 @@ watch(() => props.caixasEntradaOptions, (newOptions) => {
 
     if (firstRealInbox) {
       selectedCaixaEntrada.value = firstRealInbox.value
+    } else {
+      // Se não encontrou inbox real, verificar se é o caso de "nenhuma disponível"
+      const noneOption = newOptions.find(c => c.value === 'none')
+      if (noneOption) {
+        selectedCaixaEntrada.value = 'none'
+      }
     }
   }
 }, { immediate: true })

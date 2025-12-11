@@ -96,7 +96,7 @@ const caixasEntradaOptions = computed(() => {
   }
 
   // Se não há inboxes carregadas, retorna array vazio ou mensagem
-  if (!inboxesData.value || !Array.isArray(inboxesData.value)) {
+  if (!inboxesData.value || !Array.isArray(inboxesData.value) || inboxesData.value.length === 0) {
     return [{ label: 'Nenhuma caixa de entrada disponível', value: 'none', count: 0, disabled: true }]
   }
 
@@ -111,13 +111,24 @@ const caixasEntradaOptions = computed(() => {
   })
 
   // Mapear inboxes para o formato esperado pelo ContactList
-  return inboxesData.value.map(inbox => ({
+  const options = inboxesData.value.map(inbox => ({
     label: inbox.name,
     value: inbox.id,
     count: caixaCounts[inbox.id] || 0,
     description: inbox.description,
     status: inbox.status
   }))
+
+  // Adicionar opção "Todas" no início
+  options.unshift({
+    label: 'Todas',
+    value: 'all',
+    count: atendimentos.value.length, // Soma total
+    description: 'Todas as caixas de entrada',
+    status: 'connected'
+  })
+
+  return options
 })
 
 // Tags do sistema carregadas da API
@@ -498,7 +509,9 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
     }
 
     const params = new URLSearchParams()
-    if (inboxId) {
+    // Se inboxId for 'all', não enviamos o parâmetro para a API, 
+    // assim ela retorna tudo o que é permitido
+    if (inboxId && inboxId !== 'all') {
       params.append('inbox_id', inboxId)
     }
 
