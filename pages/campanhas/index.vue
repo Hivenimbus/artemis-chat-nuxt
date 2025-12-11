@@ -65,7 +65,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Selecione as tags
             </label>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-3 p-1">
               <button
                 v-for="tag in availableTags"
                 :key="getTagId(tag)"
