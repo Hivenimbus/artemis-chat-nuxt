@@ -1027,9 +1027,14 @@ const confirmAttachment = async () => {
         const file = tempAttachmentFile.value
 
         // Salvar metadados
+        // Se já tiver ID (veio do banco mas estamos substituindo o arquivo), enviar ID para fazer update
+        // Caso contrário, é um novo insert
+        const existingId = editingAttachmentIndex.value !== null ? attachments.value[editingAttachmentIndex.value].id : null
+
         const { data } = await $fetch('/api/attachments', {
           method: 'POST',
           body: {
+            id: existingId, // Passar ID se existir para fazer update
             fileUrl: publicUrl,
             fileType: file.type,
             fileName: file.name,
@@ -1038,14 +1043,27 @@ const confirmAttachment = async () => {
         })
 
         if (data) {
-          attachments.value.push({
-            id: data.id,
-            file: file,
-            previewUrl: publicUrl,
-            caption: data.caption,
-            url: data.file_url,
-            type: data.file_type
-          })
+            // Se estava editando, atualiza
+            if (editingAttachmentIndex.value !== null) {
+                 attachments.value[editingAttachmentIndex.value] = {
+                    id: data.id,
+                    file: file,
+                    previewUrl: publicUrl,
+                    caption: data.caption,
+                    url: data.file_url,
+                    type: data.file_type
+                 }
+            } else {
+                 // Novo
+                 attachments.value.push({
+                    id: data.id,
+                    file: file,
+                    previewUrl: publicUrl,
+                    caption: data.caption,
+                    url: data.file_url,
+                    type: data.file_type
+                 })
+            }
         }
       }
     }

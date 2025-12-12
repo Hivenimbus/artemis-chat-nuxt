@@ -25,28 +25,55 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Conteúdo é obrigatório' })
     }
 
-    // Upsert template (update if exists for user, insert if not)
-    const { data: template, error: insertError } = await client
+    // Check if template exists for user
+    const { data: existingTemplate } = await client
       .from('message_templates')
-      .upsert({
-        user_id: user.id,
-        empresa_id: userData.empresa_id,
-        content: body.content,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      })
-      .select()
+      .select('id')
+      .eq('user_id', user.id)
       .single()
 
-    if (insertError) {
-      console.error('Error saving template:', insertError)
+    let templateData
+    let operationError
+
+    if (existingTemplate) {
+      // Update existing
+      const { data, error } = await client
+        .from('message_templates')
+        .update({
+          content: body.content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingTemplate.id)
+        .select()
+        .single()
+      
+      templateData = data
+      operationError = error
+    } else {
+      // Insert new
+      const { data, error } = await client
+        .from('message_templates')
+        .insert({
+          user_id: user.id,
+          empresa_id: userData.empresa_id,
+          content: body.content,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      templateData = data
+      operationError = error
+    }
+
+    if (operationError) {
+      console.error('Error saving template:', operationError)
       throw createError({ statusCode: 500, statusMessage: 'Erro ao salvar modelo de mensagem' })
     }
 
     return {
       success: true,
-      data: template
+      data: templateData
     }
 
   } catch (error: any) {
