@@ -205,7 +205,6 @@
 
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate">{{ att.file?.name || 'Arquivo' }}</p>
-                  <p class="text-xs text-gray-500">{{ formatFileSize(att.file?.size || 0) }}</p>
                   <p v-if="att.caption" class="text-xs text-indigo-600 mt-1 truncate">"{{ att.caption }}"</p>
                 </div>
 
