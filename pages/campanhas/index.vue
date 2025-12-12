@@ -569,13 +569,14 @@ import CampaignMessageEditor from '~/components/CampaignMessageEditor.vue'
 import { useContatos } from '~/composables/useContatos'
 import { useInboxes } from '~/composables/useInboxes'
 import { useToast } from '~/composables/useToast'
+import { useAuth } from '~/composables/useAuth'
 
 // Composables
 const { fetchContatos, fetchEtiquetas } = useContatos()
 const { getInboxes } = useInboxes()
 const toast = useToast()
 const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { user } = useAuth()
 
 // State
 const loading = ref(true)
@@ -698,12 +699,13 @@ const sampleContact = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const [contactsRes, tagsRes, inboxesRes, countRes, templateRes] = await Promise.all([
+    const [contactsRes, tagsRes, inboxesRes, countRes, templateRes, attachmentsRes] = await Promise.all([
       fetchContatos({ limit: 1000 }),
       fetchEtiquetas(),
       getInboxes(),
       $fetch('/api/contatos/count?type=all'),
-      $fetch('/api/templates')
+      $fetch('/api/templates'),
+      $fetch('/api/attachments')
     ])
 
     if (contactsRes?.contatos) {
@@ -720,6 +722,17 @@ const loadData = async () => {
 
     if (templateRes?.data?.content) {
       messageText.value = templateRes.data.content
+    }
+
+    if (attachmentsRes?.success && Array.isArray(attachmentsRes.data)) {
+      attachments.value = attachmentsRes.data.map(att => ({
+        id: att.id,
+        file: att.file_name ? { name: att.file_name, type: att.file_type, size: 0 } : null,
+        previewUrl: att.file_url,
+        caption: att.caption,
+        url: att.file_url,
+        type: att.file_type
+      }))
     }
 
     if (Array.isArray(tagsRes)) {
@@ -921,6 +934,11 @@ const editAttachment = (index) => {
 const confirmAttachment = async () => {
   if (!tempAttachmentFile.value && editingAttachmentIndex.value === null) return
 
+  if (!user.value) {
+    toast.showToast('Erro: Usuário não autenticado. Tente recarregar a página.', 'error')
+    return
+  }
+
   uploadingAttachment.value = true
   try {
     let attachmentData = null
@@ -931,23 +949,21 @@ const confirmAttachment = async () => {
       
       // Se o arquivo mudou (é um objeto File), faz upload do novo
       if (tempAttachmentFile.value instanceof File) {
-        // Upload novo arquivo
+        // Upload novo arquivo via API (Server-side para evitar RLS)
+        const formData = new FormData()
+        formData.append('file', tempAttachmentFile.value)
+
+        const uploadResponse = await $fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadResponse.success) {
+           throw new Error('Falha no upload do arquivo')
+        }
+
+        const publicUrl = uploadResponse.publicUrl
         const file = tempAttachmentFile.value
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `campaigns/${user.value.id}/${fileName}`
-
-        const { error: uploadError } = await supabase
-          .storage
-          .from('midias')
-          .upload(filePath, file)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('midias')
-          .getPublicUrl(filePath)
 
         // Salvar novo metadado
         const { data } = await $fetch('/api/attachments', {
@@ -994,22 +1010,21 @@ const confirmAttachment = async () => {
     } else {
       // Caso 2: Adicionando novo anexo
       if (tempAttachmentFile.value instanceof File) {
+        // Upload arquivo via API
+        const formData = new FormData()
+        formData.append('file', tempAttachmentFile.value)
+
+        const uploadResponse = await $fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadResponse.success) {
+           throw new Error('Falha no upload do arquivo')
+        }
+
+        const publicUrl = uploadResponse.publicUrl
         const file = tempAttachmentFile.value
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `campaigns/${user.value.id}/${fileName}`
-
-        const { error: uploadError } = await supabase
-          .storage
-          .from('midias')
-          .upload(filePath, file)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('midias')
-          .getPublicUrl(filePath)
 
         // Salvar metadados
         const { data } = await $fetch('/api/attachments', {
