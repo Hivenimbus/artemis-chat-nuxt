@@ -110,7 +110,7 @@
             placeholder="Olá {{nome}}, temos uma novidade especial para você..."
             :rows="8"
             :error="errors.message"
-            :show-preview="true"
+            :show-preview="false"
             :sample-contact="sampleContact"
             @save-template="handleSaveTemplate"
           />
@@ -323,17 +323,11 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Resumo da Campanha</h3>
           
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
             <div class="p-3 bg-gray-50 rounded-lg">
               <p class="text-sm text-gray-500">Destinatários</p>
               <p class="text-xl font-semibold text-gray-900">
                 {{ recipientType === 'all' ? totalContacts : filteredContactsCount }}
-              </p>
-            </div>
-            <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-500">Mensagem</p>
-              <p class="text-xl font-semibold text-gray-900">
-                {{ messageText ? messageText.length : 0 }} chars
               </p>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg">
