@@ -125,16 +125,121 @@
               </svg>
             </div>
             <div>
-              <h2 class="text-lg font-semibold text-gray-900">Anexo</h2>
-              <p class="text-sm text-gray-500">Adicione uma mídia à sua mensagem (opcional)</p>
+              <h2 class="text-lg font-semibold text-gray-900">Anexos</h2>
+              <p class="text-sm text-gray-500">Adicione mídias à sua mensagem (opcional)</p>
             </div>
           </div>
 
-          <CampaignAttachmentUploader
-            v-model="attachment"
-            v-model:caption="attachmentCaption"
-            :max-file-size-m-b="16"
-          />
+          <!-- Seletores de Tipo -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <button
+              type="button"
+              @click="openAttachmentModal('image')"
+              class="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+            >
+              <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-blue-600">Imagem</span>
+            </button>
+
+            <button
+              type="button"
+              @click="openAttachmentModal('video')"
+              class="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors group"
+            >
+              <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-purple-600">Vídeo</span>
+            </button>
+
+            <button
+              type="button"
+              @click="openAttachmentModal('audio')"
+              class="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors group"
+            >
+              <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-green-600">Áudio</span>
+            </button>
+
+            <button
+              type="button"
+              @click="openAttachmentModal('document')"
+              class="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-colors group"
+            >
+              <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-sm font-medium text-gray-700 group-hover:text-orange-600">Documento</span>
+            </button>
+          </div>
+
+          <!-- Grid de Anexos Carregados -->
+          <div v-if="attachments.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="(att, index) in attachments"
+              :key="index"
+              class="relative border border-gray-200 rounded-lg p-3 bg-gray-50"
+            >
+              <!-- Preview/Thumbnail -->
+              <div class="flex items-start gap-3">
+                <div class="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
+                  <img
+                    v-if="att.previewUrl && att.file?.type?.startsWith('image/')"
+                    :src="att.previewUrl"
+                    class="w-full h-full object-cover"
+                  />
+                  <svg v-else-if="att.file?.type?.startsWith('video/')" class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <svg v-else-if="att.file?.type?.startsWith('audio/')" class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <svg v-else class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ att.file?.name || 'Arquivo' }}</p>
+                  <p class="text-xs text-gray-500">{{ formatFileSize(att.file?.size || 0) }}</p>
+                  <p v-if="att.caption" class="text-xs text-indigo-600 mt-1 truncate">"{{ att.caption }}"</p>
+                </div>
+
+                <!-- Ações -->
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    @click="editAttachment(index)"
+                    class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    title="Editar"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    @click="removeAttachment(index)"
+                    class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    title="Remover"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensagem quando não há anexos -->
+          <div v-else class="text-center py-4 text-sm text-gray-500">
+            Clique em um tipo de arquivo acima para adicionar anexos
+          </div>
         </div>
 
         <!-- Seção 4: Agendamento -->
@@ -233,9 +338,9 @@
               </p>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-500">Anexo</p>
+              <p class="text-sm text-gray-500">Anexos</p>
               <p class="text-xl font-semibold text-gray-900">
-                {{ attachment ? 'Sim' : 'Não' }}
+                {{ attachments.filter(a => a.file).length }}
               </p>
             </div>
             <div class="p-3 bg-gray-50 rounded-lg">
@@ -330,12 +435,137 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Anexo -->
+    <div
+      v-if="showAttachmentModal"
+      class="fixed inset-0 backdrop-blur-[2px] bg-black/20 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">
+            {{ editingAttachmentIndex !== null ? 'Editar' : 'Adicionar' }} {{ getAttachmentTypeLabel(attachmentModalType) }}
+          </h3>
+          <button
+            type="button"
+            @click="closeAttachmentModal"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-6 py-5 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <!-- Área de Upload -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Arquivo</label>
+            <div
+              v-if="!tempAttachmentFile"
+              @click="triggerModalFileInput"
+              @dragover.prevent="modalDragging = true"
+              @dragleave.prevent="modalDragging = false"
+              @drop.prevent="handleModalDrop"
+              class="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all"
+              :class="modalDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'"
+            >
+              <input
+                ref="modalFileInputRef"
+                type="file"
+                :accept="getAcceptedTypes(attachmentModalType)"
+                class="hidden"
+                @change="handleModalFileSelect"
+              />
+              <svg class="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="text-sm text-gray-600">Arraste um arquivo ou clique para selecionar</p>
+              <p class="text-xs text-gray-400 mt-1">Máx. 16MB</p>
+            </div>
+
+            <!-- Preview do arquivo selecionado -->
+            <div v-else class="border border-gray-200 rounded-lg p-4">
+              <div class="flex items-center gap-3">
+                <!-- Preview -->
+                <div class="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <img
+                    v-if="tempAttachmentPreview && tempAttachmentFile.type?.startsWith('image/')"
+                    :src="tempAttachmentPreview"
+                    class="w-full h-full object-cover"
+                  />
+                  <video
+                    v-else-if="tempAttachmentPreview && tempAttachmentFile.type?.startsWith('video/')"
+                    :src="tempAttachmentPreview"
+                    class="w-full h-full object-cover"
+                  />
+                  <svg v-else-if="tempAttachmentFile.type?.startsWith('audio/')" class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <svg v-else class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 truncate">{{ tempAttachmentFile.name }}</p>
+                  <p class="text-xs text-gray-500">{{ formatFileSize(tempAttachmentFile.size) }}</p>
+                </div>
+
+                <button
+                  type="button"
+                  @click="clearTempAttachment"
+                  class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Campo de Legenda -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Legenda (opcional)</label>
+            <CampaignMessageEditor
+              v-model="tempAttachmentCaption"
+              placeholder="Digite uma legenda para o arquivo..."
+              :rows="3"
+              :show-preview="false"
+              :show-save-button="false"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <button
+            type="button"
+            @click="closeAttachmentModal"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            @click="confirmAttachment"
+            :disabled="!tempAttachmentFile && editingAttachmentIndex === null"
+            class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg v-if="uploadingAttachment" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ uploadingAttachment ? 'Salvando...' : (editingAttachmentIndex !== null ? 'Salvar' : 'Adicionar') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import CampaignMessageEditor from '~/components/CampaignMessageEditor.vue'
-import CampaignAttachmentUploader from '~/components/CampaignAttachmentUploader.vue'
 import { useContatos } from '~/composables/useContatos'
 import { useInboxes } from '~/composables/useInboxes'
 import { useToast } from '~/composables/useToast'
@@ -350,9 +580,18 @@ const user = useSupabaseUser()
 // State
 const loading = ref(true)
 const submitting = ref(false)
+const uploadingAttachment = ref(false) // New state for modal button
 const showConfirmModal = ref(false)
-// const showTemplateModal = ref(false) // Removido
-// const newTemplateName = ref('') // Removido
+const showAttachmentModal = ref(false)
+const attachmentModalType = ref('image')
+const editingAttachmentIndex = ref(null)
+const modalDragging = ref(false)
+const modalFileInputRef = ref(null)
+
+// Temp state for modal
+const tempAttachmentFile = ref(null)
+const tempAttachmentCaption = ref('')
+const tempAttachmentPreview = ref('')
 
 // Dados carregados
 const contacts = ref([])
@@ -364,8 +603,7 @@ const realFilteredCount = ref(0)
 const recipientType = ref('all')
 const selectedTags = ref([])
 const messageText = ref('')
-const attachment = ref(null)
-const attachmentCaption = ref('')
+const attachments = ref([]) // Array de { file: File|null, caption: string }
 const sendType = ref('now')
 const scheduledDateTime = ref('')
 const selectedInboxId = ref('')
@@ -418,8 +656,9 @@ const minDateTime = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  // Verificar se tem mensagem ou anexo
-  if (!messageText.value && !attachment.value) return false
+  // Verificar se tem mensagem ou pelo menos um anexo
+  const hasAttachments = attachments.value.some(a => a.file)
+  if (!messageText.value && !hasAttachments) return false
   
   // Verificar inbox selecionado
   if (!selectedInboxId.value) return false
@@ -566,7 +805,8 @@ const validateForm = () => {
   errors.value = { message: '', inbox: '' }
   let isValid = true
 
-  if (!messageText.value && !attachment.value) {
+  const hasAttachments = attachments.value.some(a => a.file)
+  if (!messageText.value && !hasAttachments) {
     errors.value.message = 'Digite uma mensagem ou adicione um anexo'
     isValid = false
   }
@@ -588,53 +828,20 @@ const confirmSubmit = async () => {
   submitting.value = true
   
   try {
-    let attachmentUrl = null
-    let attachmentType = null
-
-    // Upload anexo se existir
-    if (attachment.value) {
-      const file = attachment.value
-      // Garantir que é um arquivo
-      if (file instanceof File) {
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `campaigns/${user.value.id}/${fileName}`
-
-        const { error: uploadError } = await supabase
-          .storage
-          .from('midias')
-          .upload(filePath, file)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('midias')
-          .getPublicUrl(filePath)
-
-        attachmentUrl = publicUrl
-        attachmentType = file.type
-        
-        // Salvar metadados do anexo
-        await $fetch('/api/attachments', {
-          method: 'POST',
-          body: {
-            fileUrl: attachmentUrl,
-            fileType: attachmentType,
-            fileName: file.name,
-            caption: attachmentCaption.value
-          }
-        })
-      }
-    }
+    // Coletar URLs/IDs dos anexos já enviados
+    const campaignAttachments = attachments.value.map(att => ({
+      url: att.url,
+      type: att.type,
+      caption: att.caption
+    })).filter(a => a.url)
 
     // Preparar dados da campanha
     const campaignData = {
       recipientType: recipientType.value,
       selectedTags: recipientType.value === 'tags' ? selectedTags.value.map(t => t.id || t) : [],
-      messageText: messageText.value || attachmentCaption.value, // Fallback para caption se messageText vazio
-      attachmentUrl: attachmentUrl,
-      attachmentType: attachmentType,
+      messageText: messageText.value || (campaignAttachments[0]?.caption || ''),
+      attachmentUrl: campaignAttachments[0]?.url || null,
+      attachmentType: campaignAttachments[0]?.type || null,
       sendType: sendType.value,
       scheduledDateTime: sendType.value === 'scheduled' ? scheduledDateTime.value : null,
       inboxId: selectedInboxId.value
@@ -667,12 +874,250 @@ const resetForm = () => {
   recipientType.value = 'all'
   selectedTags.value = []
   messageText.value = ''
-  attachment.value = null
-  attachmentCaption.value = ''
+  attachments.value = []
   sendType.value = 'now'
   scheduledDateTime.value = ''
   selectedInboxId.value = ''
   errors.value = { message: '', inbox: '' }
+}
+
+// Funções para gerenciar anexos
+const openAttachmentModal = (type) => {
+  attachmentModalType.value = type
+  editingAttachmentIndex.value = null
+  tempAttachmentFile.value = null
+  tempAttachmentCaption.value = ''
+  tempAttachmentPreview.value = ''
+  showAttachmentModal.value = true
+}
+
+const closeAttachmentModal = () => {
+  showAttachmentModal.value = false
+  if (tempAttachmentPreview.value) {
+    URL.revokeObjectURL(tempAttachmentPreview.value)
+  }
+  tempAttachmentFile.value = null
+  tempAttachmentCaption.value = ''
+  tempAttachmentPreview.value = ''
+  editingAttachmentIndex.value = null
+}
+
+const editAttachment = (index) => {
+  const att = attachments.value[index]
+  editingAttachmentIndex.value = index
+  tempAttachmentFile.value = att.file
+  tempAttachmentCaption.value = att.caption || ''
+  tempAttachmentPreview.value = att.previewUrl || ''
+  
+  // Determine type from file
+  if (att.file?.type?.startsWith('image/')) attachmentModalType.value = 'image'
+  else if (att.file?.type?.startsWith('video/')) attachmentModalType.value = 'video'
+  else if (att.file?.type?.startsWith('audio/')) attachmentModalType.value = 'audio'
+  else attachmentModalType.value = 'document'
+  
+  showAttachmentModal.value = true
+}
+
+const confirmAttachment = async () => {
+  if (!tempAttachmentFile.value && editingAttachmentIndex.value === null) return
+
+  uploadingAttachment.value = true
+  try {
+    let attachmentData = null
+
+    // Caso 1: Editando anexo existente
+    if (editingAttachmentIndex.value !== null) {
+      const existingAttachment = attachments.value[editingAttachmentIndex.value]
+      
+      // Se o arquivo mudou (é um objeto File), faz upload do novo
+      if (tempAttachmentFile.value instanceof File) {
+        // Upload novo arquivo
+        const file = tempAttachmentFile.value
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `campaigns/${user.value.id}/${fileName}`
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from('midias')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('midias')
+          .getPublicUrl(filePath)
+
+        // Salvar novo metadado
+        const { data } = await $fetch('/api/attachments', {
+          method: 'POST',
+          body: {
+            fileUrl: publicUrl,
+            fileType: file.type,
+            fileName: file.name,
+            caption: tempAttachmentCaption.value
+          }
+        })
+        attachmentData = data
+      } else {
+        // Arquivo não mudou, apenas atualizar legenda se necessário
+        if (existingAttachment.id && existingAttachment.caption !== tempAttachmentCaption.value) {
+          const { data } = await $fetch(`/api/attachments/${existingAttachment.id}`, {
+            method: 'PUT',
+            body: {
+              caption: tempAttachmentCaption.value
+            }
+          })
+          attachmentData = data
+        } else {
+          // Nada mudou ou não tem ID ainda (não deveria acontecer se salvo corretamente antes)
+          attachmentData = {
+            ...existingAttachment,
+            caption: tempAttachmentCaption.value
+          }
+        }
+      }
+
+      // Atualizar lista
+      if (attachmentData) {
+        attachments.value[editingAttachmentIndex.value] = {
+          id: attachmentData.id,
+          file: attachmentData.file_name ? { name: attachmentData.file_name, type: attachmentData.file_type, size: 0 } : tempAttachmentFile.value, // Mock file obj for display if needed
+          previewUrl: attachmentData.file_url || tempAttachmentPreview.value,
+          caption: attachmentData.caption,
+          url: attachmentData.file_url,
+          type: attachmentData.file_type
+        }
+      }
+
+    } else {
+      // Caso 2: Adicionando novo anexo
+      if (tempAttachmentFile.value instanceof File) {
+        const file = tempAttachmentFile.value
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const filePath = `campaigns/${user.value.id}/${fileName}`
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from('midias')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('midias')
+          .getPublicUrl(filePath)
+
+        // Salvar metadados
+        const { data } = await $fetch('/api/attachments', {
+          method: 'POST',
+          body: {
+            fileUrl: publicUrl,
+            fileType: file.type,
+            fileName: file.name,
+            caption: tempAttachmentCaption.value
+          }
+        })
+
+        if (data) {
+          attachments.value.push({
+            id: data.id,
+            file: file,
+            previewUrl: publicUrl,
+            caption: data.caption,
+            url: data.file_url,
+            type: data.file_type
+          })
+        }
+      }
+    }
+
+    showAttachmentModal.value = false
+    closeAttachmentModal() // Reset variables
+    
+  } catch (error) {
+    console.error('Erro ao salvar anexo:', error)
+    toast.showToast('Erro ao salvar anexo', 'error')
+  } finally {
+    uploadingAttachment.value = false
+  }
+}
+
+const removeAttachment = (index) => {
+  const att = attachments.value[index]
+  if (att.previewUrl) {
+    URL.revokeObjectURL(att.previewUrl)
+  }
+  attachments.value.splice(index, 1)
+}
+
+const triggerModalFileInput = () => {
+  modalFileInputRef.value?.click()
+}
+
+const handleModalFileSelect = (event) => {
+  const files = event.target?.files
+  if (files?.length) {
+    processModalFile(files[0])
+  }
+  if (modalFileInputRef.value) {
+    modalFileInputRef.value.value = ''
+  }
+}
+
+const handleModalDrop = (event) => {
+  modalDragging.value = false
+  const files = event.dataTransfer?.files
+  if (files?.length) {
+    processModalFile(files[0])
+  }
+}
+
+const processModalFile = (file) => {
+  // Validate size
+  const maxSize = 16 * 1024 * 1024
+  if (file.size > maxSize) {
+    toast.showToast('O arquivo deve ter no máximo 16MB', 'error')
+    return
+  }
+
+  // Create preview
+  if (tempAttachmentPreview.value) {
+    URL.revokeObjectURL(tempAttachmentPreview.value)
+  }
+  tempAttachmentPreview.value = URL.createObjectURL(file)
+  tempAttachmentFile.value = file
+}
+
+const clearTempAttachment = () => {
+  if (tempAttachmentPreview.value) {
+    URL.revokeObjectURL(tempAttachmentPreview.value)
+  }
+  tempAttachmentFile.value = null
+  tempAttachmentPreview.value = ''
+}
+
+const getAcceptedTypes = (type) => {
+  switch (type) {
+    case 'image': return 'image/*'
+    case 'video': return 'video/*'
+    case 'audio': return 'audio/*'
+    case 'document': return '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt'
+    default: return '*/*'
+  }
+}
+
+const getAttachmentTypeLabel = (type) => {
+  switch (type) {
+    case 'image': return 'Imagem'
+    case 'video': return 'Vídeo'
+    case 'audio': return 'Áudio'
+    case 'document': return 'Documento'
+    default: return 'Arquivo'
+  }
 }
 
 const handleSaveTemplate = async () => {
@@ -694,6 +1139,14 @@ const handleSaveTemplate = async () => {
   } finally {
     submitting.value = false
   }
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 const formatDateTime = (dateTimeStr) => {

@@ -91,7 +91,7 @@
     <p v-if="error" class="mt-1 text-sm text-red-600">{{ error }}</p>
 
     <!-- Ações Inferiores -->
-    <div class="mt-2 flex justify-between items-center">
+    <div v-if="showSaveButton" class="mt-2 flex justify-between items-center">
       <div class="flex gap-2">
          <button
             type="button"
@@ -260,6 +260,10 @@ const props = defineProps({
     default: ''
   },
   showPreview: {
+    type: Boolean,
+    default: true
+  },
+  showSaveButton: {
     type: Boolean,
     default: true
   },
