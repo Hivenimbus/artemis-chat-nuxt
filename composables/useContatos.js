@@ -212,8 +212,9 @@ export const useContatos = () => {
         throw apiError
       }
 
-      // Retornar etiquetas completas com informações de nome e cor
+      // Retornar etiquetas completas com informações de nome, cor e ID
       return data.map(etiqueta => ({
+        id: etiqueta.id,
         name: etiqueta.nome,
         color: etiqueta.cor || '#6B7280' // Cor padrão caso não definida
       }))
