@@ -395,7 +395,7 @@
         <div class="mb-6 p-4 bg-gray-50 rounded-lg">
           <p class="text-sm text-gray-700">
             Você está prestes a enviar uma campanha para 
-            <strong>{{ recipientType === 'all' ? totalContacts : filteredContactsCount }} contatos</strong>
+            <strong>{{ recipientType === 'all' ? totalContacts : filteredContactsCount }} contatos </strong> 
             <span v-if="sendType === 'scheduled'">
               agendada para <strong>{{ formatDateTime(scheduledDateTime) }}</strong>
             </span>
