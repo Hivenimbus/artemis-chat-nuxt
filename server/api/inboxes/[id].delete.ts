@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 import { findEvolutionInstanceId } from '../../lib/evolution'
 
 const config = useRuntimeConfig()
@@ -14,22 +14,39 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto (autenticado via JWT)
+    const user = event.context.user
 
-    if (userError || !user) {
+    if (!user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
 
-    // Verificar se o inbox existe e pertence à empresa do usuário (RLS já faz essa verificação)
+    // Usar Service Role para operações no banco
+    const client = serverSupabaseServiceRole(event)
+
+    // Buscar dados do usuário para obter empresa_id
+    const { data: userData, error: userError } = await client
+      .from('users')
+      .select('empresa_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData?.empresa_id) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Usuário não possui empresa vinculada'
+      })
+    }
+
+    // Verificar se o inbox existe e pertence à empresa do usuário
     const { data: inbox, error: fetchError } = await client
       .from('inboxes')
       .select('*')
       .eq('id', id)
+      .eq('empresa_id', userData.empresa_id)
       .single()
 
     if (fetchError || !inbox) {
@@ -73,11 +90,13 @@ export default defineEventHandler(async (event) => {
       // Continuar mesmo se der erro na Evolution
     }
 
-    // Deletar inbox do Supabase (RLS já garante que só pode deletar da própria empresa)
+    // Deletar inbox do Supabase
     const { error: deleteError } = await client
       .from('inboxes')
       .delete()
       .eq('id', id)
+      // Redundante com a verificação anterior, mas segurança adicional
+      .eq('empresa_id', userData.empresa_id)
 
     if (deleteError) {
       console.error('Erro ao deletar inbox:', deleteError)
