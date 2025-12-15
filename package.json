@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
+    "dev:nuxt": "nuxt dev",
+    "dev:go": "cd go-service && go run .",
     "generate": "nuxt generate",
     "start": "node .output/server/index.mjs",
     "preview": "nuxt preview",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/nodemailer": "^7.0.4"
+    "@types/nodemailer": "^7.0.4",
+    "concurrently": "^9.2.1"
   }
 }
