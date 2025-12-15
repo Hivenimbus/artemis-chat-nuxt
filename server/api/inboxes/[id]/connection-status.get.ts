@@ -58,24 +58,24 @@ export default defineEventHandler(async (event) => {
 
     // Buscar status da conexão na Evolution API
     try {
-      const response = await $fetch(`${config.evolutionApiUrl}/instance/status`, {
+      // Usar endpoint connectionState que é mais confiável e padrão na v2
+      // Endpoint: /instance/connectionState/:instance
+      const response: any = await $fetch(`${config.evolutionApiUrl}/instance/connectionState/${id}`, {
         method: 'GET',
         headers: {
-          'apikey': id // Usar o ID da instância
+          'apikey': config.evolutionApiKey || id // Preferir API Key global
         }
       })
 
-      // Mapear resposta do novo endpoint (PascalCase)
-      // Connected: true, LoggedIn: true -> Conectado
-      const instanceData = response.data || {}
+      // O endpoint connectionState retorna algo como:
+      // { "instance": { "state": "open", "statusReason": 200 } }
+      const instanceData = response.instance || response.data || response || {}
       
-      // Suporte a ambos formatos (camelCase antigo e PascalCase novo)
-      const connected = instanceData.Connected === true || instanceData.connected === true
-      const loggedIn = instanceData.LoggedIn === true || instanceData.loggedIn === true
-      const name = instanceData.Name || instanceData.name
-
-      const isConnected = connected && loggedIn
-      const state = isConnected ? 'open' : (connected ? 'connecting' : 'closed')
+      const state = instanceData.state || 'closed'
+      const isConnected = state === 'open'
+      
+      // Nome da instância
+      const name = instanceData.instanceName || id
 
       // Se conectou, atualizar no Supabase
       if (isConnected && inbox.status !== 'connected') {
@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-    } catch (evolutionError) {
+    } catch (evolutionError: any) {
       console.error('Erro ao buscar status na Evolution API:', evolutionError)
 
       // Se a instância não for encontrada, considera desconectado
@@ -150,11 +150,11 @@ export default defineEventHandler(async (event) => {
       // Outros erros
       throw createError({
         statusCode: 500,
-        statusMessage: 'Erro ao verificar status da conexão'
+        statusMessage: 'Erro ao verificar status da conexão: ' + (evolutionError.message || 'Erro desconhecido')
       })
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de status de conexão:', error)
 
     // Se já for um erro criado, retornar como está
