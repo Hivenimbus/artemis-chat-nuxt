@@ -2,9 +2,20 @@
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Campanhas</h1>
-        <p class="mt-2 text-gray-600">Crie campanhas de disparo em massa no WhatsApp para seus contatos</p>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Campanhas</h1>
+          <p class="mt-2 text-gray-600">Crie campanhas de disparo em massa no WhatsApp para seus contatos</p>
+        </div>
+        <NuxtLink
+          to="/campanhas/historico"
+          class="mt-4 sm:mt-0 inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Ver Histórico
+        </NuxtLink>
       </div>
 
       <!-- Loading State -->

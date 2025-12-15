@@ -165,3 +165,22 @@ func MarkCampaignAsSending(id string) error {
 	}
 	return nil
 }
+
+// GetCampaignStatus fetches the current status of a campaign
+func GetCampaignStatus(id string) (string, error) {
+	type StatusResult struct {
+		Status string `json:"status"`
+	}
+	
+	var results []StatusResult
+	err := client.DB.From("campanhas").Select("status").Eq("id", id).Execute(&results)
+	if err != nil {
+		return "", fmt.Errorf("error fetching campaign status: %w", err)
+	}
+	
+	if len(results) == 0 {
+		return "", fmt.Errorf("campaign not found")
+	}
+	
+	return results[0].Status, nil
+}

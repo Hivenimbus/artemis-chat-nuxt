@@ -115,6 +115,22 @@ func processSingleCampaign(campaign Campaign) {
 	}
 
 	for i, contact := range contacts {
+		// Check if campaign was paused or cancelled
+		currentStatus, statusErr := GetCampaignStatus(campaign.ID)
+		if statusErr != nil {
+			log.Printf("⚠️ Error checking campaign status: %v", statusErr)
+		} else if currentStatus == "paused" {
+			log.Printf("⏸️ Campaign %s was paused. Stopping send loop.", campaign.ID)
+			// Keep status as paused, update stats
+			UpdateCampaignStatus(campaign.ID, "paused", stats)
+			return
+		} else if currentStatus == "cancelled" {
+			log.Printf("🚫 Campaign %s was cancelled. Stopping send loop.", campaign.ID)
+			// Status already set to cancelled by API, just update stats
+			UpdateCampaignStatus(campaign.ID, "cancelled", stats)
+			return
+		}
+
 		log.Printf("➡️ [%d/%d] Processing contact: %s (%s)", i+1, len(contacts), contact.Nome, contact.Telefone)
 		
 		err := SendCampaignMessage(campaign, contact)
