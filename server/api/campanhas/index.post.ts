@@ -35,8 +35,9 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id,
       user_id: user.id,
       message_text: body.messageText,
-      attachment_url: body.attachment?.path || body.attachmentUrl, // Frontend logic might vary, handle both
-      attachment_type: body.attachment?.type || body.attachmentType,
+      attachment_url: body.attachment?.path || body.attachmentUrl, // Legacy: Keep populating for now
+      attachment_type: body.attachment?.type || body.attachmentType, // Legacy
+      attachments: body.attachments || [], // New JSONB column
       recipient_type: body.recipientType || 'all',
       target_tags: body.selectedTags || [],
       scheduled_at: body.sendType === 'scheduled' ? body.scheduledDateTime : null,

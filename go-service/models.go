@@ -18,9 +18,17 @@ type Campaign struct {
 	ScheduledAt    *time.Time      `json:"scheduled_at"`
 	Status         string          `json:"status"`
 	InboxID        *string         `json:"inbox_id"`
+	Attachments    json.RawMessage `json:"attachments"` // JSONB array of attachments
 	Stats          json.RawMessage `json:"stats"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
+}
+
+// Attachment represents the structure inside the JSONB array
+type Attachment struct {
+	URL     string `json:"url"`
+	Type    string `json:"type"`
+	Caption string `json:"caption"`
 }
 
 // Contact represents the 'contatos' table

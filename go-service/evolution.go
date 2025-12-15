@@ -41,27 +41,50 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 
 	log.Printf("📨 Preparing message for %s (Instance: %s)", phone, instanceID)
 
-	// Determine if media
-	if campaign.AttachmentURL != nil && *campaign.AttachmentURL != "" {
+	// Process Attachments (JSONB array)
+	var attachments []Attachment
+	if len(campaign.Attachments) > 0 {
+		if err := json.Unmarshal(campaign.Attachments, &attachments); err != nil {
+			log.Printf("⚠️ Failed to unmarshal attachments: %v", err)
+		}
+	}
+
+	// Legacy fallback: if no JSONB attachments but AttachmentURL exists
+	if len(attachments) == 0 && campaign.AttachmentURL != nil && *campaign.AttachmentURL != "" {
 		attachmentType := "document"
 		if campaign.AttachmentType != nil {
 			attachmentType = *campaign.AttachmentType
 		}
-		log.Printf("📎 Message has attachment: %s (%s)", *campaign.AttachmentURL, attachmentType)
-		
-		// Send media with empty caption (or potentially extract specific attachment caption if available in JSON)
-		// For now, per user request, messageText is separate.
-		// We pass empty string as caption.
-		err := sendMedia(instanceID, phone, *campaign.AttachmentURL, attachmentType, "")
-		if err != nil {
-			log.Printf("❌ Failed to send attachment: %v", err)
-			// Decide if we should return error or try sending text anyway.
-			// Let's try sending text even if attachment fails, but return error at end?
-			// Or fail fast? Usually fail fast is safer to avoid partial state confusion.
-			return fmt.Errorf("failed to send attachment: %w", err)
+		attachments = append(attachments, Attachment{
+			URL:     *campaign.AttachmentURL,
+			Type:    attachmentType,
+			Caption: "",
+		})
+	}
+
+	// Send Attachments
+	for i, att := range attachments {
+		if att.URL == "" {
+			continue
 		}
 		
-		// Rate limiting between media and text
+		// Use provided type or guess default
+		attachmentType := att.Type
+		if attachmentType == "" {
+			attachmentType = "document"
+		}
+
+		log.Printf("📎 Sending attachment %d/%d: %s (%s)", i+1, len(attachments), att.URL, attachmentType)
+		
+		err := sendMedia(instanceID, phone, att.URL, attachmentType, att.Caption)
+		if err != nil {
+			log.Printf("❌ Failed to send attachment %d: %v", i+1, err)
+			// Decide if we should return error or try sending text anyway.
+			// Returning error here might be safer to flag incomplete delivery.
+			return fmt.Errorf("failed to send attachment %d: %w", i+1, err)
+		}
+		
+		// Rate limiting between messages
 		time.Sleep(500 * time.Millisecond)
 	}
 
@@ -72,7 +95,7 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 	}
 
 	// If we sent media but had no text, that's success.
-	if campaign.AttachmentURL != nil && *campaign.AttachmentURL != "" {
+	if len(attachments) > 0 {
 		return nil
 	}
 

@@ -817,6 +817,11 @@ const validateForm = () => {
     isValid = false
   }
 
+  if (attachments.value.length > 3) {
+    toast.showToast('Você pode enviar no máximo 3 anexos por campanha.', 'error')
+    isValid = false
+  }
+
   if (!selectedInboxId.value) {
     errors.value.inbox = 'Selecione uma caixa de entrada'
     isValid = false
@@ -848,6 +853,7 @@ const confirmSubmit = async () => {
       messageText: messageText.value || (campaignAttachments[0]?.caption || ''),
       attachmentUrl: campaignAttachments[0]?.url || null,
       attachmentType: campaignAttachments[0]?.type || null,
+      attachments: campaignAttachments,
       sendType: sendType.value,
       scheduledDateTime: sendType.value === 'scheduled' ? scheduledDateTime.value : null,
       inboxId: selectedInboxId.value
