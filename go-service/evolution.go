@@ -48,12 +48,32 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 			attachmentType = *campaign.AttachmentType
 		}
 		log.Printf("📎 Message has attachment: %s (%s)", *campaign.AttachmentURL, attachmentType)
-		return sendMedia(instanceID, phone, *campaign.AttachmentURL, attachmentType, messageText)
+		
+		// Send media with empty caption (or potentially extract specific attachment caption if available in JSON)
+		// For now, per user request, messageText is separate.
+		// We pass empty string as caption.
+		err := sendMedia(instanceID, phone, *campaign.AttachmentURL, attachmentType, "")
+		if err != nil {
+			log.Printf("❌ Failed to send attachment: %v", err)
+			// Decide if we should return error or try sending text anyway.
+			// Let's try sending text even if attachment fails, but return error at end?
+			// Or fail fast? Usually fail fast is safer to avoid partial state confusion.
+			return fmt.Errorf("failed to send attachment: %w", err)
+		}
+		
+		// Rate limiting between media and text
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	// Text only
 	if messageText != "" {
+		log.Printf("📝 Sending text message part")
 		return sendText(instanceID, phone, messageText)
+	}
+
+	// If we sent media but had no text, that's success.
+	if campaign.AttachmentURL != nil && *campaign.AttachmentURL != "" {
+		return nil
 	}
 
 	return fmt.Errorf("empty message and no attachment")
