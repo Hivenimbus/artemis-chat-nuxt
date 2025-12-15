@@ -288,7 +288,6 @@
                 <input
                   v-model="scheduledDateTime"
                   type="datetime-local"
-                  :min="minDateTime"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
@@ -646,7 +645,12 @@ const filteredContactsCount = computed(() => {
 const minDateTime = computed(() => {
   const now = new Date()
   now.setMinutes(now.getMinutes() + 5) // Mínimo 5 minutos no futuro
-  return now.toISOString().slice(0, 16)
+  
+  // Ajuste para fuso horário local (Brasil/Browser)
+  const tzOffset = now.getTimezoneOffset() * 60000
+  const localISOTime = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16)
+  
+  return localISOTime
 })
 
 const canSubmit = computed(() => {
@@ -855,7 +859,7 @@ const confirmSubmit = async () => {
       attachmentType: campaignAttachments[0]?.type || null,
       attachments: campaignAttachments,
       sendType: sendType.value,
-      scheduledDateTime: sendType.value === 'scheduled' ? scheduledDateTime.value : null,
+      scheduledDateTime: sendType.value === 'scheduled' ? new Date(scheduledDateTime.value).toISOString() : null,
       inboxId: selectedInboxId.value
     }
 
