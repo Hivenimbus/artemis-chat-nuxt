@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -25,20 +27,6 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 
 	phone := cleanPhone(contact.Telefone)
 	
-	// Replace variables in message text (e.g. {{nome}})
-	var messageText string
-	if campaign.MessageText != nil {
-		messageText = *campaign.MessageText
-	}
-	
-	messageText = strings.ReplaceAll(messageText, "{{nome}}", contact.Nome)
-	
-	if contact.Sobrenome != nil {
-		messageText = strings.ReplaceAll(messageText, "{{sobrenome}}", *contact.Sobrenome)
-	} else {
-		messageText = strings.ReplaceAll(messageText, "{{sobrenome}}", "")
-	}
-
 	log.Printf("📨 Preparing message for %s (Instance: %s)", phone, instanceID)
 
 	// Process Attachments (JSONB array)
@@ -74,9 +62,12 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 			attachmentType = "document"
 		}
 
+		// Process caption variables and spintax
+		processedCaption := ProcessText(att.Caption, contact)
+
 		log.Printf("📎 Sending attachment %d/%d: %s (%s)", i+1, len(attachments), att.URL, attachmentType)
 		
-		err := sendMedia(instanceID, phone, att.URL, attachmentType, att.Caption)
+		err := sendMedia(instanceID, phone, att.URL, attachmentType, processedCaption)
 		if err != nil {
 			log.Printf("❌ Failed to send attachment %d: %v", i+1, err)
 			// Decide if we should return error or try sending text anyway.
@@ -89,9 +80,13 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 	}
 
 	// Text only
-	if messageText != "" {
-		log.Printf("📝 Sending text message part")
-		return sendText(instanceID, phone, messageText)
+	if campaign.MessageText != nil && *campaign.MessageText != "" {
+		messageText := ProcessText(*campaign.MessageText, contact)
+		
+		if messageText != "" {
+			log.Printf("📝 Sending text message part")
+			return sendText(instanceID, phone, messageText)
+		}
 	}
 
 	// If we sent media but had no text, that's success.
@@ -100,6 +95,56 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 	}
 
 	return fmt.Errorf("empty message and no attachment")
+}
+
+// ProcessText handles variable replacement and spintax processing
+func ProcessText(text string, contact Contact) string {
+	if text == "" {
+		return ""
+	}
+
+	// 1. Variable Replacement
+	text = strings.ReplaceAll(text, "{{nome}}", contact.Nome)
+	
+	if contact.Sobrenome != nil {
+		text = strings.ReplaceAll(text, "{{sobrenome}}", *contact.Sobrenome)
+	} else {
+		text = strings.ReplaceAll(text, "{{sobrenome}}", "")
+	}
+
+	// 2. Spintax Processing {word1|word2|word3}
+	// Regex to match {option1|option2|...}
+	re := regexp.MustCompile(`\{([^{}]+)\}`)
+	
+	// Keep processing until no more spintax patterns found (handles nested levels sequentially if needed, 
+	// though this simple loop handles single level multiple times)
+	// For true nested spintax like {A|{B|C}}, a recursive approach is needed, but this loop 
+	// handles multiple independent groups like "{Hi|Hello} {{nome}}, {how are you|good?}"
+	for {
+		matches := re.FindStringSubmatchIndex(text)
+		if matches == nil {
+			break
+		}
+
+		// Full match start/end
+		fullStart, fullEnd := matches[0], matches[1]
+		
+		// Group content (inside braces)
+		contentStart, contentEnd := matches[2], matches[3]
+		content := text[contentStart:contentEnd]
+		
+		// Split options by |
+		options := strings.Split(content, "|")
+		
+		// Select random option
+		selectedOption := options[rand.Intn(len(options))]
+		
+		// Replace in text
+		// Using string concatenation to replace the first occurrence found by regex
+		text = text[:fullStart] + selectedOption + text[fullEnd:]
+	}
+
+	return text
 }
 
 func sendText(instanceID, phone, text string) error {
