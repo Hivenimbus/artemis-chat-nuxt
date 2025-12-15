@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 import { checkWhatsAppNumber } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
@@ -6,16 +6,17 @@ export default defineEventHandler(async (event) => {
     console.log('API /api/contatos (POST): Iniciando requisição')
 
     // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    const user = event.context.user
 
-    if (userError || !user) {
-      console.error('API /api/contatos (POST): Erro de autenticação:', userError)
+    if (!user) {
+      console.error('API /api/contatos (POST): Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
       })
     }
+
+    const client = serverSupabaseServiceRole(event)
 
     // Buscar dados completos do usuário na tabela users
     const { data: userData, error } = await client

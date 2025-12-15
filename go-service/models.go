@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"time"
 )
@@ -11,14 +10,14 @@ type Campaign struct {
 	ID             string          `json:"id"`
 	EmpresaID      string          `json:"empresa_id"`
 	UserID         string          `json:"user_id"`
-	MessageText    sql.NullString  `json:"message_text"`
-	AttachmentURL  sql.NullString  `json:"attachment_url"`
-	AttachmentType sql.NullString  `json:"attachment_type"`
+	MessageText    *string         `json:"message_text"`
+	AttachmentURL  *string         `json:"attachment_url"`
+	AttachmentType *string         `json:"attachment_type"`
 	RecipientType  string          `json:"recipient_type"`
 	TargetTags     json.RawMessage `json:"target_tags"` // JSONB array of tag IDs
-	ScheduledAt    sql.NullTime    `json:"scheduled_at"`
+	ScheduledAt    *time.Time      `json:"scheduled_at"`
 	Status         string          `json:"status"`
-	InboxID        sql.NullString  `json:"inbox_id"`
+	InboxID        *string         `json:"inbox_id"`
 	Stats          json.RawMessage `json:"stats"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
@@ -26,12 +25,12 @@ type Campaign struct {
 
 // Contact represents the 'contatos' table
 type Contact struct {
-	ID             string         `json:"id"`
-	Nome           string         `json:"nome"`
-	Sobrenome      sql.NullString `json:"sobrenome"`
-	Telefone       string         `json:"telefone"`
-	EmpresaID      string         `json:"empresa_id"`
-	TotalMensagens int            `json:"total_mensagens"`
+	ID             string  `json:"id"`
+	Nome           string  `json:"nome"`
+	Sobrenome      *string `json:"sobrenome"`
+	Telefone       string  `json:"telefone"`
+	EmpresaID      string  `json:"empresa_id"`
+	TotalMensagens int     `json:"total_mensagens"`
 }
 
 // EvolutionTextMessage represents the payload for sending text
@@ -57,6 +56,3 @@ type CampaignStats struct {
 	Sent      int `json:"sent"`
 	Failed    int `json:"failed"`
 }
-
-
-

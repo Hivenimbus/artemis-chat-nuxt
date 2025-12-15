@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
+    "dev": "concurrently \"npm run dev:nuxt\" \" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
     "dev:nuxt": "nuxt dev",
     "dev:go": "cd go-service && go run .",
     "generate": "nuxt generate",

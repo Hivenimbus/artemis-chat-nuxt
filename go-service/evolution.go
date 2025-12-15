@@ -14,7 +14,11 @@ import (
 
 // SendCampaignMessage determines whether to send text or media
 func SendCampaignMessage(campaign Campaign, contact Contact) error {
-	instanceID := campaign.InboxID.String
+	var instanceID string
+	if campaign.InboxID != nil {
+		instanceID = *campaign.InboxID
+	}
+	
 	if instanceID == "" {
 		return fmt.Errorf("inbox ID (instance) is missing")
 	}
@@ -22,18 +26,29 @@ func SendCampaignMessage(campaign Campaign, contact Contact) error {
 	phone := cleanPhone(contact.Telefone)
 	
 	// Replace variables in message text (e.g. {{nome}})
-	messageText := campaign.MessageText.String
+	var messageText string
+	if campaign.MessageText != nil {
+		messageText = *campaign.MessageText
+	}
+	
 	messageText = strings.ReplaceAll(messageText, "{{nome}}", contact.Nome)
-	if contact.Sobrenome.Valid {
-		messageText = strings.ReplaceAll(messageText, "{{sobrenome}}", contact.Sobrenome.String)
+	
+	if contact.Sobrenome != nil {
+		messageText = strings.ReplaceAll(messageText, "{{sobrenome}}", *contact.Sobrenome)
 	} else {
 		messageText = strings.ReplaceAll(messageText, "{{sobrenome}}", "")
 	}
-	// Add other replacements as needed
+
+	log.Printf("📨 Preparing message for %s (Instance: %s)", phone, instanceID)
 
 	// Determine if media
-	if campaign.AttachmentURL.Valid && campaign.AttachmentURL.String != "" {
-		return sendMedia(instanceID, phone, campaign.AttachmentURL.String, campaign.AttachmentType.String, messageText)
+	if campaign.AttachmentURL != nil && *campaign.AttachmentURL != "" {
+		attachmentType := "document"
+		if campaign.AttachmentType != nil {
+			attachmentType = *campaign.AttachmentType
+		}
+		log.Printf("📎 Message has attachment: %s (%s)", *campaign.AttachmentURL, attachmentType)
+		return sendMedia(instanceID, phone, *campaign.AttachmentURL, attachmentType, messageText)
 	}
 
 	// Text only
@@ -54,9 +69,6 @@ func sendText(instanceID, phone, text string) error {
 }
 
 func sendMedia(instanceID, phone, url, mediaType, caption string) error {
-	// Evolution API types: image, video, audio, document
-	// mediaType from DB might need mapping if it's full MIME type
-	
 	typeStr := "document"
 	if strings.HasPrefix(mediaType, "image") {
 		typeStr = "image"
@@ -71,10 +83,9 @@ func sendMedia(instanceID, phone, url, mediaType, caption string) error {
 		Type:     typeStr,
 		URL:      url,
 		Caption:  caption,
-		MimeType: mediaType, // Optional but good for documents
+		MimeType: mediaType,
 	}
 
-	// Use generic media endpoint
 	return makeRequest(instanceID, "send/media", payload)
 }
 
@@ -86,7 +97,6 @@ func makeRequest(instanceID, endpoint string, payload interface{}) error {
 		return fmt.Errorf("EVOLUTION_API_URL or EVOLUTION_API_KEY not set")
 	}
 
-	// Remove trailing slash from URL
 	apiURL = strings.TrimSuffix(apiURL, "/")
 
 	jsonData, err := json.Marshal(payload)
@@ -95,39 +105,43 @@ func makeRequest(instanceID, endpoint string, payload interface{}) error {
 	}
 
 	url := fmt.Sprintf("%s/%s", apiURL, endpoint)
+	
+	// Logging Request
+	log.Printf("🚀 API Request: POST %s", url)
+	log.Printf("📦 Payload: %s", string(jsonData))
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
 
-	// Use instanceID as apikey header (Evolution v2 pattern often uses global key or instance key)
-	// Based on Nuxt code: 'apikey': instanceId
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("apikey", instanceID)
-	// Some setups might need global API key as well, but Nuxt code uses instanceId as apikey header.
-	// If Global API Key is needed for authentication to the manager, it might be different.
-	// Looking at Nuxt code: 'apikey': instanceId. 
-	// But `findEvolutionInstanceId` uses `config.evolutionApiKey` in header 'apikey' to fetch instances.
-	// `sendTextMessageToWhatsApp` uses `instanceId` in header 'apikey'.
-	// So we follow Nuxt pattern.
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("❌ Network Error: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	log.Printf("📥 API Response Status: %d %s", resp.StatusCode, resp.Status)
+	
+	if len(bodyBytes) > 0 {
+		log.Printf("📄 API Response Body: %s", string(bodyBytes))
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
+	log.Println("✅ Message sent successfully via API")
 	return nil
 }
 
 func cleanPhone(phone string) string {
-	// Remove non-digits
 	return strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
 			return r
@@ -135,6 +149,3 @@ func cleanPhone(phone string) string {
 		return -1
 	}, phone)
 }
-
-
-

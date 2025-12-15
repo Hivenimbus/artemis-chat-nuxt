@@ -2,27 +2,62 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Configure logging to show timestamp
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	// Debug CWD
+	cwd, _ := os.Getwd()
+	log.Printf("📂 Current Working Directory: %s", cwd)
+
 	// Load .env file
+	// 1. Try local .env
 	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found, using environment variables")
+	if err == nil {
+		log.Println("✅ Loaded configuration from .env")
+	} else {
+		log.Printf("⚠️ Could not load local .env: %v", err)
+		
+		// 2. Try parent directory ../.env
+		parentEnv := filepath.Join("..", ".env")
+		log.Printf("🔄 Trying to load from: %s", parentEnv)
+		
+		err = godotenv.Load(parentEnv)
+		if err != nil {
+			log.Printf("⚠️ Could not load parent .env: %v", err)
+			
+			// 3. Try hardcoded relative path for debugging if needed
+			if _, statErr := os.Stat(parentEnv); os.IsNotExist(statErr) {
+				log.Printf("❌ File does not exist at path: %s", parentEnv)
+				absPath, _ := filepath.Abs(parentEnv)
+				log.Printf("❌ Absolute path looked for: %s", absPath)
+			}
+		} else {
+			log.Println("✅ Loaded configuration from ../.env")
+		}
 	}
 
-	// Initialize Database
+	// Initialize Database (Supabase Client)
+	// This will log fatal if vars are missing
 	InitDB()
-	defer db.Close()
+	// No defer db.Close() needed for HTTP client
 
-	log.Println("Starting Artemis Campaign Worker...")
+	log.Println("🚀 Starting Artemis Campaign Worker...")
+	log.Println("⏳ Polling interval: 10 seconds")
 
 	// Ticker for polling
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
+
+	// Run immediately on start
+	processCampaigns()
 
 	for range ticker.C {
 		processCampaigns()
@@ -30,15 +65,19 @@ func main() {
 }
 
 func processCampaigns() {
+	log.Println("🔍 Polling for pending campaigns...")
+	
 	campaigns, err := GetPendingCampaigns()
 	if err != nil {
-		log.Printf("Error fetching pending campaigns: %v", err)
+		log.Printf("❌ Error fetching pending campaigns: %v", err)
 		return
 	}
 
-	if len(campaigns) > 0 {
-		log.Printf("Found %d pending campaigns", len(campaigns))
+	if len(campaigns) == 0 {
+		return
 	}
+
+	log.Printf("📢 Found %d pending campaigns to process.", len(campaigns))
 
 	for _, campaign := range campaigns {
 		processSingleCampaign(campaign)
@@ -46,50 +85,55 @@ func processCampaigns() {
 }
 
 func processSingleCampaign(campaign Campaign) {
-	log.Printf("Processing campaign %s", campaign.ID)
+	log.Printf("▶️ Starting processing for campaign ID: %s", campaign.ID)
 
-	// Mark as sending
+	// Mark as sending/processing
 	err := MarkCampaignAsSending(campaign.ID)
 	if err != nil {
-		log.Printf("Error marking campaign %s as sending: %v", campaign.ID, err)
+		log.Printf("❌ Critical Error marking campaign %s as sending: %v", campaign.ID, err)
 		return
 	}
 
 	// Get contacts
 	contacts, err := GetCampaignContacts(campaign)
 	if err != nil {
-		log.Printf("Error fetching contacts for campaign %s: %v", campaign.ID, err)
-		UpdateCampaignStatus(campaign.ID, "failed", CampaignStats{}) // Basic failure
+		log.Printf("❌ Error fetching contacts for campaign %s: %v", campaign.ID, err)
+		UpdateCampaignStatus(campaign.ID, "failed", CampaignStats{}) 
 		return
 	}
 
-	log.Printf("Campaign %s has %d recipients", campaign.ID, len(contacts))
+	if len(contacts) == 0 {
+		log.Printf("⚠️ Campaign %s has 0 recipients. Marking as completed.", campaign.ID)
+		UpdateCampaignStatus(campaign.ID, "completed", CampaignStats{Total: 0})
+		return
+	}
+
+	log.Printf("📋 Campaign %s has %d recipients. Starting send loop...", campaign.ID, len(contacts))
 
 	stats := CampaignStats{
 		Total: len(contacts),
 	}
 
-	// Send messages
-	// TODO: Implement concurrency/worker pool for faster sending if needed
-	for _, contact := range contacts {
+	for i, contact := range contacts {
+		log.Printf("➡️ [%d/%d] Processing contact: %s (%s)", i+1, len(contacts), contact.Nome, contact.Telefone)
+		
 		err := SendCampaignMessage(campaign, contact)
 		stats.Processed++
 		
 		if err != nil {
-			log.Printf("Failed to send to %s: %v", contact.Telefone, err)
+			log.Printf("❌ Failed to send to %s: %v", contact.Telefone, err)
 			stats.Failed++
 		} else {
+			log.Printf("✅ Successfully sent to %s", contact.Telefone)
 			stats.Sent++
 		}
 
-		// Update stats periodically (e.g. every 10 or at end)
-		// For now, let's update every 10 to reduce DB load, or just at the end for simplicity?
-		// Real-time feedback is nice.
 		if stats.Processed%5 == 0 {
+			// Update stats but keep status as processing/sending
 			UpdateCampaignStatus(campaign.ID, "sending", stats)
 		}
 		
-		// Rate limiting (simple sleep)
+		// Rate limiting
 		time.Sleep(500 * time.Millisecond) 
 	}
 
@@ -99,13 +143,10 @@ func processSingleCampaign(campaign Campaign) {
 		status = "failed"
 	}
 	
+	log.Printf("🏁 Campaign %s finished. Status: %s. Stats: %+v", campaign.ID, status, stats)
+
 	err = UpdateCampaignStatus(campaign.ID, status, stats)
 	if err != nil {
-		log.Printf("Error updating final status for campaign %s: %v", campaign.ID, err)
+		log.Printf("❌ Error updating final status for campaign %s: %v", campaign.ID, err)
 	}
-
-	log.Printf("Finished campaign %s. Sent: %d, Failed: %d", campaign.ID, stats.Sent, stats.Failed)
 }
-
-
-
