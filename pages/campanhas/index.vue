@@ -872,7 +872,7 @@ const confirmSubmit = async () => {
     )
     
     showConfirmModal.value = false
-    resetForm()
+    // resetForm() - Removido para manter os dados na tela conforme solicitado
     
   } catch (error) {
     console.error('Erro ao enviar campanha:', error)
