@@ -1,4 +1,4 @@
-import { processScheduledMessages } from '~/server/lib/scheduler'
+import { processScheduledMessages, processScheduledCampaigns } from '~/server/lib/scheduler'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,13 +11,22 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const result = await processScheduledMessages()
+    const messagesResult = await processScheduledMessages()
+    const campaignsResult = await processScheduledCampaigns()
     
-    if (!result.success) {
-      throw createError({ statusCode: 500, statusMessage: 'Error processing schedules', data: result.error })
+    if (!messagesResult.success) {
+      console.error('Error processing messages:', messagesResult.error)
     }
 
-    return result
+    if (!campaignsResult.success) {
+      console.error('Error processing campaigns:', campaignsResult.error)
+    }
+
+    return {
+      success: true,
+      messages: messagesResult,
+      campaigns: campaignsResult
+    }
 
   } catch (error) {
     console.error('API cron/process-schedules:', error)

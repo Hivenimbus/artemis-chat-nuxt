@@ -16,14 +16,24 @@
       <!-- Ações e Notificações -->
       <div class="flex items-center space-x-4">
         <!-- Notificações -->
-        <button class="relative text-gray-400 hover:text-gray-600 transition-colors duration-200">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-          </svg>
-          <span v-if="notificationCount > 0" class="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-            {{ notificationCount }}
-          </span>
-        </button>
+        <div class="relative" ref="notificationContainerRef">
+          <button 
+            @click="toggleNotifications"
+            class="relative text-gray-400 hover:text-gray-600 transition-colors duration-200"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              {{ unreadCount }}
+            </span>
+          </button>
+          
+          <NotificationList 
+            v-if="showNotifications"
+            @close="closeNotifications"
+          />
+        </div>
 
         <!-- Menu do Usuário -->
         <div class="relative">
@@ -74,10 +84,13 @@
 
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
+import { useNotifications } from '~/composables/useNotifications'
+import NotificationList from '~/components/NotificationList.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { logout } = useAuth()
+const { unreadCount, fetchNotifications, startPolling } = useNotifications()
 
 // Props
 const props = defineProps({
@@ -93,7 +106,6 @@ const props = defineProps({
 
 // Dados do usuário
 const { userData: user } = useUser()
-const notificationCount = ref(3)
 
 // Computados para dados do usuário
 const userName = computed(() => {
@@ -107,6 +119,8 @@ const userEmail = computed(() => {
 // Estados
 const showUserMenu = ref(false)
 const userMenuRef = ref(null)
+const showNotifications = ref(false)
+const notificationContainerRef = ref(null)
 
 // Computados
 const userInitials = computed(() => {
@@ -120,10 +134,22 @@ const toggleUserMenu = (event) => {
   event.preventDefault()
   event.stopPropagation()
   showUserMenu.value = !showUserMenu.value
+  if (showNotifications.value) showNotifications.value = false
 }
 
 const closeUserMenu = () => {
   showUserMenu.value = false
+}
+
+const toggleNotifications = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
+  showNotifications.value = !showNotifications.value
+  if (showUserMenu.value) showUserMenu.value = false
+}
+
+const closeNotifications = () => {
+  showNotifications.value = false
 }
 
 const handleLogout = async () => {
@@ -141,10 +167,16 @@ const handleClickOutside = (event) => {
   if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
     closeUserMenu()
   }
+  
+  if (notificationContainerRef.value && !notificationContainerRef.value.contains(event.target)) {
+    closeNotifications()
+  }
 }
 
 // Lifecycle hooks
 onMounted(() => {
+  // Start polling
+  startPolling()
   document.addEventListener('click', handleClickOutside)
 })
 
@@ -155,5 +187,6 @@ onUnmounted(() => {
 // Fechar o menu quando a rota mudar
 watch(() => route.path, () => {
   showUserMenu.value = false
+  showNotifications.value = false
 })
 </script>
