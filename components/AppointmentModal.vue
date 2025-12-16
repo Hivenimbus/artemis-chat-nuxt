@@ -198,6 +198,45 @@
         </form>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <Transition name="fade">
+      <div
+        v-if="showDeleteConfirm"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+        @click.self="cancelDelete"
+      >
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6">
+          <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 text-center mb-2">
+            Excluir Agendamento
+          </h3>
+          <p class="text-sm text-gray-600 text-center mb-6">
+            Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+          </p>
+          <div class="flex gap-3">
+            <button
+              type="button"
+              @click="cancelDelete"
+              class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              @click="confirmDelete"
+              class="flex-1 px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -309,10 +348,36 @@ const handleSubmit = () => {
   emit('save', appointmentData)
 }
 
+// Delete confirmation modal state
+const showDeleteConfirm = ref(false)
+
 const handleDelete = () => {
-  if (props.appointment && confirm('Tem certeza que deseja excluir este agendamento?')) {
-    emit('delete', props.appointment.id)
+  if (props.appointment) {
+    showDeleteConfirm.value = true
   }
 }
+
+const confirmDelete = () => {
+  if (props.appointment) {
+    emit('delete', props.appointment.id)
+  }
+  showDeleteConfirm.value = false
+}
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false
+}
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
 
