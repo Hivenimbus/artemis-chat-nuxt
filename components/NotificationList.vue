@@ -49,6 +49,16 @@
         </div>
       </div>
     </div>
+    
+    <div class="px-4 py-2 bg-gray-50 border-t border-gray-200 text-center">
+      <button 
+        @click="handleClearNotifications"
+        class="text-xs text-red-600 hover:text-red-800 font-medium w-full py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="notifications.length === 0"
+      >
+        Limpar notificações
+      </button>
+    </div>
   </div>
 </template>
 
@@ -56,7 +66,7 @@
 import { useNotifications } from '~/composables/useNotifications'
 import { useRouter } from 'vue-router'
 
-const { notifications, unreadCount, markAsRead, markAllAsRead, loading } = useNotifications()
+const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, loading } = useNotifications()
 const router = useRouter()
 
 const emit = defineEmits(['close'])
@@ -71,6 +81,11 @@ const handleNotificationClick = async (notification) => {
   }
   
   emit('close')
+}
+
+const handleClearNotifications = async () => {
+  if (notifications.value.length === 0) return
+  await clearNotifications()
 }
 
 const formatDate = (dateStr) => {

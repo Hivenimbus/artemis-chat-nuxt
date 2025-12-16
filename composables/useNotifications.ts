@@ -74,6 +74,17 @@ export const useNotifications = () => {
      }
   }
 
+  const clearNotifications = async () => {
+    try {
+      await $fetch('/api/notifications/clear', {
+        method: 'DELETE'
+      })
+      notifications.value = []
+    } catch (error) {
+      console.error('Error clearing notifications:', error)
+    }
+  }
+
   // Watch for user changes to fetch notifications
   watch(() => userData.value, (newUser) => {
     if (newUser) {
@@ -90,6 +101,7 @@ export const useNotifications = () => {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    clearNotifications,
     startPolling
   }
 }
