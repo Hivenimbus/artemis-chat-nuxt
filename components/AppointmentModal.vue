@@ -99,11 +99,36 @@
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Contatos (Destinatários) *
               </label>
+              
+              <!-- Contact Filters -->
+              <div class="flex flex-col sm:flex-row gap-2 mb-2">
+                 <div class="relative flex-1">
+                    <input 
+                      v-model="contactSearch" 
+                      type="text" 
+                      placeholder="Buscar contatos..." 
+                      class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <svg class="absolute left-2.5 top-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                 </div>
+                 <select 
+                    v-model="selectedTagFilter" 
+                    class="py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                 >
+                    <option value="">Todas as tags</option>
+                    <option v-for="tag in availableTags" :key="tag.name" :value="tag.name">
+                       {{ tag.name }}
+                    </option>
+                 </select>
+              </div>
+
               <div class="border border-gray-300 rounded-lg max-h-40 overflow-y-auto p-2 space-y-2">
-                <div v-if="contacts.length === 0" class="text-sm text-gray-500 text-center py-2">
-                  Nenhum contato disponível
+                <div v-if="filteredContacts.length === 0" class="text-sm text-gray-500 text-center py-2">
+                  {{ contacts.length === 0 ? 'Nenhum contato disponível' : 'Nenhum contato encontrado' }}
                 </div>
-                <div v-for="contact in contacts" :key="contact.id" class="flex items-center">
+                <div v-for="contact in filteredContacts" :key="contact.id" class="flex items-center">
                   <input
                     type="checkbox"
                     :id="'contact-' + contact.id"
@@ -111,8 +136,22 @@
                     v-model="formData.contact_ids"
                     class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <label :for="'contact-' + contact.id" class="ml-2 block text-sm text-gray-900">
-                    {{ contact.name }} {{ contact.sobrenome || '' }}
+                  <label :for="'contact-' + contact.id" class="ml-2 block text-sm text-gray-900 flex-1 flex items-center gap-2">
+                    <span>{{ contact.name }} {{ contact.sobrenome || '' }}</span>
+                    <span v-if="contact.tags && contact.tags.length" class="inline-flex gap-1">
+                      <span 
+                        v-for="(tag, idx) in contact.tags.slice(0, 2)" 
+                        :key="idx"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                        :class="[
+                           typeof tag === 'object' && tag.color ? `text-white` : 'bg-gray-100 text-gray-600'
+                        ]"
+                        :style="typeof tag === 'object' && tag.color ? { backgroundColor: tag.color } : {}"
+                      >
+                        {{ typeof tag === 'object' ? tag.name : tag }}
+                      </span>
+                      <span v-if="contact.tags.length > 2" class="text-xs text-gray-400">+{{ contact.tags.length - 2 }}</span>
+                    </span>
                   </label>
                 </div>
               </div>
@@ -350,6 +389,59 @@ const handleSubmit = () => {
 
 // Delete confirmation modal state
 const showDeleteConfirm = ref(false)
+
+// Contact Filters
+const contactSearch = ref('')
+const selectedTagFilter = ref('')
+
+// Computed properties for filters
+const availableTags = computed(() => {
+  const tags = new Set()
+  const tagObjects = []
+  
+  props.contacts.forEach(contact => {
+    if (contact.tags && Array.isArray(contact.tags)) {
+      contact.tags.forEach(tag => {
+        // Handle both object tags and simple string tags if any
+        const tagName = typeof tag === 'object' ? tag.name : tag
+        const tagColor = typeof tag === 'object' ? tag.color : '#6B7280'
+        
+        if (!tags.has(tagName)) {
+          tags.add(tagName)
+          tagObjects.push({ name: tagName, color: tagColor })
+        }
+      })
+    }
+  })
+  
+  return tagObjects.sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const filteredContacts = computed(() => {
+  let filtered = props.contacts
+
+  // Filter by name
+  if (contactSearch.value) {
+    const searchLower = contactSearch.value.toLowerCase()
+    filtered = filtered.filter(contact => {
+      const fullName = `${contact.name || ''} ${contact.sobrenome || ''}`.toLowerCase()
+      return fullName.includes(searchLower)
+    })
+  }
+
+  // Filter by tag
+  if (selectedTagFilter.value) {
+    filtered = filtered.filter(contact => {
+      if (!contact.tags || !Array.isArray(contact.tags)) return false
+      return contact.tags.some(tag => {
+        const tagName = typeof tag === 'object' ? tag.name : tag
+        return tagName === selectedTagFilter.value
+      })
+    })
+  }
+
+  return filtered
+})
 
 const handleDelete = () => {
   if (props.appointment) {
