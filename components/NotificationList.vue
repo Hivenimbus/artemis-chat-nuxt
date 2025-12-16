@@ -22,11 +22,11 @@
         <div 
           v-for="notification in notifications" 
           :key="notification.id"
-          class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors cursor-pointer"
+          class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors cursor-pointer group relative"
           :class="{ 'bg-indigo-50/50': !notification.read }"
           @click="handleNotificationClick(notification)"
         >
-          <div class="flex items-start gap-3">
+          <div class="flex items-start gap-3 pr-6">
              <div class="flex-shrink-0 mt-0.5">
                <!-- Icon based on type -->
                <span v-if="notification.type === 'reminder'" class="text-yellow-500">🔔</span>
@@ -46,6 +46,16 @@
              </div>
              <div v-if="!notification.read" class="w-2 h-2 bg-indigo-600 rounded-full mt-1.5 flex-shrink-0"></div>
           </div>
+          
+          <button
+            @click.stop="handleDelete(notification.id)"
+            class="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-red-50"
+            title="Excluir notificação"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -66,7 +76,7 @@
 import { useNotifications } from '~/composables/useNotifications'
 import { useRouter } from 'vue-router'
 
-const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, loading } = useNotifications()
+const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, deleteNotification, loading } = useNotifications()
 const router = useRouter()
 
 const emit = defineEmits(['close'])
@@ -81,6 +91,10 @@ const handleNotificationClick = async (notification) => {
   }
   
   emit('close')
+}
+
+const handleDelete = async (id) => {
+  await deleteNotification(id)
 }
 
 const handleClearNotifications = async () => {

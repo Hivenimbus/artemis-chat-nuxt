@@ -85,6 +85,19 @@ export const useNotifications = () => {
     }
   }
 
+  const deleteNotification = async (id) => {
+    try {
+      await $fetch(`/api/notifications/${id}`, {
+        method: 'DELETE'
+      })
+      
+      // Remove locally
+      notifications.value = notifications.value.filter(n => n.id !== id)
+    } catch (error) {
+      console.error('Error deleting notification:', error)
+    }
+  }
+
   // Watch for user changes to fetch notifications
   watch(() => userData.value, (newUser) => {
     if (newUser) {
@@ -102,6 +115,7 @@ export const useNotifications = () => {
     markAsRead,
     markAllAsRead,
     clearNotifications,
+    deleteNotification,
     startPolling
   }
 }
