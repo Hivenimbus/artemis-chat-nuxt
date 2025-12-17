@@ -64,13 +64,13 @@ export const useNotifications = () => {
         // Initial fetch
         fetchNotifications()
         
-        // Poll every 30 seconds
+        // Poll every 10 seconds
         pollingInterval.value = setInterval(() => {
            // Only fetch if tab is visible to save resources
            if (document.visibilityState === 'visible') {
               fetchNotifications()
            }
-        }, 30000)
+        }, 10000)
      }
   }
 
