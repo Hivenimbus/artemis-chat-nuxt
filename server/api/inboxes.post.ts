@@ -1,6 +1,11 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { findEvolutionInstanceId } from '../lib/evolution'
 
+// Importar serverSupabaseUser do módulo do Supabase se não estiver disponível globalmente
+// Mas parece que serverSupabaseUser não está disponível no módulo que estamos usando ou está com nome diferente
+// Vamos remover o uso de serverSupabaseUser e confiar no middleware de autenticação
+// ou usar serverSupabaseClient para obter o usuário se necessário
+
 export default defineEventHandler(async (event) => {
   console.log('📥 [inboxes.post] Iniciando criação de inbox...')
   
@@ -61,17 +66,10 @@ export default defineEventHandler(async (event) => {
 
     // 4. Obter usuário autenticado
     console.log('📥 [inboxes.post] Verificando autenticação do usuário...')
-    let user = event.context.user
-    console.log('📥 [inboxes.post] Usuário do contexto:', user?.id)
+    const user = event.context.user
 
     if (!user) {
-      console.log('📥 [inboxes.post] Usuário não encontrado no contexto, tentando serverSupabaseUser')
-      user = await serverSupabaseUser(event)
-      console.log('📥 [inboxes.post] Resultado serverSupabaseUser:', user?.id)
-    }
-
-    if (!user) {
-      console.error('❌ [inboxes.post] Usuário não autenticado (falha em ambas as tentativas)')
+      console.error('❌ [inboxes.post] Usuário não autenticado no contexto')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
@@ -81,7 +79,7 @@ export default defineEventHandler(async (event) => {
 
     // 5. Buscar empresa do usuário
     console.log('📥 [inboxes.post] Buscando empresa do usuário...')
-    let userData
+    let userData: { empresa_id: string } | null = null
     try {
       const { data, error: userDataError } = await client
         .from('users')
@@ -97,7 +95,7 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      if (!data?.empresa_id) {
+      if (!(data as any)?.empresa_id) {
         console.error('❌ [inboxes.post] Usuário sem empresa vinculada:', user.id)
         throw createError({
           statusCode: 403,
@@ -105,7 +103,7 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      userData = data
+      userData = data as { empresa_id: string }
       console.log('✅ [inboxes.post] Empresa encontrada:', userData.empresa_id)
     } catch (userDataError: any) {
       if (userDataError.statusCode) throw userDataError
@@ -118,7 +116,7 @@ export default defineEventHandler(async (event) => {
 
     // 6. Criar inbox no Supabase
     console.log('📥 [inboxes.post] Criando inbox no banco de dados...')
-    let inboxData
+    let inboxData: { id: string; name: string; description: string | null; empresa_id: string; status: string } | null = null
     try {
       const { data, error: inboxError } = await client
         .from('inboxes')
@@ -139,8 +137,8 @@ export default defineEventHandler(async (event) => {
         })
       }
       
-      inboxData = data
-      console.log('✅ [inboxes.post] Inbox criado no banco:', inboxData.id)
+      inboxData = data as any
+      console.log('✅ [inboxes.post] Inbox criado no banco:', inboxData!.id)
     } catch (inboxCreateError: any) {
       if (inboxCreateError.statusCode) throw inboxCreateError
       console.error('❌ [inboxes.post] Erro inesperado ao criar inbox:', inboxCreateError)
@@ -167,8 +165,8 @@ export default defineEventHandler(async (event) => {
           'Content-Type': 'application/json'
         },
         body: {
-          name: inboxData.id,
-          token: inboxData.id,
+          name: inboxData!.id,
+          token: inboxData!.id,
           webhook: webhookUrl,
           webhookEvents: ["messages.upsert", "connection.update"]
         }
@@ -186,7 +184,7 @@ export default defineEventHandler(async (event) => {
 
         if (!evolutionInstanceId) {
           console.log('📥 [inboxes.post] Buscando ID da instância via lookup...')
-          evolutionInstanceId = await findEvolutionInstanceId(config, inboxData.id)
+          evolutionInstanceId = await findEvolutionInstanceId(config, inboxData!.id)
         }
 
         if (evolutionInstanceId) {
@@ -194,7 +192,7 @@ export default defineEventHandler(async (event) => {
           await $fetch(`${config.evolutionApiUrl}/instance/${evolutionInstanceId}/advanced-settings`, {
             method: 'PUT',
             headers: {
-              'apikey': inboxData.id,
+              'apikey': config.evolutionApiKey as string,
               'Content-Type': 'application/json'
             },
             body: {
@@ -211,10 +209,10 @@ export default defineEventHandler(async (event) => {
         } else {
           console.warn(`⚠️ [inboxes.post] Não foi possível obter ID da instância para configurar settings`)
           // Fallback
-          await $fetch(`${config.evolutionApiUrl}/instance/${inboxData.id}/advanced-settings`, {
+          await $fetch(`${config.evolutionApiUrl}/instance/${inboxData!.id}/advanced-settings`, {
             method: 'PUT',
             headers: {
-              'apikey': inboxData.id,
+              'apikey': config.evolutionApiKey as string,
               'Content-Type': 'application/json'
             },
             body: {

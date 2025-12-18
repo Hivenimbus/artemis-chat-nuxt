@@ -98,6 +98,7 @@ export interface EvolutionWebhookDataNew {
       videoMessage?: any
       audioMessage?: any
       documentMessage?: any
+      stickerMessage?: any
       messageContextInfo?: any
       [key: string]: any
     }
@@ -181,6 +182,9 @@ function detectMessageTypeFromNewFormat(data: any): string {
   if (infoType === 'image') {
     return 'imageMessage'
   }
+  if (infoType === 'sticker') {
+    return 'stickerMessage'
+  }
   if (infoType === 'video') {
     return 'videoMessage'
   }
@@ -193,6 +197,7 @@ function detectMessageTypeFromNewFormat(data: any): string {
   
   // Fallback: verifica pelos campos do Message
   if (message?.imageMessage) return 'imageMessage'
+  if (message?.stickerMessage) return 'stickerMessage'
   if (message?.videoMessage) return 'videoMessage'
   if (message?.audioMessage) return 'audioMessage'
   if (message?.documentMessage) return 'documentMessage'
@@ -716,6 +721,10 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
             messageText = mediaInfo.caption || ''
             previewText = mediaInfo.caption || '📷 Imagem'
             processedMessageType = 'image'
+          } else if (messageType === 'stickerMessage') {
+            messageText = ''
+            previewText = '💟 Figurinha'
+            processedMessageType = 'image'
           } else if (messageType === 'videoMessage') {
             messageText = mediaInfo.caption || ''
             previewText = mediaInfo.caption || '🎥 Vídeo'
@@ -989,6 +998,16 @@ function extractMediaInfo(message: any, messageType: string): {
         height = mediaData?.height
         fileLength = mediaData?.fileLength
         console.log(`📸 Metadados da imagem: ${mimeType}, ${width}x${height}, ${fileLength} bytes, caption: ${caption}`)
+        break
+
+      case 'stickerMessage':
+        mediaData = message.stickerMessage
+        mimeType = mediaData?.mimetype || 'image/webp'
+        fileName = `sticker_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
+        width = mediaData?.width
+        height = mediaData?.height
+        fileLength = mediaData?.fileLength
+        console.log(`💟 Metadados do sticker: ${mimeType}, ${width}x${height}, ${fileLength} bytes`)
         break
 
       case 'videoMessage':
