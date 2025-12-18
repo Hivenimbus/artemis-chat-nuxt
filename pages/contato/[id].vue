@@ -239,7 +239,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <h4 class="text-sm font-medium text-gray-500">Email</h4>
-                    <p class="mt-1 text-sm text-gray-900">{{ contact.email }}</p>
+                    <p class="mt-1 text-sm text-gray-900">{{ contact.email || 'Não informado' }}</p>
                   </div>
                   <div>
                     <h4 class="text-sm font-medium text-gray-500">Telefone</h4>
