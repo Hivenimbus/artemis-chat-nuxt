@@ -10,7 +10,8 @@ export const useContatos = () => {
     const {
       page = 1,
       limit = 10,
-      search = ''
+      search = '',
+      tags = []
     } = options
 
     loading.value = true
@@ -24,6 +25,10 @@ export const useContatos = () => {
 
       if (search.trim()) {
         queryParams.append('search', search.trim())
+      }
+
+      if (tags && tags.length > 0) {
+        queryParams.append('tags', tags.join(','))
       }
 
       const { data, error: apiError } = await $fetch(`/api/contatos?${queryParams.toString()}`)

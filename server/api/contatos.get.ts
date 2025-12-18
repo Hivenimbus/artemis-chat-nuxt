@@ -47,9 +47,53 @@ export default defineEventHandler(async (event) => {
     // Obter query parameters para busca e paginação
     const query = getQuery(event)
     const searchTerm = query.search as string || ''
+    const tagsParam = query.tags as string || ''
+    const tags = tagsParam ? tagsParam.split(',') : []
     const page = parseInt(query.page as string) || 1
     const limit = parseInt(query.limit as string) || 10
     const offset = (page - 1) * limit
+
+    // Se houver tags selecionadas, fazer pré-consulta para obter IDs dos contatos
+    let contactIdsToFilter: any[] | null = null
+    
+    if (tags.length > 0) {
+      // Buscar contatos que possuem QUALQUER UMA das tags selecionadas (OR)
+      const { data: taggedContacts, error: tagError } = await client
+        .from('contato_etiquetas')
+        .select('contato_id')
+        .in('etiqueta_id', tags)
+
+      if (tagError) {
+        console.error('API /api/contatos: Erro ao buscar tags:', tagError)
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Erro ao filtrar por tags'
+        })
+      }
+
+      // Extrair IDs únicos
+      contactIdsToFilter = [...new Set(taggedContacts?.map(tc => tc.contato_id) || [])]
+      
+      // Se filtrou por tags mas não achou ninguém, pode retornar vazio direto
+      if (contactIdsToFilter.length === 0) {
+        return {
+          success: true,
+          data: {
+            contatos: [],
+            pagination: {
+              page,
+              limit,
+              totalItems: 0,
+              totalPages: 0,
+              startItem: 0,
+              endItem: 0,
+              hasNextPage: false,
+              hasPreviousPage: false
+            }
+          }
+        }
+      }
+    }
 
     // Construir query base
     let queryBuilder = client
@@ -90,6 +134,11 @@ export default defineEventHandler(async (event) => {
         empresa.ilike.%${searchTerm}%,
         cidade.ilike.%${searchTerm}%
       `)
+    }
+
+    // Aplicar filtro de tags se necessário
+    if (contactIdsToFilter !== null) {
+      queryBuilder = queryBuilder.in('id', contactIdsToFilter)
     }
 
     // Aplicar paginação
