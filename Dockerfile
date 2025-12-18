@@ -1,40 +1,43 @@
-# Use a imagem base oficial do Node.js
-FROM node:20-alpine AS base
-
-# Define o diretório de trabalho
+# Estágio de Build para Go (Worker)
+FROM golang:1.21-alpine AS go-builder
 WORKDIR /app
+COPY go-service/go.mod go-service/go.sum ./
+RUN go mod download
+COPY go-service/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o artemis-campaign-worker .
 
-# Copia os arquivos de dependência
+# Estágio de Build para Node (Nuxt)
+FROM node:20-alpine AS node-builder
+WORKDIR /app
 COPY package.json package-lock.json* ./
-
-# Instala as dependências
 RUN npm ci
-
-# Copia o restante do código fonte
 COPY . .
-
-# Constrói a aplicação para produção
 RUN npm run build
 
-# Estágio de produção para uma imagem menor
+# Estágio Final de Produção
 FROM node:20-alpine AS production
-
 WORKDIR /app
 
-# Copia os arquivos de build do estágio anterior
-COPY --from=base /app/.output ./.output
-# Opcional: Copia node_modules se houver dependências de runtime não incluídas no bundle (geralmente o Nuxt faz o bundle de tudo necessário)
-# COPY --from=base /app/node_modules ./node_modules 
-# COPY --from=base /app/package.json ./package.json
+# Instalar dependências de runtime necessárias (libc6-compat para binários compilados se necessário)
+RUN apk add --no-cache libc6-compat
 
-# Define variáveis de ambiente para produção
+# Copiar build do Nuxt
+COPY --from=node-builder /app/.output ./.output
+
+# Copiar binário do Go
+COPY --from=go-builder /app/artemis-campaign-worker ./artemis-campaign-worker
+
+# Copiar script de entrada
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh artemis-campaign-worker
+
+# Variáveis de ambiente
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Expõe a porta que a aplicação irá rodar
+# Expor a porta do Nuxt
 EXPOSE 3000
 
-# Comando para iniciar a aplicação
-CMD ["node", ".output/server/index.mjs"]
-
+# Usar o entrypoint para rodar ambos os serviços
+CMD ["./entrypoint.sh"]
