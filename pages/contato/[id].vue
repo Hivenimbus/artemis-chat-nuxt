@@ -277,7 +277,7 @@
               <h2 class="text-lg font-semibold text-gray-900">Histórico de Interações</h2>
             </div>
             <div class="px-4 sm:px-6 py-4 sm:py-5">
-              <div class="text-center py-8 text-gray-500">
+              <div v-if="contactHistory.length === 0" class="text-center py-8 text-gray-500">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
@@ -291,6 +291,42 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                   </svg>
                 </NuxtLink>
+              </div>
+              
+              <!-- Lista de histórico -->
+              <div v-else class="flow-root">
+                <ul role="list" class="-mb-8">
+                  <li v-for="(event, eventIdx) in contactHistory" :key="event.id">
+                    <div class="relative pb-8">
+                      <span v-if="eventIdx !== contactHistory.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                      <div class="relative flex space-x-3">
+                        <div>
+                          <span class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center ring-8 ring-white">
+                            <!-- Ícone baseado no tipo -->
+                            <svg v-if="event.type === 'ticket'" class="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            <svg v-else class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                          </span>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                          <div>
+                            <p class="text-sm text-gray-500">
+                              <span class="font-medium text-gray-900">Atendimento #{{ event.id.substring(0, 8) }}</span>
+                              iniciado por <span class="font-medium text-gray-900">{{ event.agent }}</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">Canal: {{ event.channel }} • Status: {{ event.status }}</p>
+                          </div>
+                          <div class="text-right text-sm whitespace-nowrap text-gray-500">
+                            <time :datetime="event.date">{{ formatDate(new Date(event.date)) }}</time>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -307,13 +343,13 @@
               <dl class="space-y-3">
                 <div class="flex items-center justify-between">
                   <dt class="text-sm font-medium text-gray-500">Total de Atendimentos</dt>
-                  <dd class="text-sm font-semibold text-gray-900">0</dd>
+                  <dd class="text-sm font-semibold text-gray-900">{{ contactStats.totalTickets }}</dd>
                 </div>
                 <div class="flex items-center justify-between">
                   <dt class="text-sm font-medium text-gray-500">Tempo de Cadastro</dt>
-                  <dd class="text-sm font-semibold text-gray-900">30 dias</dd>
+                  <dd class="text-sm font-semibold text-gray-900">{{ contactStats.createdAt ? formatDate(new Date(contactStats.createdAt)) : 'Recente' }}</dd>
                 </div>
-                              </dl>
+              </dl>
             </div>
           </div>
 
@@ -323,26 +359,6 @@
               <h2 class="text-lg font-semibold text-gray-900">Ações Rápidas</h2>
             </div>
             <div class="px-4 sm:px-6 py-4 sm:py-5 space-y-3">
-              <a
-                :href="`mailto:${contact.email}`"
-                class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-                Enviar Email
-              </a>
-
-              <a
-                :href="`tel:${contact.phone}`"
-                class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-                </svg>
-                Fazer Chamada
-              </a>
-
               <NuxtLink
                 :to="`/atendimentos?contact=${contact.id}`"
                 class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -435,11 +451,13 @@
 import TagEditor from '~/components/TagEditor.vue'
 
 // Composables
-const { fetchContatoById, updateContato, deleteContato, fetchEtiquetas } = useContatos()
+const { fetchContatoById, updateContato, deleteContato, fetchEtiquetas, fetchContactStats } = useContatos()
 
 // Estado
 const route = useRoute()
 const contact = ref(null)
+const contactStats = ref({ totalTickets: 0, createdAt: null })
+const contactHistory = ref([])
 const editMode = ref(false)
 const updateSuccess = ref(null)
 const loading = ref(false)
@@ -460,8 +478,19 @@ const loadContact = async () => {
     error.value = null
 
     const contactId = route.params.id
-    const data = await fetchContatoById(contactId)
-    contact.value = data
+    
+    // Carregar dados básicos e estatísticas em paralelo
+    const [contactData, statsData] = await Promise.all([
+      fetchContatoById(contactId),
+      fetchContactStats(contactId)
+    ])
+    
+    contact.value = contactData
+    
+    if (statsData && statsData.success) {
+      contactStats.value = statsData.stats
+      contactHistory.value = statsData.history
+    }
 
   } catch (err) {
     console.error('Erro ao carregar contato:', err)

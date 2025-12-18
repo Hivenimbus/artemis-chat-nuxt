@@ -238,6 +238,32 @@ export const useContatos = () => {
     }
   }
 
+  // Buscar estatísticas e histórico do contato
+  const fetchContactStats = async (id) => {
+    if (!id) {
+      throw new Error('ID do contato não fornecido')
+    }
+
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data, error: apiError } = await $fetch(`/api/contatos/${id}/stats`)
+
+      if (apiError) {
+        throw apiError
+      }
+
+      return data
+    } catch (err) {
+      console.error('useContatos.fetchContactStats: Erro ao buscar estatísticas:', err)
+      error.value = err.message || 'Erro ao buscar estatísticas'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Limpar estado de erro
   const clearError = () => {
     error.value = null
@@ -255,6 +281,7 @@ export const useContatos = () => {
     updateContato,
     deleteContato,
     fetchEtiquetas,
+    fetchContactStats,
     clearError
   }
 }
