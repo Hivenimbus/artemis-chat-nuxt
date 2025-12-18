@@ -657,27 +657,56 @@ const recordingInterval = ref(null)
 const showEmojiPicker = ref(false)
 
 // Carregar mensagens do atendimento
-const loadMessages = async (contactId) => {
+const loadMessages = async (contactId, silent = false) => {
   if (!contactId) {
     messages.value = []
     return
   }
 
-  loadingMessages.value = true
+  if (!silent) loadingMessages.value = true
   try {
     const response = await $fetch(`/api/atendimentos/${contactId}/mensagens`)
     if (response?.success && response?.data?.mensagens) {
-      messages.value = response.data.mensagens
-    } else {
+      // Se for atualização silenciosa (polling), verifica se houve mudanças
+      if (silent) {
+        const newMessages = response.data.mensagens
+        const currentMessages = messages.value
+        
+        // Verifica se houve mudança na quantidade ou no último item
+        const hasChanges = newMessages.length !== currentMessages.length || 
+          (newMessages.length > 0 && currentMessages.length > 0 && 
+           newMessages[newMessages.length - 1].id !== currentMessages[currentMessages.length - 1].id)
+        
+        // Se houver mudanças, atualiza
+        if (hasChanges) {
+          messages.value = newMessages
+        }
+      } else {
+        messages.value = response.data.mensagens
+      }
+    } else if (!silent) {
       messages.value = []
     }
   } catch (error) {
     console.error('Erro ao carregar mensagens:', error)
-    messages.value = []
+    if (!silent) messages.value = []
   } finally {
-    loadingMessages.value = false
+    if (!silent) loadingMessages.value = false
   }
 }
+
+// Atualizar mensagens (para ser chamado pelo componente pai)
+const refreshMessages = async () => {
+  if (props.selectedContact?.id) {
+    await loadMessages(props.selectedContact.id, true)
+  }
+}
+
+// Expor funções para o componente pai
+defineExpose({
+  refreshMessages,
+  scrollToBottom
+})
 
 // Rolar para a parte inferior do chat
 const scrollToBottom = () => {

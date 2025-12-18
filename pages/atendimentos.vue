@@ -19,6 +19,7 @@
 
       <!-- Seção direita - Área de chat -->
       <ChatArea
+        ref="chatAreaRef"
         :selected-contact="selectedContact"
         :system-tags="systemTags"
         :caixas-entrada-map="caixasEntradaMap"
@@ -85,6 +86,7 @@ const error = ref(null)
 const selectedContact = ref(null)
 const showResolveModal = ref(false)
 const selectedCaixaEntrada = ref(null)
+const chatAreaRef = ref(null)
 
 // Carregar caixas de entrada do Supabase
 const { getInboxes, loading: inboxesLoading } = useInboxes()
@@ -568,19 +570,18 @@ const startPolling = () => {
     clearInterval(pollingInterval)
   }
 
-  // Atualizar a cada 5 segundos
+  // Atualizar a cada 2 segundos
   pollingInterval = setInterval(async () => {
     // Só atualizar se não estiver carregando
     if (!loading.value) {
       await loadAtendimentos(selectedCaixaEntrada.value, false)
 
       // Se há um contato selecionado, atualizar também as mensagens
-      if (selectedContact.value) {
-        // TODO: Implementar atualização de mensagens do contato selecionado
-        // Isso pode ser feito via $fetch para /api/atendimentos/[id]/mensagens
+      if (selectedContact.value && chatAreaRef.value) {
+        await chatAreaRef.value.refreshMessages()
       }
     }
-  }, 5000) // 5 segundos
+  }, 2000) // 2 segundos
 }
 
 const stopPolling = () => {
