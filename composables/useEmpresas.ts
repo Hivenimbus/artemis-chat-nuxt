@@ -41,6 +41,29 @@ export const useEmpresas = () => {
     }
   }
 
+  const updateEmpresa = async (id: string, empresaData: any) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await $fetch(`/api/empresas/${id}`, {
+        method: 'PUT',
+        body: empresaData
+      })
+
+      if (response.success) {
+        await getEmpresas()
+      }
+
+      return response
+    } catch (err: any) {
+      error.value = err.data?.statusMessage || err.message || 'Erro ao atualizar empresa'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Formatar data para exibição
   const formatarData = (data: string) => {
     return new Date(data).toLocaleDateString('pt-BR', {
@@ -115,6 +138,7 @@ export const useEmpresas = () => {
     empresas: readonly(empresas),
     getEmpresas,
     createEmpresa,
+    updateEmpresa,
     formatarData,
     getCorStatusVencimento,
     getTextoStatusVencimento

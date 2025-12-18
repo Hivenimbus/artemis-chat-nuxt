@@ -1,12 +1,11 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Obter usuário autenticado
-    const client = await serverSupabaseClient(event)
-    const { data: { user }, error: userError } = await client.auth.getUser()
+    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
+    const user = event.context.user
 
-    if (userError || !user) {
+    if (!user) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
@@ -14,18 +13,15 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se o usuário é superadmin
-    const { data: userData, error: roleError } = await client
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (roleError || userData?.role !== 'superadmin') {
+    if (user.role !== 'superadmin') {
       throw createError({
         statusCode: 403,
         statusMessage: 'Acesso negado. Apenas superadmins podem acessar este recurso.'
       })
     }
+
+    // Usar Service Role já que não estamos usando Supabase Auth
+    const client = serverSupabaseServiceRole(event)
 
     // Buscar empresas com usuários vinculados
     const { data: empresas, error } = await client

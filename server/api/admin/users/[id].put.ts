@@ -1,4 +1,4 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { serverSupabaseServiceRole } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -12,23 +12,26 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const client = await serverSupabaseClient(event)
+    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
+    const user = event.context.user
 
-    // 1. Verificar autenticação e permissão (Superadmin)
-    const { data: { user }, error: userError } = await client.auth.getUser()
-    if (userError || !user) {
-      throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
+    if (!user) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Usuário não autenticado'
+      })
     }
 
-    const { data: requestUserRole, error: roleCheckError } = await client
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (roleCheckError || requestUserRole?.role !== 'superadmin') {
-      throw createError({ statusCode: 403, statusMessage: 'Apenas superadmins podem editar usuários.' })
+    // Verificar se o usuário é superadmin
+    if (user.role !== 'superadmin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Acesso negado. Apenas superadmins podem editar usuários.'
+      })
     }
+
+    // Usar Service Role já que não estamos usando Supabase Auth
+    const client = serverSupabaseServiceRole(event)
 
     // 2. Validar dados de entrada
     const updateData: any = {}
