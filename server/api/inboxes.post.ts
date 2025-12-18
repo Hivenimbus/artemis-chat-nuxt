@@ -198,11 +198,11 @@ export default defineEventHandler(async (event) => {
             body: {
               rejectCall: false,
               msgCall: "Por favor, envie mensagem",
-              groupsIgnore: true,
+              ignoreGroups: true,
               alwaysOnline: true,
               readMessages: true,
               syncFullHistory: false,
-              readStatus: true
+              readStatus: false
             }
           })
           console.log('✅ [inboxes.post] Settings configurados com sucesso')
@@ -218,11 +218,11 @@ export default defineEventHandler(async (event) => {
             body: {
               rejectCall: false,
               msgCall: "Por favor, envie mensagem",
-              groupsIgnore: true,
+              ignoreGroups: true,
               alwaysOnline: true,
               readMessages: true,
               syncFullHistory: false,
-              readStatus: true
+              readStatus: false
             }
           })
         }
