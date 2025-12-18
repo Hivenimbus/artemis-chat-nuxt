@@ -154,6 +154,10 @@ export default defineEventHandler(async (event) => {
     console.log('📥 [inboxes.post] Criando instância na Evolution API...')
     console.log('📥 [inboxes.post] Evolution URL:', config.evolutionApiUrl)
     
+    // Construir URL do webhook
+    const webhookUrl = `${config.public.siteUrl}/api/webhook/whatsapp`
+    console.log('📥 [inboxes.post] Webhook URL:', webhookUrl)
+
     let evolutionResponse = null
     try {
       evolutionResponse = await $fetch(`${config.evolutionApiUrl}/instance/create`, {
@@ -164,7 +168,9 @@ export default defineEventHandler(async (event) => {
         },
         body: {
           name: inboxData.id,
-          token: inboxData.id
+          token: inboxData.id,
+          webhook: webhookUrl,
+          webhookEvents: ["messages.upsert", "connection.update"]
         }
       })
       console.log('✅ [inboxes.post] Instância criada na Evolution:', evolutionResponse)
