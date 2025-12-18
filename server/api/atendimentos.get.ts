@@ -117,14 +117,11 @@ export default defineEventHandler(async (event) => {
         .eq('inboxes.empresa_id', userData.empresa_id)
 
       // Aplicar filtro de permissão composto: (inbox_id IN allowedInboxIds) OR (usuario_responsavel_id = user.id)
-      // Apenas se não for admin/superadmin (que vê tudo da empresa)
-      if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-        if (allowedInboxIds.length > 0) {
-          q = q.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
-        } else {
-          // Se não tiver inboxes permitidas, só vê os que é responsável
-          q = q.eq('usuario_responsavel_id', user.id)
-        }
+      if (allowedInboxIds.length > 0) {
+        q = q.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
+      } else {
+        // Se não tiver inboxes permitidas, só vê os que é responsável
+        q = q.eq('usuario_responsavel_id', user.id)
       }
 
       if (inboxId) {
@@ -205,13 +202,10 @@ export default defineEventHandler(async (event) => {
 
     // Aplicar filtro de permissão na query principal
     // Permite ver se tem acesso à inbox OU se é o responsável
-    // Apenas se não for admin/superadmin (que vê tudo da empresa)
-    if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-      if (allowedInboxIds.length > 0) {
-        queryBuilder = queryBuilder.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
-      } else {
-        queryBuilder = queryBuilder.eq('usuario_responsavel_id', user.id)
-      }
+    if (allowedInboxIds.length > 0) {
+      queryBuilder = queryBuilder.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
+    } else {
+      queryBuilder = queryBuilder.eq('usuario_responsavel_id', user.id)
     }
 
     // Aplicar filtros
