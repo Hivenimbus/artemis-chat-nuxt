@@ -90,6 +90,82 @@ export default defineEventHandler(async (event) => {
       // Continuar mesmo se der erro na Evolution
     }
 
+    // --- CLEANUP RELATED DATA ---
+    console.log('🗑️ Iniciando limpeza de dados relacionados à inbox...')
+
+    // 1. Limpar Atendimentos e Mensagens
+    const { data: atendimentos } = await client
+      .from('atendimentos')
+      .select('id')
+      .eq('inbox_id', id)
+    
+    const atendimentoIds = atendimentos?.map(a => a.id) || []
+
+    if (atendimentoIds.length > 0) {
+      console.log(`🗑️ Processando ${atendimentoIds.length} atendimentos relacionados...`)
+      
+      // 1.1 Limpar referência em contatos (ultimo_atendimento_id) para evitar violação de FK
+      const { error: updateContactsError } = await client
+        .from('contatos')
+        .update({ ultimo_atendimento_id: null })
+        .in('ultimo_atendimento_id', atendimentoIds)
+      
+      if (updateContactsError) console.error('Erro ao limpar ultimo_atendimento_id:', updateContactsError)
+
+      // 1.2 Deletar mensagens dos atendimentos
+      const { error: deleteMessagesError } = await client
+        .from('mensagens')
+        .delete()
+        .in('atendimento_id', atendimentoIds)
+
+      if (deleteMessagesError) console.error('Erro ao deletar mensagens:', deleteMessagesError)
+
+      // 1.3 Deletar atendimentos
+      const { error: deleteAttendancesError } = await client
+        .from('atendimentos')
+        .delete()
+        .in('id', atendimentoIds)
+
+      if (deleteAttendancesError) console.error('Erro ao deletar atendimentos:', deleteAttendancesError)
+    }
+
+    // 2. Limpar Relacionamentos de Equipe e Agentes
+    await client.from('inbox_agents').delete().eq('inbox_id', id)
+    await client.from('inbox_teams').delete().eq('inbox_id', id)
+    
+    // 3. Limpar Agendamentos
+    const { data: agendamentos } = await client
+      .from('agendamentos')
+      .select('id')
+      .eq('inbox_id', id)
+
+    const agendamentoIds = agendamentos?.map(a => a.id) || []
+
+    if (agendamentoIds.length > 0) {
+        console.log(`🗑️ Processando ${agendamentoIds.length} agendamentos relacionados...`)
+        
+        // 3.1 Deletar agendamento_contatos
+        await client
+            .from('agendamento_contatos')
+            .delete()
+            .in('agendamento_id', agendamentoIds)
+
+        // 3.2 Deletar agendamentos
+        await client
+            .from('agendamentos')
+            .delete()
+            .in('id', agendamentoIds)
+    }
+
+    // 4. Desvincular Campanhas (manter histórico, mas remover vínculo)
+    await client
+      .from('campanhas')
+      .update({ inbox_id: null })
+      .eq('inbox_id', id)
+
+    console.log('✅ Dados relacionados limpos com sucesso')
+    // --- END CLEANUP ---
+
     // Deletar inbox do Supabase
     const { error: deleteError } = await client
       .from('inboxes')
