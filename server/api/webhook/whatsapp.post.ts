@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
     // Extrair instance do formato antigo ou novo
     const instanceName = body.instance || body.instanceName || body.instanceId
     console.log(`🔔 [${startTime}] Webhook recebido: ${body.event} (${instanceName})`)
+    console.log(`📋 [webhook] Payload:`, JSON.stringify(body, null, 2)) // Log completo para debug
 
     // Validar origem do webhook (básico por enquanto)
     if (!validateWebhookOrigin(headers, body.apikey)) {

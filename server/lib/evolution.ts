@@ -761,31 +761,42 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     })
 
     // 1. Encontrar inbox (se já não foi encontrado acima)
+    console.log(`🔍 [processEvolutionMessage] Buscando inbox para instância: ${instance}`)
     const inbox = await findInboxByInstance(supabase, instance)
     if (!inbox) {
+      console.error(`❌ [processEvolutionMessage] Inbox não encontrada para instância: ${instance}`)
       webhookLogger.logInboxNotFound(instance)
       return null
     }
+    console.log(`✅ [processEvolutionMessage] Inbox encontrada: ${inbox.id} (Empresa: ${inbox.empresa_id})`)
 
     // 2. Buscar ou criar contato
     const phone = extractPhoneFromRemoteJid(remoteJid)
     // Se a mensagem for minha, não usar meu pushName para o contato
     // Usar o número de telefone como nome se não tivermos nome melhor
     const contactName = fromMe ? phone : pushName
+    console.log(`🔍 [processEvolutionMessage] Buscando/Criando contato: ${phone} (${contactName})`)
+    
     const contato = await findOrCreateContact(supabase, phone, contactName, inbox.empresa_id)
     if (!contato) {
+      console.error(`❌ [processEvolutionMessage] Falha ao criar contato: ${phone}`)
       webhookLogger.error('contact.not_found', `Não foi possível encontrar/criar contato: ${pushName}`, null, { phone, instance })
       return null
     }
+    console.log(`✅ [processEvolutionMessage] Contato: ${contato.id} (Novo: ${contato.isNew})`)
 
     // 3. Buscar ou criar atendimento
+    console.log(`🔍 [processEvolutionMessage] Buscando/Criando atendimento para contato ${contato.id} na inbox ${inbox.id}`)
     const atendimento = await findOrCreateAtendimento(supabase, contato.id, inbox.id)
     if (!atendimento) {
+      console.error(`❌ [processEvolutionMessage] Falha ao criar atendimento`)
       webhookLogger.error('atendimento.not_found', `Não foi possível encontrar/criar atendimento`, null, { contatoId: contato.id, instance })
       return null
     }
+    console.log(`✅ [processEvolutionMessage] Atendimento: ${atendimento.id}`)
 
     // 4. Criar mensagem (com ou sem mídia)
+    console.log(`💾 [processEvolutionMessage] Criando mensagem no banco...`)
     const mensagemId = await createMessage(
       supabase,
       atendimento.id,
@@ -798,12 +809,14 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     )
 
     if (!mensagemId) {
+      console.error(`❌ [processEvolutionMessage] Falha ao salvar mensagem no banco`)
       webhookLogger.error('message.create_failed', `Não foi possível criar mensagem`, null, {
         atendimentoId: atendimento.id,
         messageText: messageText.substring(0, 50)
       })
       return null
     }
+    console.log(`✅ [processEvolutionMessage] Mensagem salva: ${mensagemId}`)
 
     // 5. Atualizar atendimento
     await updateAtendimentoWithMessage(
