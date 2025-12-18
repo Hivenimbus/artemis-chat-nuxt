@@ -126,14 +126,7 @@ export default defineEventHandler(async (event) => {
 
     // Aplicar filtro de busca se existir
     if (searchTerm) {
-      queryBuilder = queryBuilder.or(`
-        nome.ilike.%${searchTerm}%,
-        sobrenome.ilike.%${searchTerm}%,
-        email.ilike.%${searchTerm}%,
-        telefone.ilike.%${searchTerm}%,
-        empresa.ilike.%${searchTerm}%,
-        cidade.ilike.%${searchTerm}%
-      `)
+      queryBuilder = queryBuilder.or(`nome.ilike.%${searchTerm}%,sobrenome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%,empresa.ilike.%${searchTerm}%,cidade.ilike.%${searchTerm}%`)
     }
 
     // Aplicar filtro de tags se necessário
