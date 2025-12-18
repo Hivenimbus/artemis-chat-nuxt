@@ -251,10 +251,11 @@ const campaigns = ref([])
 const statusFilter = ref('all')
 const expandedCampaigns = ref([])
 const actionLoading = ref(null)
+const refreshInterval = ref(null)
 
 // Load campaigns
-const loadCampaigns = async () => {
-  loading.value = true
+const loadCampaigns = async (silent = false) => {
+  if (!silent) loading.value = true
   try {
     const params = new URLSearchParams()
     if (statusFilter.value !== 'all') {
@@ -268,9 +269,9 @@ const loadCampaigns = async () => {
     }
   } catch (error) {
     console.error('Erro ao carregar campanhas:', error)
-    toast.showToast('Erro ao carregar campanhas', 'error')
+    if (!silent) toast.showToast('Erro ao carregar campanhas', 'error')
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -393,6 +394,19 @@ const handleAction = async (campaignId, action) => {
 // Lifecycle
 onMounted(() => {
   loadCampaigns()
+  
+  // Refresh every 3 seconds if page is visible
+  refreshInterval.value = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      loadCampaigns(true)
+    }
+  }, 3000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+  }
 })
 
 // Page meta
