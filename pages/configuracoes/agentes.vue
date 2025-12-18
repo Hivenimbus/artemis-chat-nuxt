@@ -41,7 +41,7 @@
           <div class="flex items-center space-x-3">
             <select
               v-model="filterRole"
-              class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              class="pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="">Todas as funções</option>
               <option value="user">Agentes</option>
@@ -49,7 +49,7 @@
             </select>
             <select
               v-model="filterStatus"
-              class="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              class="pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               <option value="">Todos os status</option>
               <option value="active">Ativos</option>
