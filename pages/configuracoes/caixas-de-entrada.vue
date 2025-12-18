@@ -394,7 +394,13 @@
               <h3 class="text-lg font-medium text-gray-900">Excluir Caixa de Entrada</h3>
               <p class="mt-2 text-sm text-gray-500">
                 Tem certeza que deseja excluir a caixa de entrada <strong>"{{ inboxToDelete?.name }}"</strong>?
-                Esta ação não pode ser desfeita e todos os dados associados serão perdidos.
+                <br><br>
+                <span class="text-red-600 font-medium">ATENÇÃO:</span> Esta ação não pode ser desfeita e excluirá permanentemente:
+                <ul class="list-disc list-inside mt-1 ml-1 text-red-600">
+                  <li>Todos os atendimentos e mensagens</li>
+                  <li>Agendamentos vinculados</li>
+                  <li>Vínculos com equipes e agentes</li>
+                </ul>
               </p>
             </div>
           </div>
