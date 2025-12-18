@@ -662,11 +662,11 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       fromMe
     })
 
-    // Ignorar mensagens enviadas por mim - REMOVIDO: Agora processamos mensagens enviadas pelo usuário
-    // if (fromMe === true) {
-    //   webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance })
-    //   return null
-    // }
+    // Ignorar mensagens enviadas por mim - ATIVADO: Webhooks de mensagens enviadas pelo próprio número devem ser ignorados
+    if (fromMe === true) {
+      webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance, remoteJid })
+      return null
+    }
 
     if (!remoteJid) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', { instance })
