@@ -695,6 +695,14 @@ const loadMessages = async (contactId, silent = false) => {
   }
 }
 
+// Rolar para a parte inferior do chat
+const scrollToBottom = () => {
+  const chatMessages = document.getElementById('chat-messages')
+  if (chatMessages) {
+    chatMessages.scrollTop = chatMessages.scrollHeight
+  }
+}
+
 // Atualizar mensagens (para ser chamado pelo componente pai)
 const refreshMessages = async () => {
   if (props.selectedContact?.id) {
@@ -707,14 +715,6 @@ defineExpose({
   refreshMessages,
   scrollToBottom
 })
-
-// Rolar para a parte inferior do chat
-const scrollToBottom = () => {
-  const chatMessages = document.getElementById('chat-messages')
-  if (chatMessages) {
-    chatMessages.scrollTop = chatMessages.scrollHeight
-  }
-}
 
 // Watch para carregar mensagens quando o contato selecionado mudar
 watch(() => props.selectedContact?.id, (newContactId) => {
