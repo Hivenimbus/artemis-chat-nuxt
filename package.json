@@ -4,14 +4,14 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build && npm run build:go",
-    "build:go": "cd go-service && go build -o artemis-campaign-worker",
+    "build:go": "cd go-service && go build -o artemis-campaign-worker.exe",
     "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
     "dev:nuxt": "nuxt dev",
     "dev:go": "cd go-service && go run .",
     "generate": "nuxt generate",
     "start": "concurrently \"npm run start:nuxt\" \"npm run start:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
     "start:nuxt": "node --env-file=.env .output/server/index.mjs",
-    "start:go": "cd go-service && ./artemis-campaign-worker",
+    "start:go": "cd go-service && artemis-campaign-worker.exe",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

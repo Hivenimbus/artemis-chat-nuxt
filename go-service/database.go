@@ -16,6 +16,18 @@ func InitDB() {
 	supabaseURL := os.Getenv("SUPABASE_URL")
 	supabaseKey := os.Getenv("SUPABASE_SECRET_KEY")
 
+	if supabaseURL == "" {
+		log.Println("⚠️ SUPABASE_URL is missing")
+	} else {
+		log.Printf("🔹 SUPABASE_URL: %s", supabaseURL)
+	}
+
+	if supabaseKey == "" {
+		log.Println("⚠️ SUPABASE_SECRET_KEY is missing")
+	} else {
+		log.Println("🔹 SUPABASE_SECRET_KEY: [PRESENT]")
+	}
+
 	if supabaseURL == "" || supabaseKey == "" {
 		log.Fatal("❌ SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
 	}

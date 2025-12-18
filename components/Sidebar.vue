@@ -7,9 +7,7 @@
   >
     <!-- Logo e Título -->
     <div class="flex items-center px-4 py-4 border-b border-gray-200 h-16">
-      <div class="h-11 w-11 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-        <span class="text-white font-bold text-base">A</span>
-      </div>
+      <img src="/logo.png" alt="Artemis Logo" class="h-11 w-11 object-contain flex-shrink-0" />
       <h1
         class="ml-2 text-2xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
         :class="[

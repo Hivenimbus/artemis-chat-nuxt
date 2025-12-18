@@ -46,7 +46,9 @@ func main() {
 
 	// Initialize Database (Supabase Client)
 	// This will log fatal if vars are missing
+	log.Println("🔌 Initializing DB connection...")
 	InitDB()
+	log.Println("✅ DB connection initialized.")
 	// No defer db.Close() needed for HTTP client
 
 	log.Println("🚀 Starting Artemis Campaign Worker...")
@@ -57,9 +59,11 @@ func main() {
 	defer ticker.Stop()
 
 	// Run immediately on start
+	log.Println("🔄 Running initial campaign check...")
 	processCampaigns()
 
 	for range ticker.C {
+		log.Println("⏰ Ticker fired: checking campaigns...")
 		processCampaigns()
 	}
 }
@@ -74,6 +78,7 @@ func processCampaigns() {
 	}
 
 	if len(campaigns) == 0 {
+		log.Println("ℹ️ No pending campaigns found.")
 		return
 	}
 
