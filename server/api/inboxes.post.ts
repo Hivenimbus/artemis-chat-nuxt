@@ -222,8 +222,33 @@ export default defineEventHandler(async (event) => {
             }
           })
         }
+
+        // 9. Configurar Webhook
+        console.log(`🔌 [inboxes.post] Configurando webhook para instância ${inboxData.id}...`)
+        const webhookUrl = `${config.public.siteUrl}/api/webhook/whatsapp`
+        console.log(`🔗 [inboxes.post] Webhook URL: ${webhookUrl}`)
+        
+        await $fetch(`${config.evolutionApiUrl}/instance/connect`, {
+          method: 'POST',
+          headers: {
+            'apikey': inboxData.id,
+            'Content-Type': 'application/json'
+          },
+          body: {
+            webhookUrl: webhookUrl,
+            subscribe: [
+              'messages.upsert',
+              'messages.update',
+              'messages.delete',
+              'send.message',
+              'connection.update'
+            ]
+          }
+        })
+        console.log('✅ [inboxes.post] Webhook configurado com sucesso')
+
       } catch (settingsError: any) {
-        console.error('⚠️ [inboxes.post] Erro ao configurar settings (não crítico):', settingsError.message || settingsError)
+        console.error('⚠️ [inboxes.post] Erro ao configurar settings/webhook (não crítico):', settingsError.message || settingsError)
       }
     }
 
