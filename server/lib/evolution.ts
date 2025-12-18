@@ -5,14 +5,15 @@ import { webhookLogger, contatoLogger, atendimentoLogger, messageLogger } from '
 
 // Criar cliente Supabase com service role key para webhooks (sem autenticação de usuário)
 export function createServiceSupabaseClient(): SupabaseClient {
-  const supabaseUrl = process.env.SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY
+  const config = useRuntimeConfig()
+  const supabaseUrl = config.public.supabaseUrl || config.supabaseUrl
+  const supabaseServiceKey = config.supabaseServiceKey
 
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error('SUPABASE_URL e SUPABASE_SECRET_KEY são obrigatórios para webhooks')
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey, {
+  return createClient(supabaseUrl as string, supabaseServiceKey as string, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
@@ -277,12 +278,22 @@ export async function findEvolutionInstanceId(
   instanceName: string
 ): Promise<string | null> {
   try {
+    const config = useRuntimeConfig()
     console.log(`🔍 Buscando ID interno da instância Evolution para: ${instanceName}`)
     
-    const response = await $fetch(`${config.evolutionApiUrl}/instance/all`, {
+    // Garantir que temos a URL e Key da Evolution API
+    const evolutionApiUrl = config.evolutionApiUrl
+    const evolutionApiKey = config.evolutionApiKey
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.warn('⚠️ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados (buscando instância)')
+      return null
+    }
+    
+    const response = await $fetch(`${evolutionApiUrl}/instance/all`, {
       method: 'GET',
       headers: {
-        'apikey': config.evolutionApiKey
+        'apikey': evolutionApiKey as string
       }
     })
 
@@ -1053,8 +1064,9 @@ export async function checkWhatsAppNumber(
   phoneNumber: string
 ): Promise<{ exists: boolean; jid?: string; error?: string }> {
   try {
-    const evolutionApiUrl = process.env.EVOLUTION_API_URL
-    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+    const config = useRuntimeConfig()
+    const evolutionApiUrl = config.evolutionApiUrl
+    const evolutionApiKey = config.evolutionApiKey
 
     if (!evolutionApiUrl || !evolutionApiKey) {
       console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
@@ -1129,8 +1141,9 @@ export async function sendTextMessageToWhatsApp(
   messageText: string
 ): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
   try {
-    const evolutionApiUrl = process.env.EVOLUTION_API_URL
-    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+    const config = useRuntimeConfig()
+    const evolutionApiUrl = config.evolutionApiUrl
+    const evolutionApiKey = config.evolutionApiKey
 
     if (!evolutionApiUrl || !evolutionApiKey) {
       console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
@@ -1212,8 +1225,9 @@ export async function sendMediaToWhatsApp(
   fileName?: string
 ): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
   try {
-    const evolutionApiUrl = process.env.EVOLUTION_API_URL
-    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+    const config = useRuntimeConfig()
+    const evolutionApiUrl = config.evolutionApiUrl
+    const evolutionApiKey = config.evolutionApiKey
 
     if (!evolutionApiUrl || !evolutionApiKey) {
       console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')
@@ -1313,8 +1327,9 @@ export async function sendAudioToWhatsApp(
   audioUrl: string
 ): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
   try {
-    const evolutionApiUrl = process.env.EVOLUTION_API_URL
-    const evolutionApiKey = process.env.EVOLUTION_API_KEY
+    const config = useRuntimeConfig()
+    const evolutionApiUrl = config.evolutionApiUrl
+    const evolutionApiKey = config.evolutionApiKey
 
     if (!evolutionApiUrl || !evolutionApiKey) {
       console.error('❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados')

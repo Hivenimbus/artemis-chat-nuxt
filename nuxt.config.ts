@@ -39,6 +39,8 @@ export default defineNuxtConfig({
     smtpUser: process.env.NUXT_SMTP_USER || process.env.SMTP_USER,
     smtpPass: process.env.NUXT_SMTP_PASS || process.env.SMTP_PASS,
     smtpFrom: process.env.NUXT_SMTP_FROM || process.env.SMTP_FROM,
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseServiceKey: process.env.SUPABASE_SECRET_KEY,
 
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',

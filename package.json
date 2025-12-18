@@ -3,12 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
-    "dev": "concurrently \"npm run dev:nuxt\" \" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
+    "build": "nuxt build && npm run build:go",
+    "build:go": "cd go-service && go build -o artemis-campaign-worker",
+    "dev": "concurrently \"npm run dev:nuxt\" \"npm run dev:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
     "dev:nuxt": "nuxt dev",
     "dev:go": "cd go-service && go run .",
     "generate": "nuxt generate",
-    "start": "node .output/server/index.mjs",
+    "start": "concurrently \"npm run start:nuxt\" \"npm run start:go\" --names \"NUXT,GO\" --prefix-colors \"green,blue\"",
+    "start:nuxt": "node --env-file=.env .output/server/index.mjs",
+    "start:go": "cd go-service && ./artemis-campaign-worker",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
@@ -19,6 +22,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@vueuse/nuxt": "^14.0.0",
     "bcryptjs": "^3.0.3",
+    "concurrently": "^9.2.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.11",
     "nuxt": "^4.2.1",
@@ -30,7 +34,6 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/nodemailer": "^7.0.4",
-    "concurrently": "^9.2.1"
+    "@types/nodemailer": "^7.0.4"
   }
 }
