@@ -385,6 +385,7 @@ definePageMeta({
 const supabase = useSupabaseClient()
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
+const { showToast } = useToast()
 
 // Estado
 const searchTerm = ref('')
@@ -679,7 +680,7 @@ const saveAgent = async () => {
       // Recarregar dados para atualizar a lista
       await loadAgents()
       closeModal()
-      alert('Usuário atualizado com sucesso!')
+      showToast('Usuário atualizado com sucesso!', 'success')
     } else {
       // Criar novo agente via API
       await $fetch('/api/agentes', {
@@ -695,11 +696,11 @@ const saveAgent = async () => {
       // Recarregar dados para atualizar a lista
       await loadAgents()
       closeModal()
-      alert('Convite enviado com sucesso! O usuário receberá um email para definir a senha.')
+      showToast('Convite enviado com sucesso! O usuário receberá um email para definir a senha.', 'success')
     }
   } catch (error) {
     console.error('Erro ao salvar agente:', error)
-    alert('Erro ao salvar agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'))
+    showToast('Erro ao salvar agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'), 'error')
   }
 }
 
@@ -735,9 +736,10 @@ const deleteAgent = async () => {
     // Recarregar dados para atualizar a lista
     await loadAgents()
     closeDeleteModal()
+    showToast('Usuário excluído com sucesso!', 'success')
   } catch (error) {
     console.error('Erro ao excluir agente:', error)
-    alert('Erro ao excluir agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'))
+    showToast('Erro ao excluir agente: ' + (error.data?.statusMessage || error.message || 'Tente novamente.'), 'error')
   }
 }
 
