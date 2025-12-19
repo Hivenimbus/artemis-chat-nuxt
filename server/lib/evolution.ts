@@ -662,6 +662,18 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
       fromMe
     })
 
+    // Ignorar mensagens de status (WhatsApp Status/Stories)
+    if (remoteJid === 'status@broadcast') {
+      webhookLogger.debug('message.ignored', 'Mensagem de status (status@broadcast), ignorando...', { instance, remoteJid })
+      return null
+    }
+
+    // Ignorar mensagens de canais/newsletters
+    if (remoteJid && remoteJid.includes('@newsletter')) {
+      webhookLogger.debug('message.ignored', 'Mensagem de canal/newsletter, ignorando...', { instance, remoteJid })
+      return null
+    }
+
     // Ignorar mensagens enviadas por mim - ATIVADO: Webhooks de mensagens enviadas pelo próprio número devem ser ignorados
     if (fromMe === true) {
       webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance, remoteJid })
