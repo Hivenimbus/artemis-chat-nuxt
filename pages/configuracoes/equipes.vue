@@ -622,6 +622,7 @@ definePageMeta({
 const supabase = useSupabaseClient()
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
+const { showToast } = useToast()
 
 // Estado
 const searchTerm = ref('')
@@ -962,7 +963,7 @@ const toggleAgentInTeam = async (agentId) => {
     }
   } catch (error) {
     console.error('Erro ao gerenciar agente na equipe:', error)
-    alert('Erro ao gerenciar agente na equipe. Tente novamente.')
+    showToast('Erro ao gerenciar agente na equipe. Tente novamente.', 'error')
   }
 }
 
@@ -986,7 +987,7 @@ const validateForm = () => {
 
   // Validar se o usuário tem empresa vinculada
   if (!currentUserEmpresa.value) {
-    alert('Você precisa estar vinculado a uma empresa para criar equipes.')
+    showToast('Você precisa estar vinculado a uma empresa para criar equipes.', 'warning')
     isValid = false
   }
 
@@ -1037,7 +1038,7 @@ const saveTeam = async () => {
     await loadData()
   } catch (error) {
     console.error('Erro ao salvar equipe:', error)
-    alert('Erro ao salvar equipe. Tente novamente.')
+    showToast('Erro ao salvar equipe. Tente novamente.', 'error')
   }
 }
 
@@ -1064,7 +1065,7 @@ const deleteTeam = async () => {
     await loadData()
   } catch (error) {
     console.error('Erro ao excluir equipe:', error)
-    alert('Erro ao excluir equipe. Tente novamente.')
+    showToast('Erro ao excluir equipe. Tente novamente.', 'error')
   }
 }
 

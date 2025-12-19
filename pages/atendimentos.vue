@@ -83,6 +83,8 @@ import { nextTick } from 'vue'
 
 // Obter usuário atual
 const { user } = useAuth()
+const { showToast } = useToast()
+const { confirm } = useConfirm()
 
 // Dados carregados da API
 const atendimentos = ref([])
@@ -386,14 +388,14 @@ const confirmResolveChat = async () => {
       }
 
       showResolveModal.value = false
-      alert('Atendimento resolvido com sucesso!')
+      showToast('Atendimento resolvido com sucesso!', 'success')
     } else {
       console.error('Erro ao resolver atendimento:', response)
-      alert('Erro ao resolver atendimento')
+      showToast('Erro ao resolver atendimento', 'error')
     }
   } catch (error) {
     console.error('Erro ao resolver atendimento:', error)
-    alert('Erro ao resolver atendimento')
+    showToast('Erro ao resolver atendimento', 'error')
   }
 }
 
@@ -421,14 +423,14 @@ const assignToMe = async (atendimento) => {
       }
 
       // Exibir mensagem de sucesso
-      alert(`Atendimento de ${atendimento.name} atribuído a você!`)
+      showToast(`Atendimento de ${atendimento.name} atribuído a você!`, 'success')
     } else {
       console.error('Erro ao atribuir atendimento:', response)
-      alert('Erro ao atribuir atendimento')
+      showToast('Erro ao atribuir atendimento', 'error')
     }
   } catch (error) {
     console.error('Erro ao atribuir atendimento:', error)
-    alert('Erro ao atribuir atendimento')
+    showToast('Erro ao atribuir atendimento', 'error')
   }
 }
 
@@ -456,10 +458,16 @@ const handleExportChat = () => {
   // TODO: Implementar funcionalidade de exportação de conversa
 }
 
-const handleBlockContact = () => {
+const handleBlockContact = async () => {
   if (!selectedContact.value) return
-  const confirmBlock = confirm(`Deseja realmente bloquear ${selectedContact.value.name}?`)
-  if (confirmBlock) {
+  const confirmed = await confirm({
+    message: `Deseja realmente bloquear ${selectedContact.value.name}?`,
+    title: 'Bloquear Contato',
+    confirmText: 'Bloquear',
+    type: 'danger'
+  })
+  
+  if (confirmed) {
     console.log('Bloquear contato:', selectedContact.value.name)
     // TODO: Implementar funcionalidade de bloqueio de contato
   }
@@ -474,8 +482,14 @@ const handleTransferChat = () => {
 const handleDeleteChat = async () => {
   if (!selectedContact.value) return
   
-  const confirmDelete = confirm(`Deseja realmente excluir a conversa com ${selectedContact.value.name}?`)
-  if (confirmDelete) {
+  const confirmed = await confirm({
+    message: `Deseja realmente excluir a conversa com ${selectedContact.value.name}?`,
+    title: 'Excluir Conversa',
+    confirmText: 'Excluir',
+    type: 'danger'
+  })
+
+  if (confirmed) {
     try {
       const contactId = selectedContact.value.id
       
@@ -490,10 +504,10 @@ const handleDeleteChat = async () => {
         atendimentos.value.splice(index, 1)
       }
       selectedContact.value = null
-      alert('Conversa excluída com sucesso.')
+      showToast('Conversa excluída com sucesso.', 'success')
     } catch (error) {
       console.error('Erro ao excluir conversa:', error)
-      alert('Erro ao excluir a conversa. Tente novamente.')
+      showToast('Erro ao excluir a conversa. Tente novamente.', 'error')
     }
   }
 }

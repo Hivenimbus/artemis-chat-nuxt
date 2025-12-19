@@ -323,6 +323,7 @@ definePageMeta({
 
 // Cliente Supabase
 const { userData } = useUser()
+const { showToast } = useToast()
 
 // Estado
 const searchTerm = ref('')
@@ -528,7 +529,7 @@ const saveTag = async () => {
     closeModal()
   } catch (error) {
     console.error('Erro ao salvar etiqueta:', error)
-    alert('Erro ao salvar etiqueta: ' + (error.message || 'Tente novamente.'))
+    showToast('Erro ao salvar etiqueta: ' + (error.message || 'Tente novamente.'), 'error')
   }
 }
 
@@ -559,7 +560,7 @@ const deleteTag = async () => {
     closeDeleteModal()
   } catch (error) {
     console.error('Erro ao excluir etiqueta:', error)
-    alert('Erro ao excluir etiqueta: ' + (error.message || 'Tente novamente.'))
+    showToast('Erro ao excluir etiqueta: ' + (error.message || 'Tente novamente.'), 'error')
   }
 }
 

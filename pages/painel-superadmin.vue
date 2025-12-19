@@ -578,6 +578,8 @@
 <script setup>
 // Verificar se o usuário é superadmin
 const { isSuperAdmin } = useUser()
+const { showToast } = useToast()
+const { confirm } = useConfirm()
 
 // Usar composable de empresas
 const {
@@ -759,18 +761,23 @@ const handleSaveUser = async (userData) => {
     if (response.success) {
       await getUsers()
       closeUserEditModal()
-      // Opcional: Toast de sucesso
+      showToast('Usuário salvo com sucesso!', 'success')
     }
   } catch (err) {
     console.error('Erro ao salvar usuário:', err)
-    alert(err.statusMessage || 'Erro ao salvar usuário')
+    showToast(err.statusMessage || 'Erro ao salvar usuário', 'error')
   }
 }
 
 const handleDeleteUser = async (user) => {
-  if (!confirm(`Tem certeza que deseja excluir o usuário "${user.nome}"? Esta ação não pode ser desfeita.`)) {
-    return
-  }
+  const confirmed = await confirm({
+    message: `Tem certeza que deseja excluir o usuário "${user.nome}"? Esta ação não pode ser desfeita.`,
+    title: 'Excluir Usuário',
+    type: 'danger',
+    confirmText: 'Excluir'
+  })
+  
+  if (!confirmed) return
 
   try {
     const response = await $fetch(`/api/admin/users/${user.id}`, {
@@ -779,11 +786,11 @@ const handleDeleteUser = async (user) => {
 
     if (response.success) {
       await getUsers()
-      // Opcional: Toast de sucesso
+      showToast('Usuário excluído com sucesso!', 'success')
     }
   } catch (err) {
     console.error('Erro ao excluir usuário:', err)
-    alert(err.statusMessage || 'Erro ao excluir usuário')
+    showToast(err.statusMessage || 'Erro ao excluir usuário', 'error')
   }
 }
 

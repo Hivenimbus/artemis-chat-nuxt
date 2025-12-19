@@ -207,6 +207,8 @@ definePageMeta({
 const supabase = useSupabaseClient()
 const { userData: user } = useUser()
 const route = useRoute()
+const { showToast } = useToast()
+const { confirm } = useConfirm()
 
 // State
 const kanban = ref(null)
@@ -348,7 +350,7 @@ const addColumn = async () => {
     await loadKanban()
   } catch (error) {
     console.error('Error adding column:', error)
-    alert('Erro ao adicionar coluna. Tente novamente.')
+    showToast('Erro ao adicionar coluna. Tente novamente.', 'error')
   } finally {
     savingColumn.value = false
   }
@@ -378,7 +380,12 @@ const handleEditCard = (card) => {
 
 // Handle delete card
 const handleDeleteCard = async (cardId) => {
-  if (!confirm('Tem certeza que deseja excluir este cartão?')) return
+  const confirmed = await confirm({
+    message: 'Tem certeza que deseja excluir este cartão?',
+    type: 'danger',
+    confirmText: 'Excluir'
+  })
+  if (!confirmed) return
 
   try {
     const { error } = await supabase
@@ -390,13 +397,18 @@ const handleDeleteCard = async (cardId) => {
     await loadKanban()
   } catch (error) {
     console.error('Error deleting card:', error)
-    alert('Erro ao excluir cartão. Tente novamente.')
+    showToast('Erro ao excluir cartão. Tente novamente.', 'error')
   }
 }
 
 // Handle delete column
 const handleDeleteColumn = async (columnId) => {
-  if (!confirm('Tem certeza que deseja excluir esta coluna? Todos os cartões nesta coluna também serão excluídos.')) return
+  const confirmed = await confirm({
+    message: 'Tem certeza que deseja excluir esta coluna? Todos os cartões nesta coluna também serão excluídos.',
+    type: 'danger',
+    confirmText: 'Excluir'
+  })
+  if (!confirmed) return
 
   try {
     const { error } = await supabase
@@ -408,7 +420,7 @@ const handleDeleteColumn = async (columnId) => {
     await loadKanban()
   } catch (error) {
     console.error('Error deleting column:', error)
-    alert('Erro ao excluir coluna. Tente novamente.')
+    showToast('Erro ao excluir coluna. Tente novamente.', 'error')
   }
 }
 
@@ -428,7 +440,7 @@ const handleCardDrop = async ({ cardId, newColumnId, newPosition }) => {
     await loadKanban()
   } catch (error) {
     console.error('Error moving card:', error)
-    alert('Erro ao mover cartão. Tente novamente.')
+    showToast('Erro ao mover cartão. Tente novamente.', 'error')
   }
 }
 
@@ -475,7 +487,7 @@ const saveCard = async () => {
     await loadKanban()
   } catch (error) {
     console.error('Error saving card:', error)
-    alert('Erro ao salvar cartão. Tente novamente.')
+    showToast('Erro ao salvar cartão. Tente novamente.', 'error')
   } finally {
     savingCard.value = false
   }
@@ -508,7 +520,7 @@ const updateKanban = async (title, description) => {
     kanban.value.description = description
   } catch (error) {
     console.error('Error updating kanban:', error)
-    alert('Erro ao atualizar kanban. Tente novamente.')
+    showToast('Erro ao atualizar kanban. Tente novamente.', 'error')
   }
 }
 

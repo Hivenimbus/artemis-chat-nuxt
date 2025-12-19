@@ -875,7 +875,7 @@ const sendMessage = async () => {
     console.error('Erro ao enviar mensagem:', error)
     // Remover mensagem temporária em caso de erro
     messages.value = messages.value.filter(m => m.id !== tempMessage.id)
-    alert('Erro ao enviar mensagem. Tente novamente.')
+    showToast('Erro ao enviar mensagem. Tente novamente.', 'error')
   } finally {
     uploadingFile.value = false
   }
@@ -895,7 +895,7 @@ const handleFileSelect = (event) => {
   // Validar tamanho (16MB máximo)
   const maxSize = 16 * 1024 * 1024 // 16MB
   if (file.size > maxSize) {
-    alert('Arquivo muito grande. O tamanho máximo é 16MB.')
+    showToast('Arquivo muito grande. O tamanho máximo é 16MB.', 'error')
     return
   }
 
@@ -922,7 +922,7 @@ const handleFileSelect = (event) => {
   ]
 
   if (!allowedTypes.includes(file.type)) {
-    alert('Tipo de arquivo não suportado. Use imagens, vídeos, áudio ou documentos (PDF, DOC, XLS, TXT).')
+    showToast('Tipo de arquivo não suportado. Use imagens, vídeos, áudio ou documentos (PDF, DOC, XLS, TXT).', 'error')
     return
   }
 
@@ -993,7 +993,7 @@ const startAudioRecording = async () => {
     console.log('🎤 Gravação de áudio iniciada')
   } catch (error) {
     console.error('Erro ao iniciar gravação de áudio:', error)
-    alert('Erro ao acessar microfone. Verifique as permissões do navegador.')
+    showToast('Erro ao acessar microfone. Verifique as permissões do navegador.', 'error')
   }
 }
 
@@ -1110,7 +1110,7 @@ const sendAudioRecording = async () => {
 
   } catch (error) {
     console.error('Erro ao enviar áudio:', error)
-    alert('Erro ao enviar áudio. Tente novamente.')
+    showToast('Erro ao enviar áudio. Tente novamente.', 'error')
   } finally {
     uploadingFile.value = false
   }
@@ -1235,7 +1235,7 @@ const saveContactName = async () => {
     }
   } catch (error) {
     console.error('Erro ao atualizar nome do contato:', error)
-    alert('Erro ao atualizar nome do contato.')
+    showToast('Erro ao atualizar nome do contato.', 'error')
   } finally {
     savingContact.value = false
   }
@@ -1309,7 +1309,7 @@ const loadAgents = async () => {
     }
   } catch (error) {
     console.error('Erro ao carregar agentes:', error)
-    alert('Erro ao carregar lista de agentes.')
+    showToast('Erro ao carregar lista de agentes.', 'error')
   } finally {
     loadingAgents.value = false
   }

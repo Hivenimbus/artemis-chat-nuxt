@@ -810,6 +810,7 @@ definePageMeta({
 
 const supabase = useSupabaseClient()
 const { userData } = useUser()
+const { confirm } = useConfirm()
 
 // State para o kanban
 const columns = ref([])
@@ -1579,7 +1580,13 @@ const handleEditCard = (card) => {
 
 // Handle delete card com atualização otimista
 const handleDeleteCard = async (cardId) => {
-  if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return
+  const confirmed = await confirm({
+    message: 'Tem certeza que deseja excluir esta tarefa?',
+    type: 'danger',
+    confirmText: 'Excluir'
+  })
+  
+  if (!confirmed) return
 
   // Encontrar card para rollback
   const cardIndex = cards.value.findIndex(card => card.id === cardId)
