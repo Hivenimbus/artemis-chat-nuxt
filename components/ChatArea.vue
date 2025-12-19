@@ -1034,16 +1034,21 @@ const sendAudioRecording = async () => {
     if (response?.success) {
       console.log('🎵 Áudio enviado com sucesso:', response.data)
 
-      // Adicionar mensagem à lista
-      messages.value.push({
-        ...response.data,
-        sender: response.data.sender || 'user'
-      })
+      // Verificar se a mensagem já existe na lista (trazida pelo polling)
+      const messageExists = messages.value.some(m => m.id === response.data.id)
 
-      // Rolar para o fim
-      nextTick(() => {
-        scrollToBottom()
-      })
+      if (!messageExists) {
+        // Adicionar mensagem à lista
+        messages.value.push({
+          ...response.data,
+          sender: response.data.sender || 'user'
+        })
+
+        // Rolar para o fim
+        nextTick(() => {
+          scrollToBottom()
+        })
+      }
     }
 
     // Limpar estado de gravação
