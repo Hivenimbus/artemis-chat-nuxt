@@ -12,6 +12,7 @@
         :error="error"
         :selected-inbox-id="selectedCaixaEntrada"
         :server-counts="serverCounts"
+        :current-user-id="user?.id"
         @select-contact="selectContact"
         @assign-to-me="assignToMe"
         @select-inbox="selectCaixaEntrada = $event"
@@ -23,6 +24,7 @@
         :selected-contact="selectedContact"
         :system-tags="systemTags"
         :caixas-entrada-map="caixasEntradaMap"
+        :current-user-id="user?.id"
         @send-message="sendMessage"
         @toggle-tag="toggleTag"
         @add-tag="addNewSystemTag"
@@ -77,6 +79,9 @@
 <script setup>
 import { nextTick } from 'vue'
 // useDocumentVisibility é auto-importado via @vueuse/nuxt
+
+// Obter usuário atual
+const { user } = useAuth()
 
 // Dados carregados da API
 const atendimentos = ref([])

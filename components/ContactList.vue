@@ -339,6 +339,10 @@ const props = defineProps({
   serverCounts: {
     type: Object,
     default: null
+  },
+  currentUserId: {
+    type: String,
+    default: null
   }
 })
 
@@ -446,6 +450,13 @@ const filteredContacts = computed(() => {
     filtered = filtered.filter(contact =>
       contact.status === selectedStatus.value
     )
+    
+    // Se for 'ativo' (Minhas), filtrar também por responsável (mesmo se for admin)
+    if (selectedStatus.value === 'ativo' && props.currentUserId) {
+      filtered = filtered.filter(contact => 
+        contact.usuario_responsavel_id === props.currentUserId
+      )
+    }
   }
 
   // Filtrar por termo de pesquisa

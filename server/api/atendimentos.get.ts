@@ -118,8 +118,14 @@ export default defineEventHandler(async (event) => {
 
       // Aplicar filtro de permissão composto: (inbox_id IN allowedInboxIds) OR (usuario_responsavel_id = user.id)
       // APENAS se não for admin/superadmin
-      if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-        if (allowedInboxIds.length > 0) {
+      // EXCEÇÃO: Se statusFilter for 'ativo' (Minhas), forçar filtro por responsável mesmo para admin
+      const isMinhasFilter = statusFilter === 'ativo'
+      
+      if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasFilter) {
+        if (isMinhasFilter) {
+          // Para "Minhas", sempre filtrar por responsável
+          q = q.eq('usuario_responsavel_id', user.id)
+        } else if (allowedInboxIds.length > 0) {
           q = q.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
         } else {
           // Se não tiver inboxes permitidas, só vê os que é responsável
@@ -206,8 +212,14 @@ export default defineEventHandler(async (event) => {
     // Aplicar filtro de permissão na query principal
     // Permite ver se tem acesso à inbox OU se é o responsável
     // APENAS se não for admin/superadmin
-    if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-      if (allowedInboxIds.length > 0) {
+    // EXCEÇÃO: Se status (filtro explícito) for 'ativo' (Minhas), forçar filtro por responsável mesmo para admin
+    const isMinhasQuery = status === 'ativo'
+    
+    if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasQuery) {
+      if (isMinhasQuery) {
+        // Para "Minhas", sempre filtrar por responsável
+        queryBuilder = queryBuilder.eq('usuario_responsavel_id', user.id)
+      } else if (allowedInboxIds.length > 0) {
         queryBuilder = queryBuilder.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
       } else {
         queryBuilder = queryBuilder.eq('usuario_responsavel_id', user.id)

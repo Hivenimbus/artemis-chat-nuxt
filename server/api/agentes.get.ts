@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
           )
         )
       `)
-      .in('role', ['user', 'admin'])
+      .in('role', ['user', 'admin', 'superadmin'])
       .eq('empresa_id', userData.empresa_id)
       .order('created_at', { ascending: false })
 

@@ -616,6 +616,10 @@ const props = defineProps({
   caixasEntradaMap: {
     type: Object,
     default: () => ({})
+  },
+  currentUserId: {
+    type: String,
+    default: null
   }
 })
 
@@ -1205,6 +1209,11 @@ const groupedAgents = computed(() => {
   const others = []
 
   agentsList.value.forEach(agent => {
+    // Pular o próprio usuário
+    if (props.currentUserId && agent.id === props.currentUserId) {
+      return
+    }
+
     // Verificar se o agente tem equipes
     if (agent.equipes_agentes && agent.equipes_agentes.length > 0) {
       agent.equipes_agentes.forEach(relation => {
