@@ -451,10 +451,14 @@ const handleBlockContact = () => {
   }
 }
 
-const handleTransferChat = () => {
+const handleTransferChat = async () => {
   if (!selectedContact.value) return
-  console.log('Transferir atendimento:', selectedContact.value.name)
-  // TODO: Implementar funcionalidade de transferência de atendimento
+  
+  // Limpar contato selecionado pois foi transferido
+  selectedContact.value = null
+  
+  // Recarregar lista e contadores para refletir a transferência
+  await loadAtendimentos(selectedCaixaEntrada.value)
 }
 
 const handleDeleteChat = async () => {
