@@ -170,7 +170,7 @@
             <button
               v-for="status in statusOptions"
               :key="status.value"
-              @click="selectStatus(status.value)"
+              @click="selectedStatus = status.value"
               :class="[
                 'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
                 selectedStatus === status.value
@@ -346,7 +346,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select-contact', 'assign-to-me', 'select-inbox', 'status-change'])
+const emit = defineEmits(['select-contact', 'assign-to-me', 'select-inbox'])
 
 const searchTerm = ref('')
 const selectedStatus = ref('todos')
@@ -505,11 +505,6 @@ const selectCaixaEntrada = (value) => {
   showCaixaEntradaDropdown.value = false
   searchCaixaEntrada.value = ''
   emit('select-inbox', value)
-}
-
-const selectStatus = (statusValue) => {
-  selectedStatus.value = statusValue
-  emit('status-change', statusValue)
 }
 
 const toggleFilterDropdown = () => {
