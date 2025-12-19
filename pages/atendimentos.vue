@@ -16,6 +16,7 @@
         @select-contact="selectContact"
         @assign-to-me="assignToMe"
         @select-inbox="selectCaixaEntrada = $event"
+        @status-change="handleStatusChange"
       />
 
       <!-- Seção direita - Área de chat -->
@@ -89,8 +90,10 @@ const loading = ref(true)
 const error = ref(null)
 
 const selectedContact = ref(null)
+const serverCounts = ref(null)
 const showResolveModal = ref(false)
 const selectedCaixaEntrada = ref(null)
+const currentStatus = ref('todos')
 const chatAreaRef = ref(null)
 
 // Carregar caixas de entrada do Supabase
@@ -342,6 +345,17 @@ const addNewSystemTag = async (tagName) => {
 }
 
 // Funções de gerenciamento de status
+const handleStatusChange = (status) => {
+  currentStatus.value = status
+  loadAtendimentos(selectedCaixaEntrada.value)
+  
+  // Reiniciar polling com novo filtro
+  stopPolling()
+  nextTick(() => {
+    startPolling()
+  })
+}
+
 const updateStatus = (newStatus) => {
   if (!selectedContact.value) return
   selectedContact.value.status = newStatus
@@ -523,10 +537,18 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
       params.append('inbox_id', inboxId)
     }
 
+    // Adicionar filtro de status se não for 'todos'
+    if (currentStatus.value !== 'todos') {
+      params.append('status', currentStatus.value)
+    }
+
     const response = await $fetch(`/api/atendimentos?${params.toString()}`)
 
     if (response?.success && response?.data) {
       atendimentos.value = response.data.atendimentos
+      if (response.data.counts) {
+        serverCounts.value = response.data.counts
+      }
       console.log('Atendimentos carregados:', response.data.atendimentos)
     } else {
       console.warn('Resposta inválida da API de atendimentos:', response)

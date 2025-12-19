@@ -170,7 +170,7 @@
             <button
               v-for="status in statusOptions"
               :key="status.value"
-              @click="selectedStatus = status.value"
+              @click="handleStatusChange(status.value)"
               :class="[
                 'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
                 selectedStatus === status.value
@@ -346,10 +346,16 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select-contact', 'assign-to-me', 'select-inbox'])
+  const emit = defineEmits(['select-contact', 'assign-to-me', 'select-inbox', 'status-change'])
 
-const searchTerm = ref('')
-const selectedStatus = ref('todos')
+  const searchTerm = ref('')
+  const selectedStatus = ref('todos')
+
+  // Função para alterar status
+  const handleStatusChange = (status) => {
+    selectedStatus.value = status
+    emit('status-change', status)
+  }
 const selectedCaixaEntrada = ref(null) // null = aguardando carregar, ou UUID específico
 const showCaixaEntradaDropdown = ref(false)
 const searchCaixaEntrada = ref('')
@@ -382,7 +388,7 @@ const statusOptions = computed(() => {
   const statusCounts = {
     todos: props.contacts.length,
     aguardando: props.contacts.filter(c => c.status === 'aguardando').length,
-    ativo: props.contacts.filter(c => c.status === 'ativo').length,
+    ativo: props.contacts.filter(c => c.status === 'ativo' && (!props.currentUserId || c.usuario_responsavel_id === props.currentUserId)).length,
     concluido: props.contacts.filter(c => c.status === 'concluido').length
   }
 
