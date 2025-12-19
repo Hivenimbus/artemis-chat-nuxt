@@ -434,6 +434,12 @@
                   <p class="text-sm font-medium text-gray-900 mt-1">{{ getCaixaEntradaNome(selectedContact.caixa_entrada) }}</p>
                 </div>
 
+                <!-- Atribuído a -->
+                <div class="bg-gray-50 p-3 rounded-lg mt-2">
+                  <p class="text-xs text-gray-500">Atribuído a</p>
+                  <p class="text-sm font-medium text-gray-900 mt-1">{{ selectedContact.responsavel_name || 'Não atribuído' }}</p>
+                </div>
+
                 <!-- Tags do contato -->
                 <div v-if="selectedContact.tags && selectedContact.tags.length > 0" class="bg-gray-50 p-3 rounded-lg">
                   <p class="text-xs text-gray-500 mb-2">Tags</p>
