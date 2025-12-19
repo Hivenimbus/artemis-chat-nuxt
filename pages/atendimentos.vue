@@ -16,6 +16,7 @@
         @select-contact="selectContact"
         @assign-to-me="assignToMe"
         @select-inbox="selectCaixaEntrada = $event"
+        @status-change="handleStatusChange"
       />
 
       <!-- Seção direita - Área de chat -->
@@ -91,6 +92,7 @@ const error = ref(null)
 const selectedContact = ref(null)
 const showResolveModal = ref(false)
 const selectedCaixaEntrada = ref(null)
+const currentStatus = ref('todos')
 const chatAreaRef = ref(null)
 
 // Carregar caixas de entrada do Supabase
@@ -200,6 +202,14 @@ const sendMessage = async (messageText) => {
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error)
   }
+}
+
+const handleStatusChange = async (status) => {
+  currentStatus.value = status
+  // Parar polling temporariamente para evitar condições de corrida
+  stopPolling()
+  await loadAtendimentos(selectedCaixaEntrada.value)
+  startPolling()
 }
 
 // Funções de gerenciamento de tags
@@ -451,10 +461,45 @@ const handleBlockContact = () => {
   }
 }
 
-const handleTransferChat = () => {
-  if (!selectedContact.value) return
-  console.log('Transferir atendimento:', selectedContact.value.name)
-  // TODO: Implementar funcionalidade de transferência de atendimento
+const handleTransferChat = (agent) => {
+  if (!selectedContact.value || !agent) return
+  console.log('Transferir atendimento:', selectedContact.value.name, 'para', agent.name)
+  
+  // Atualizar UI localmente
+  const index = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
+  
+  // Se o filtro atual é "Minhas" (ativo) e transferi, sai da minha lista
+  if (currentStatus.value === 'ativo') {
+    if (index > -1) {
+      atendimentos.value.splice(index, 1)
+      selectedContact.value = null // Deselecionar pois não é mais meu
+    }
+  } 
+  // Se o filtro é "Aguardando" e transferi, deixa de ser aguardando (agora tem responsável)
+  else if (currentStatus.value === 'aguardando') {
+    if (index > -1) {
+      atendimentos.value.splice(index, 1)
+      selectedContact.value = null
+    }
+  }
+  // Se é "Todos", apenas atualizo o responsável visualmente
+  else {
+    if (index > -1) {
+      atendimentos.value[index] = {
+        ...atendimentos.value[index],
+        status: 'ativo',
+        usuario_responsavel_id: agent.id,
+        responsavel_name: agent.name
+      }
+      
+      // Se for o contato selecionado, atualiza ele também
+      if (selectedContact.value && selectedContact.value.id === atendimentos.value[index].id) {
+        selectedContact.value.status = 'ativo'
+        selectedContact.value.usuario_responsavel_id = agent.id
+        selectedContact.value.responsavel_name = agent.name
+      }
+    }
+  }
 }
 
 const handleDeleteChat = async () => {
@@ -521,6 +566,11 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
     // assim ela retorna tudo o que é permitido
     if (inboxId && inboxId !== 'all') {
       params.append('inbox_id', inboxId)
+    }
+
+    // Adicionar filtro de status se não for 'todos'
+    if (currentStatus.value && currentStatus.value !== 'todos') {
+      params.append('status', currentStatus.value)
     }
 
     const response = await $fetch(`/api/atendimentos?${params.toString()}`)
