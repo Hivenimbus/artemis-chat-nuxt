@@ -121,13 +121,11 @@ export default defineEventHandler(async (event) => {
       // EXCEÇÃO: Se statusFilter for 'ativo' (Minhas), forçar filtro por responsável mesmo para admin
       const isMinhasFilter = statusFilter === 'ativo'
       
-      // Se for "Minhas", SEMPRE filtra por responsável (independente se é admin ou não)
-      if (isMinhasFilter) {
-        q = q.eq('usuario_responsavel_id', user.id)
-      } 
-      // Se NÃO for "Minhas" e NÃO for admin/superadmin, aplica restrições de acesso
-      else if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-        if (allowedInboxIds.length > 0) {
+      if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasFilter) {
+        if (isMinhasFilter) {
+          // Para "Minhas", sempre filtrar por responsável
+          q = q.eq('usuario_responsavel_id', user.id)
+        } else if (allowedInboxIds.length > 0) {
           q = q.or(`inbox_id.in.(${allowedInboxIds.join(',')}),usuario_responsavel_id.eq.${user.id}`)
         } else {
           // Se não tiver inboxes permitidas, só vê os que é responsável
