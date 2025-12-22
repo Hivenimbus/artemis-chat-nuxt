@@ -4,10 +4,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
 )
+
+var activeCampaigns sync.Map
 
 func main() {
 	// Configure logging to show timestamp
@@ -85,7 +88,16 @@ func processCampaigns() {
 	log.Printf("📢 Found %d pending campaigns to process.", len(campaigns))
 
 	for _, campaign := range campaigns {
-		processSingleCampaign(campaign)
+		// Check if campaign is already running to avoid duplicate processing
+		if _, loaded := activeCampaigns.LoadOrStore(campaign.ID, true); loaded {
+			continue
+		}
+
+		// Launch campaign processing in a goroutine (parallel)
+		go func(c Campaign) {
+			defer activeCampaigns.Delete(c.ID) // Ensure we remove it from active map when done
+			processSingleCampaign(c)
+		}(campaign)
 	}
 }
 
