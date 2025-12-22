@@ -33,6 +33,7 @@ export default defineNuxtConfig({
     // Aceita tanto NUXT_* (padrão Nuxt) quanto sem prefixo (compatibilidade)
     evolutionApiUrl: process.env.NUXT_EVOLUTION_API_URL || process.env.EVOLUTION_API_URL,
     evolutionApiKey: process.env.NUXT_EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY,
+    openrouterApiKey: process.env.OPENROUTER_APIKEY,
     jwtSecret: process.env.JWT_SECRET,
     smtpHost: process.env.NUXT_SMTP_HOST || process.env.SMTP_HOST,
     smtpPort: process.env.NUXT_SMTP_PORT || process.env.SMTP_PORT,

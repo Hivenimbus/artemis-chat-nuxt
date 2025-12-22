@@ -315,12 +315,36 @@
               </svg>
               <span>Anexar arquivo</span>
             </button>
-            <button class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-              </svg>
-              <span>Inteligência Artificial</span>
-            </button>
+            <div class="relative">
+              <button 
+                @click="toggleAIOptions"
+                class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm transition-colors"
+                :class="{ 'text-indigo-600': showAIOptions }"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <span>Inteligência Artificial</span>
+              </button>
+              
+              <!-- Dropdown IA -->
+              <div 
+                v-if="showAIOptions"
+                v-click-outside="closeAIOptions"
+                class="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden"
+              >
+                <div class="py-1">
+                  <button
+                    v-for="option in aiOptions"
+                    :key="option.id"
+                    @click="handleAIOption(option)"
+                    class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center space-x-3 transition-colors"
+                  >
+                    <span>{{ option.label }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             <div class="relative">
               <button
                 @click="toggleEmojiPicker"
@@ -638,6 +662,67 @@
           </div>
         </div>
       </div>
+
+      <!-- Modal Preview IA -->
+      <div v-if="showAIPreview" class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="!aiProcessing && cancelAI()"></div>
+
+        <div class="relative bg-white rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:max-w-2xl sm:w-full sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+              <svg class="h-5 w-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Sugestão da IA ({{ aiSelectedOption }})
+            </h3>
+            <button
+              v-if="!aiProcessing"
+              @click="cancelAI"
+              class="text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <span class="sr-only">Fechar</span>
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div v-if="aiProcessing" class="py-12 flex flex-col items-center justify-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+            <p class="text-sm text-gray-500">A inteligência artificial está processando seu texto...</p>
+          </div>
+
+          <div v-else class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Original</h4>
+                <div class="text-sm text-gray-800 whitespace-pre-wrap">{{ aiOriginalText }}</div>
+              </div>
+              <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                <h4 class="text-xs font-semibold text-indigo-500 uppercase tracking-wider mb-2">Sugestão</h4>
+                <div class="text-sm text-indigo-900 whitespace-pre-wrap">{{ aiGeneratedText }}</div>
+              </div>
+            </div>
+
+            <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+              <button
+                type="button"
+                @click="acceptAIResult"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm"
+              >
+                Aceitar e Substituir
+              </button>
+              <button
+                type="button"
+                @click="cancelAI"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -708,6 +793,22 @@ const recordingInterval = ref(null)
 
 // Estados para emoji picker
 const showEmojiPicker = ref(false)
+
+// Estados para IA
+const showAIOptions = ref(false)
+const showAIPreview = ref(false)
+const aiProcessing = ref(false)
+const aiOriginalText = ref('')
+const aiGeneratedText = ref('')
+const aiSelectedOption = ref('')
+
+const aiOptions = [
+  { id: 'corrigir', label: 'Corrigir ortografia' },
+  { id: 'melhorar', label: 'Melhorar escrita' },
+  { id: 'formal', label: 'Deixar formal' },
+  { id: 'resumir', label: 'Resumir' },
+  { id: 'expandir', label: 'Expandir' }
+]
 
 // Carregar mensagens do atendimento
 const loadMessages = async (contactId, silent = false) => {
@@ -1161,6 +1262,7 @@ const toggleKebabSidebar = () => {
 
 // Funções para gerenciamento de emoji picker
 const toggleEmojiPicker = () => {
+  if (showAIOptions.value) showAIOptions.value = false
   showEmojiPicker.value = !showEmojiPicker.value
 }
 
@@ -1179,6 +1281,72 @@ const onSelectEmoji = (emoji) => {
     const textarea = document.querySelector('textarea')
     if (textarea) textarea.focus()
   })
+}
+
+// Funções de IA
+const toggleAIOptions = () => {
+  if (showEmojiPicker.value) showEmojiPicker.value = false
+  if (showTagDropdown.value) showTagDropdown.value = false
+  if (showKebabSidebar.value) showKebabSidebar.value = false
+  showAIOptions.value = !showAIOptions.value
+}
+
+const closeAIOptions = () => {
+  showAIOptions.value = false
+}
+
+const handleAIOption = async (option) => {
+  if (!newMessage.value.trim()) {
+    showToast('Digite uma mensagem para usar a IA.', 'warning')
+    return
+  }
+
+  closeAIOptions()
+  aiSelectedOption.value = option.label
+  aiOriginalText.value = newMessage.value
+  aiProcessing.value = true
+  showAIPreview.value = true // Mostrar modal com loading
+
+  try {
+    const response = await $fetch('/api/ai/generate', {
+      method: 'POST',
+      body: {
+        text: newMessage.value,
+        option: option.id
+      }
+    })
+
+    if (response?.success) {
+      aiGeneratedText.value = response.data
+    } else {
+      throw new Error('Falha na geração')
+    }
+  } catch (error) {
+    console.error('Erro na IA:', error)
+    showToast('Erro ao processar texto com IA.', 'error')
+    showAIPreview.value = false
+  } finally {
+    aiProcessing.value = false
+  }
+}
+
+const acceptAIResult = () => {
+  newMessage.value = aiGeneratedText.value
+  showAIPreview.value = false
+  aiGeneratedText.value = ''
+  aiOriginalText.value = ''
+  
+  // Focar no textarea
+  nextTick(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) textarea.focus()
+  })
+}
+
+const cancelAI = () => {
+  showAIPreview.value = false
+  aiGeneratedText.value = ''
+  aiOriginalText.value = ''
 }
 
 // Funções de edição de contato
