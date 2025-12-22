@@ -174,10 +174,21 @@ const caixasEntradaMap = computed(() => {
 })
 
 // Selecionar contato
-const selectContact = (contact) => {
+const selectContact = async (contact) => {
   selectedContact.value = contact
   // Resetar contador de mensagens não lidas
   contact.unreadCount = 0
+
+  // Chamar API para marcar como lido no backend
+  if (contact.id) {
+    try {
+      await $fetch(`/api/atendimentos/${contact.id}/read`, {
+        method: 'POST'
+      })
+    } catch (err) {
+      console.error('Erro ao marcar mensagens como lidas:', err)
+    }
+  }
 }
 
 // Enviar mensagem
@@ -559,7 +570,19 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
     const response = await $fetch(`/api/atendimentos?${params.toString()}`)
 
     if (response?.success && response?.data) {
-      atendimentos.value = response.data.atendimentos
+      // Se houver um contato selecionado, garantir que o unreadCount dele seja 0
+      // Isso evita "flicker" entre o polling e a atualização do backend
+      let novosAtendimentos = response.data.atendimentos
+      if (selectedContact.value) {
+        novosAtendimentos = novosAtendimentos.map(a => {
+          if (a.id === selectedContact.value.id) {
+            return { ...a, unreadCount: 0 }
+          }
+          return a
+        })
+      }
+      
+      atendimentos.value = novosAtendimentos
       if (response.data.counts) {
         serverCounts.value = response.data.counts
       }
