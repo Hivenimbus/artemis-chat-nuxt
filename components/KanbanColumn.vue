@@ -147,6 +147,62 @@
       </button>
     </div>
   </div>
+
+  <!-- Rename Column Modal -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="showRenameModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="cancelRename">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md transform transition-all overflow-hidden" role="dialog" aria-modal="true">
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Renomear Coluna
+            </h3>
+            <button @click="cancelRename" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <form @submit.prevent="confirmRename">
+            <div class="px-6 py-6">
+              <label for="rename-input" class="block text-sm font-medium text-gray-700 mb-2">
+                Novo nome para a coluna
+              </label>
+              <input
+                id="rename-input"
+                ref="renameInputRef"
+                v-model="editingTitle"
+                type="text"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-900"
+                placeholder="Digite o nome da coluna..."
+              />
+            </div>
+            
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+              <button
+                type="button"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all"
+                @click="cancelRename"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md shadow-indigo-200 transition-all"
+              >
+                Salvar Alteração
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -154,7 +210,7 @@
 import { VueDraggable } from 'vue-draggable-plus'
 
 // Import all needed Vue functions
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 // Props
 const props = defineProps({
@@ -179,6 +235,9 @@ const emit = defineEmits(['add-card', 'edit-card', 'delete-card', 'card-moved', 
 const showOptions = ref(false)
 const showIconPicker = ref(false)
 const showColorPicker = ref(false)
+const showRenameModal = ref(false)
+const editingTitle = ref('')
+const renameInputRef = ref(null)
 
 // Cards computados com atualização otimista
 const columnCards = computed({
@@ -310,8 +369,20 @@ const canMoveRight = computed(() => currentColumnIndex.value < props.columns.len
 
 // Column management functions com atualização otimista
 const startRename = () => {
-  const newName = prompt('Novo nome da coluna:', props.column.title)
-  if (newName && newName.trim()) {
+  editingTitle.value = props.column.title
+  showRenameModal.value = true
+  showOptions.value = false
+  
+  nextTick(() => {
+    if (renameInputRef.value) {
+      renameInputRef.value.focus()
+    }
+  })
+}
+
+const confirmRename = () => {
+  const newName = editingTitle.value
+  if (newName && newName.trim() && newName.trim() !== props.column.title) {
     // Atualização otimista: atualizar UI imediatamente
     const originalTitle = props.column.title
     props.column.title = newName.trim()
@@ -323,7 +394,12 @@ const startRename = () => {
       originalTitle // Para rollback se necessário
     })
   }
-  showOptions.value = false
+  showRenameModal.value = false
+}
+
+const cancelRename = () => {
+  showRenameModal.value = false
+  editingTitle.value = ''
 }
 
 const deleteColumn = () => {
@@ -788,5 +864,16 @@ const updateColor = (colorValue) => {
     height: 1.75rem;
     font-size: 0.75rem;
   }
+}
+
+/* Modal Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
