@@ -1,5 +1,5 @@
 <template>
-  <div class="kan-col" :data-status="column.title.toLowerCase()" :style="{ '--col-500': columnColor['500'], '--col-400': columnColor['400'] }" :class="{ 'kan-col--menu-open': showOptions || showIconPicker || showColorPicker }">
+  <div class="kan-col" ref="columnRef" :data-status="column.title.toLowerCase()" :style="{ '--col-500': columnColor['500'], '--col-400': columnColor['400'] }" :class="{ 'kan-col--menu-open': showOptions || showIconPicker || showColorPicker }">
     <!-- Column Header -->
     <div class="kan-col__header">
       <div class="kan-col__header-title">
@@ -128,8 +128,8 @@
           :card="card"
           :columns="columns"
           :current-column-id="column.id"
-          @edit-card="$emit('edit-card', $event)"
-          @delete-card="$emit('delete-card', $event)"
+          @edit-card="handleEditCard"
+          @delete-card="handleDeleteCard"
           @move-card="handleMoveCard(card.id, $event)"
         />
       </VueDraggable>
@@ -210,7 +210,7 @@
 import { VueDraggable } from 'vue-draggable-plus'
 
 // Import all needed Vue functions
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 // Props
 const props = defineProps({
@@ -238,6 +238,7 @@ const showColorPicker = ref(false)
 const showRenameModal = ref(false)
 const editingTitle = ref('')
 const renameInputRef = ref(null)
+const columnRef = ref(null)
 
 // Cards computados com atualização otimista
 const columnCards = computed({
@@ -325,6 +326,40 @@ const handleMoveCard = (cardId, toColumnId) => {
     toColumnId
   })
 }
+
+// Close all dropdowns helper
+const closeAllDropdowns = () => {
+  showOptions.value = false
+  showIconPicker.value = false
+  showColorPicker.value = false
+}
+
+// Handle edit card - close dropdowns before emitting
+const handleEditCard = (card) => {
+  closeAllDropdowns()
+  emit('edit-card', card)
+}
+
+// Handle delete card - close dropdowns before emitting
+const handleDeleteCard = (cardId) => {
+  closeAllDropdowns()
+  emit('delete-card', cardId)
+}
+
+// Click outside handler
+const handleClickOutside = (event) => {
+  if (columnRef.value && !columnRef.value.contains(event.target)) {
+    closeAllDropdowns()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 // Icon paths mapping
 const iconPaths = {
@@ -563,7 +598,7 @@ const updateColor = (colorValue) => {
 /* Increase z-index when menu is open to appear above other columns */
 .kan-col--menu-open {
   position: relative;
-  z-index: 9997;
+  z-index: 30;
 }
 
 /* Column Header */
@@ -653,7 +688,7 @@ const updateColor = (colorValue) => {
   border-radius: 10px;
   box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
   padding: 0.375rem;
-  z-index: 9998;
+  z-index: 31;
 }
 
 .kan-col__option {
@@ -720,7 +755,7 @@ const updateColor = (colorValue) => {
   border-radius: 8px;
   box-shadow: 0 8px 16px rgba(30, 41, 59, 0.12);
   padding: 0.25rem;
-  z-index: 9999;
+  z-index: 32;
 }
 
 .kan-col__sub-option {
