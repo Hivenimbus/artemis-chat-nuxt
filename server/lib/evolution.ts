@@ -690,6 +690,101 @@ export async function fetchContactProfile(
 }
 
 /**
+ * Faz download e upload da foto de perfil para o Supabase Storage
+ */
+export async function downloadAndUploadProfilePicture(
+  supabase: SupabaseClient,
+  empresaId: string,
+  externalUrl: string
+): Promise<string | null> {
+  try {
+    if (!externalUrl) return null
+    
+    console.log(`📥 Baixando foto de perfil: ${externalUrl}`)
+
+    const response = await fetch(externalUrl)
+    if (!response.ok) {
+      console.warn('❌ Falha ao baixar imagem de perfil:', response.status)
+      return null
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substring(2, 8)
+    const fileName = `profile_${timestamp}_${random}.jpg`
+    const storagePath = `${empresaId}/${fileName}`
+    
+    console.log(`💾 Armazenando perfil em: midias/${storagePath}`)
+    
+    const { error: uploadError } = await supabase.storage
+      .from('midias')
+      .upload(storagePath, buffer, {
+        contentType: 'image/jpeg',
+        upsert: true
+      })
+      
+    if (uploadError) {
+      console.error('❌ Erro no upload da foto de perfil:', uploadError)
+      return null
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from('midias')
+      .getPublicUrl(storagePath)
+      
+    return urlData?.publicUrl || null
+    
+  } catch (error) {
+    console.error('❌ Erro em downloadAndUploadProfilePicture:', error)
+    return null
+  }
+}
+
+/**
+ * Remove a foto de perfil antiga do bucket se for uma imagem interna
+ */
+export async function deleteOldProfilePicture(
+  supabase: SupabaseClient,
+  oldUrl: string
+): Promise<void> {
+  try {
+    if (!oldUrl) return
+
+    // Verificar se a URL pertence ao nosso storage
+    // Exemplo: https://[project].supabase.co/storage/v1/object/public/midias/empresa-uuid/arquivo.jpg
+    const config = useRuntimeConfig()
+    const supabaseUrl = config.public.supabaseUrl || config.supabaseUrl
+    
+    if (!oldUrl.includes(supabaseUrl as string) && !oldUrl.includes('/storage/v1/object/public/midias/')) {
+        return // URL externa, não deletar
+    }
+    
+    // Extrair o path do arquivo
+    // A URL geralmente termina com /midias/caminho/do/arquivo.jpg
+    const parts = oldUrl.split('/midias/')
+    if (parts.length < 2) return
+    
+    const path = parts[1]
+    console.log(`🗑️ Removendo foto de perfil antiga: ${path}`)
+    
+    const { error } = await supabase.storage
+      .from('midias')
+      .remove([path])
+      
+    if (error) {
+      console.error('❌ Erro ao remover foto antiga:', error)
+    } else {
+      console.log('✅ Foto antiga removida com sucesso')
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro em deleteOldProfilePicture:', error)
+  }
+}
+
+/**
  * Processa uma mensagem completa do webhook da Evolution API
  * Suporta tanto o formato antigo (messages.upsert) quanto o novo (Message)
  */
@@ -890,7 +985,21 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
 
           // A foto de perfil sempre deve ser atualizada/sobrescrita
           if (profile.profilePictureUrl) {
-            updateData.profile_picture_url = profile.profilePictureUrl
+            // Verificar se a URL mudou ou se é necessário atualizar
+            // Se já temos uma URL interna e a nova URL externa é a mesma que usamos para gerar (improvável, pois não guardamos a externa),
+            // ou se simplesmente queremos garantir a atualização.
+            
+            // Fazer upload da nova imagem para nosso storage
+            const newInternalUrl = await downloadAndUploadProfilePicture(supabase, inbox.empresa_id, profile.profilePictureUrl)
+            
+            if (newInternalUrl) {
+                // Se upload com sucesso, deletar a antiga
+                if (contato.profile_picture_url) {
+                    await deleteOldProfilePicture(supabase, contato.profile_picture_url)
+                }
+                
+                updateData.profile_picture_url = newInternalUrl
+            }
           }
 
           // Aplicar atualização se houver dados
