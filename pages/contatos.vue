@@ -527,7 +527,7 @@
 
 <script setup>
 // Composables
-const { fetchContatos, createContato, updateContato, deleteContato, fetchEtiquetas } = useContatos()
+const { fetchContatos, updateContato, deleteContato, fetchEtiquetas } = useContatos()
 const { showToast } = useToast()
 
 // Estado de dados
@@ -723,55 +723,10 @@ const updateContact = async (contactId) => {
 }
 
 // Método de criação de contato
-const handleCreateContact = async (contactData) => {
-  try {
-    // Normalizar tags: extrair apenas os nomes para enviar à API
-    const normalizedTags = (contactData.tags || []).map(tag => {
-      if (typeof tag === 'object' && tag.name) {
-        return tag.name
-      }
-      return tag
-    })
-
-    // Preparar dados para API
-    const newContactData = {
-      nome: contactData.name,
-      sobrenome: contactData.lastName,
-      email: contactData.email,
-      telefone: contactData.phone,
-      cidade: contactData.city,
-      pais: contactData.country,
-      biografia: contactData.biography,
-      empresa: contactData.company,
-      endereco: contactData.address,
-      tags: normalizedTags
-    }
-
-    // Chamar API de criação
-    const newContact = await createContato(newContactData)
-
-    // Adicionar ao início da lista
-    contacts.value.unshift(newContact)
-    totalItems.value++
-
-    // Fechar modal
-    showCreateModal.value = false
-
-    // Mostrar toast de sucesso
-    showToast(`Contato "${newContact.name}" criado com sucesso!`, 'success')
-
-  } catch (err) {
-    console.error('Erro ao criar contato:', err)
-
-    // Extrair mensagem de erro da API
-    const errorMessage = err?.data?.statusMessage || err?.message || 'Erro ao criar contato'
-
-    // Mostrar toast de erro
-    showToast(errorMessage, 'error')
-
-    // Não fechar o modal - permite ao usuário corrigir o número
-    // showCreateModal.value permanece true
-  }
+const handleCreateContact = (newContact) => {
+  // Adicionar ao início da lista
+  contacts.value.unshift(newContact)
+  totalItems.value++
 }
 
 // Método para abrir modal de criação

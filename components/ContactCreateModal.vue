@@ -180,15 +180,15 @@
                     <div v-if="formData.tags.length > 0" class="flex flex-wrap gap-1">
                       <span
                         v-for="tag in formData.tags"
-                        :key="tag"
-                        :class="getTagColor(tag)"
+                        :key="tag.id"
+                        :style="{ backgroundColor: tag.color ? tag.color + '20' : '#e5e7eb', color: tag.color || '#374151' }"
                         class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                       >
-                        {{ tag }}
+                        {{ tag.name }}
                         <button
                           type="button"
                           @click.stop="removeTag(tag)"
-                          class="ml-1 text-current hover:text-red-600 transition-colors"
+                          class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
                         >
                           <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -262,17 +262,23 @@
         <div class="p-2 max-h-48 overflow-y-auto">
           <div
             v-for="tag in availableTags"
-            :key="tag"
+            :key="tag.id"
             class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
             @click="toggleTag(tag)"
           >
             <input
               type="checkbox"
-              :checked="formData.tags.includes(tag)"
+              :checked="formData.tags.some(t => t.id === tag.id)"
               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-3"
               @click.stop
+              @change="toggleTag(tag)"
             />
-            <span class="text-sm text-gray-700">{{ tag }}</span>
+            <span 
+              class="text-sm px-2 py-0.5 rounded"
+              :style="{ backgroundColor: tag.color ? tag.color + '20' : '#e5e7eb', color: tag.color || '#374151' }"
+            >
+              {{ tag.name }}
+            </span>
           </div>
         </div>
       </div>
@@ -283,6 +289,10 @@
 <script setup>
 // Emits
 const emit = defineEmits(['save', 'close'])
+
+// Composables
+const { fetchEtiquetas, createContato } = useContatos()
+const { showToast } = useToast()
 
 // State
 const loading = ref(false)
@@ -302,12 +312,16 @@ const availableTags = ref([])
 // Carregar etiquetas disponíveis
 const loadEtiquetas = async () => {
   try {
-    const { fetchEtiquetas } = useContatos()
     availableTags.value = await fetchEtiquetas()
   } catch (err) {
     console.error('Erro ao carregar etiquetas:', err)
     // Usar tags padrão em caso de erro
-    availableTags.value = ['VIP', 'Cliente', 'Novo Lead', 'Empresa']
+    availableTags.value = [
+      { id: 'vip', name: 'VIP', color: '#8B5CF6' },
+      { id: 'cliente', name: 'Cliente', color: '#3B82F6' },
+      { id: 'lead', name: 'Novo Lead', color: '#10B981' },
+      { id: 'empresa', name: 'Empresa', color: '#6366F1' }
+    ]
   }
 }
 
@@ -363,29 +377,19 @@ const closeTagsDropdown = () => {
 }
 
 const removeTag = (tagToRemove) => {
-  const index = formData.value.tags.indexOf(tagToRemove)
+  const index = formData.value.tags.findIndex(t => t.id === tagToRemove.id)
   if (index > -1) {
     formData.value.tags.splice(index, 1)
   }
 }
 
 const toggleTag = (tag) => {
-  const index = formData.value.tags.indexOf(tag)
+  const index = formData.value.tags.findIndex(t => t.id === tag.id)
   if (index > -1) {
     formData.value.tags.splice(index, 1)
   } else {
     formData.value.tags.push(tag)
   }
-}
-
-const getTagColor = (tag) => {
-  const colors = {
-    'VIP': 'bg-purple-100 text-purple-800',
-    'Cliente': 'bg-blue-100 text-blue-800',
-    'Novo Lead': 'bg-green-100 text-green-800',
-    'Empresa': 'bg-indigo-100 text-indigo-800'
-  }
-  return colors[tag] || 'bg-gray-100 text-gray-800'
 }
 
 const resetForm = () => {
@@ -448,18 +452,27 @@ const handleSubmit = async () => {
   errorMessage.value = ''
 
   try {
+    // Extrair apenas os nomes das tags para enviar à API
+    const normalizedTags = formData.value.tags.map(tag => tag.name)
+
     const contactData = {
       ...formData.value,
       name: formData.value.name.trim(),
       lastName: formData.value.lastName.trim(),
       email: formData.value.email.trim(),
-      lastContact: new Date()
+      tags: normalizedTags
     }
 
-    emit('save', contactData)
+    const createdContact = await createContato(contactData)
+    
+    showToast(`Contato "${createdContact.name}" criado com sucesso!`, 'success')
+    emit('save', createdContact)
+    emit('close')
   } catch (error) {
     console.error('Erro ao criar contato:', error)
-    errorMessage.value = 'Erro ao criar contato. Tente novamente.'
+    // Extrair mensagem de erro da API se disponível
+    const msg = error?.data?.statusMessage || error?.message || 'Erro ao criar contato. Tente novamente.'
+    errorMessage.value = msg
   } finally {
     loading.value = false
   }
