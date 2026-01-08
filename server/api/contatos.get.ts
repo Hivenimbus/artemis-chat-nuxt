@@ -110,6 +110,7 @@ export default defineEventHandler(async (event) => {
         empresa,
         endereco,
         empresa_id,
+        profile_picture_url,
         created_at,
         updated_at,
         contato_etiquetas (
@@ -174,6 +175,7 @@ export default defineEventHandler(async (event) => {
         address: contato.endereco || '',
         city: contato.cidade || '',
         biography: contato.biografia || '',
+        profilePictureUrl: contato.profile_picture_url || '',
         lastContact: contato.created_at // Usar created_at como lastContact inicial
       }
     }) || []

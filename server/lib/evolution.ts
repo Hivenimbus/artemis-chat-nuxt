@@ -630,6 +630,66 @@ export async function updateContactData(
 }
 
 /**
+ * Busca perfil do contato na Evolution API (Nome e Foto)
+ */
+export async function fetchContactProfile(
+  instanceId: string,
+  phoneNumber: string
+): Promise<{ pushName: string; fullName: string; profilePictureUrl: string } | null> {
+  try {
+    const config = useRuntimeConfig()
+    const evolutionApiUrl = config.evolutionApiUrl
+    
+    // Remover caracteres não numéricos
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    console.log(`🔍 Buscando perfil do contato: ${cleanPhone} na instância ${instanceId}`)
+
+    const url = `${evolutionApiUrl}/user/check`
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': instanceId
+        },
+        body: JSON.stringify({
+            number: [cleanPhone]
+        })
+    })
+
+    if (!response.ok) {
+        console.warn(`⚠️ Falha ao buscar perfil do contato: ${response.status}`)
+        return null
+    }
+
+    const data = await response.json()
+    
+    if (data?.data?.Users && Array.isArray(data.data.Users) && data.data.Users.length > 0) {
+        const user = data.data.Users[0]
+        
+        // Converter url da foto se for .enc para .jpg
+        let profileUrl = user.ProfilePictureUrl || ''
+        if (profileUrl && profileUrl.includes('.enc')) {
+            profileUrl = profileUrl.replace('.enc', '.jpg')
+        }
+
+        return {
+            pushName: user.PushName || '',
+            fullName: user.FullName || '',
+            profilePictureUrl: profileUrl
+        }
+    }
+
+    return null
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar perfil do contato:', error)
+    return null
+  }
+}
+
+/**
  * Processa uma mensagem completa do webhook da Evolution API
  * Suporta tanto o formato antigo (messages.upsert) quanto o novo (Message)
  */
@@ -804,6 +864,48 @@ export async function processEvolutionMessage(supabase: SupabaseClient, webhookD
     if (!atendimento) {
       webhookLogger.error('atendimento.not_found', `Não foi possível encontrar/criar atendimento`, null, { contatoId: contato.id, instance })
       return null
+    }
+
+    // Se o atendimento é novo (início de conversa), buscar e atualizar dados do perfil (Nome e Foto)
+    if (atendimento.isNew) {
+      try {
+        const profile = await fetchContactProfile(instance, phone)
+        
+        if (profile) {
+          const updateData: any = {}
+          
+          // Lógica de prioridade de nome:
+          // 1. Nome salvo no banco (se contato já existia) -> Mantido (não entra no if abaixo)
+          // 2. FullName (do WhatsApp do remetente)
+          // 3. PushName (definido pelo próprio usuário)
+          // 4. Número (fallback)
+          
+          // Se o contato foi criado agora (isNew=true), definimos o nome seguindo a prioridade
+          if (contato.isNew) {
+            const bestName = profile.fullName || profile.pushName || phone
+            if (bestName) {
+              updateData.nome = bestName
+            }
+          }
+
+          // A foto de perfil sempre deve ser atualizada/sobrescrita
+          if (profile.profilePictureUrl) {
+            updateData.profile_picture_url = profile.profilePictureUrl
+          }
+
+          // Aplicar atualização se houver dados
+          if (Object.keys(updateData).length > 0) {
+            await supabase
+              .from('contatos')
+              .update(updateData)
+              .eq('id', contato.id)
+            
+            console.log(`👤 Perfil do contato atualizado:`, updateData)
+          }
+        }
+      } catch (err) {
+        console.error('❌ Erro ao atualizar perfil do contato:', err)
+      }
     }
 
     // 4. Criar mensagem (com ou sem mídia)
