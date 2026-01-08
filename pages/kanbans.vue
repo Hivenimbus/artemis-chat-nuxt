@@ -640,6 +640,7 @@
           <div
             v-if="showEditKanbanModal"
             class="modal-content"
+            style="max-width: 28rem;"
             @click.stop
           >
             <form @submit.prevent="confirmEditKanban">
@@ -652,7 +653,7 @@
                 </h3>
               </div>
 
-              <div class="modal-body">
+              <div class="modal-body" style="min-height: auto;">
                 <div class="form-group">
                   <label for="edit-kanban-name" class="form-label">
                     Nome do Kanban
