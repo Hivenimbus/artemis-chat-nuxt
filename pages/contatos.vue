@@ -148,7 +148,10 @@
                   <!-- Informações do Contato -->
                   <div class="flex items-start sm:items-center flex-1 min-w-0 pr-2">
                     <div class="flex-shrink-0">
-                      <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm sm:text-lg">
+                      <div v-if="contact.profilePictureUrl" class="h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden">
+                        <img :src="contact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
+                      </div>
+                      <div v-else class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm sm:text-lg">
                         {{ getInitials(contact.name) }}
                       </div>
                     </div>

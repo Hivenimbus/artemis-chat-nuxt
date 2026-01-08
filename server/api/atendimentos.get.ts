@@ -186,6 +186,7 @@ export default defineEventHandler(async (event) => {
           email,
           empresa,
           cidade,
+          profile_picture_url,
           contato_etiquetas (
             etiqueta_id,
             etiquetas (
@@ -272,6 +273,7 @@ export default defineEventHandler(async (event) => {
         email: atendimento.contatos?.email || '',
         company: atendimento.contatos?.empresa || '',
         city: atendimento.contatos?.cidade || '',
+        profilePictureUrl: atendimento.contatos?.profile_picture_url || '',
         lastMessage: atendimento.ultimo_mensagem || '',
         lastMessageTime: atendimento.ultimo_mensagem_time ? new Date(atendimento.ultimo_mensagem_time) : new Date(atendimento.created_at),
         unreadCount: atendimento.unread_count || 0,

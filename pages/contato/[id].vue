@@ -108,7 +108,10 @@
             <div class="px-4 sm:px-6 py-4 sm:py-5">
               <div class="flex items-start space-x-4">
                 <div class="flex-shrink-0">
-                  <div class="h-16 w-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                  <div v-if="contact.profilePictureUrl" class="h-16 w-16 rounded-full overflow-hidden">
+                    <img :src="contact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
+                  </div>
+                  <div v-else class="h-16 w-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
                     {{ getInitials(contact.name) }}
                   </div>
                 </div>

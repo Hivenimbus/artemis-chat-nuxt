@@ -237,7 +237,10 @@
           <div class="flex items-start space-x-3">
             <!-- Avatar -->
             <div class="flex-shrink-0 relative">
-              <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+              <div v-if="contact.profilePictureUrl" class="h-12 w-12 rounded-full overflow-hidden">
+                <img :src="contact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
+              </div>
+              <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
                 {{ getInitials(contact.name) }}
               </div>
 

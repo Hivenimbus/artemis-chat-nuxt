@@ -18,7 +18,10 @@
       <!-- Cabeçalho do chat -->
       <div class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
         <div class="flex items-center">
-          <div class="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+          <div v-if="selectedContact.profilePictureUrl" class="h-10 w-10 rounded-full overflow-hidden flex-shrink-0">
+            <img :src="selectedContact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
+          </div>
+          <div v-else class="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
             {{ getInitials(selectedContact.name) }}
           </div>
           <div class="ml-3">
@@ -407,7 +410,10 @@
               <h4 class="text-sm font-medium text-gray-500 uppercase mb-3">Informações</h4>
               <div class="space-y-3">
                 <div class="flex items-center space-x-3">
-                  <div class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                  <div v-if="selectedContact.profilePictureUrl" class="h-12 w-12 rounded-full overflow-hidden flex-shrink-0">
+                    <img :src="selectedContact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
+                  </div>
+                  <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                     {{ getInitials(selectedContact.name) }}
                   </div>
                   <div class="flex-1 min-w-0">
