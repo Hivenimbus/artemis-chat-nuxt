@@ -359,6 +359,7 @@ export function extractPhoneFromRemoteJid(remoteJid: string): string {
 
 /**
  * Busca ou cria um contato baseado no telefone
+ * Usa constraint UNIQUE (telefone, empresa_id) para prevenir duplicatas em race conditions
  */
 export async function findOrCreateContact(
   supabase: SupabaseClient,
@@ -376,15 +377,11 @@ export async function findOrCreateContact(
     }
 
     // Primeiro, tenta buscar contato existente
-    // Usamos maybeSingle() + limit(1) + order para evitar erros caso existam duplicatas,
-    // pegando sempre o contato mais recente criado.
     const { data: contato, error: findError } = await supabase
       .from('contatos')
       .select('id')
       .eq('telefone', normalizedPhone)
       .eq('empresa_id', empresaId)
-      .order('created_at', { ascending: false })
-      .limit(1)
       .maybeSingle()
 
     if (!findError && contato) {
@@ -408,6 +405,28 @@ export async function findOrCreateContact(
       .single()
 
     if (createError) {
+      // Verificar se é erro de constraint violation (código 23505 - unique_violation)
+      // Isso pode acontecer em race conditions quando dois webhooks chegam simultaneamente
+      if (createError.code === '23505') {
+        contatoLogger.debug('contact.race_condition', `Race condition detectada, buscando contato existente: ${normalizedPhone}`, { phone: normalizedPhone, empresaId })
+        
+        // Buscar o contato que foi criado pela outra requisição
+        const { data: existingContato, error: retryError } = await supabase
+          .from('contatos')
+          .select('id')
+          .eq('telefone', normalizedPhone)
+          .eq('empresa_id', empresaId)
+          .single()
+        
+        if (!retryError && existingContato) {
+          contatoLogger.debug('contact.found_after_race', `Contato encontrado após race condition: ${existingContato.id}`, { contatoId: existingContato.id })
+          return { id: existingContato.id, isNew: false }
+        }
+        
+        contatoLogger.error('contact.race_retry_failed', `Falha ao buscar contato após race condition`, retryError, { phone: normalizedPhone, empresaId })
+        return null
+      }
+      
       contatoLogger.error('contact.create_error', `Erro ao criar contato: ${name}`, createError, { phone: normalizedPhone, empresaId })
       return null
     }
@@ -423,6 +442,8 @@ export async function findOrCreateContact(
 
 /**
  * Busca ou cria um atendimento para o contato
+ * Usa índice único parcial (contato_id, inbox_id) WHERE status IN ('aguardando', 'ativo')
+ * para prevenir duplicatas em race conditions
  */
 export async function findOrCreateAtendimento(
   supabase: SupabaseClient,
@@ -431,15 +452,12 @@ export async function findOrCreateAtendimento(
 ): Promise<{ id: string, isNew: boolean } | null> {
   try {
     // Buscar atendimento em aberto
-    // Usamos maybeSingle() + limit(1) + order para evitar erros caso existam duplicatas
     const { data: atendimento, error: findError } = await supabase
       .from('atendimentos')
       .select('id')
       .eq('contato_id', contatoId)
       .eq('inbox_id', inboxId)
       .in('status', ['aguardando', 'ativo'])
-      .order('created_at', { ascending: false })
-      .limit(1)
       .maybeSingle()
 
     if (!findError && atendimento) {
@@ -464,6 +482,29 @@ export async function findOrCreateAtendimento(
       .single()
 
     if (createError) {
+      // Verificar se é erro de constraint violation do índice único parcial
+      // Isso pode acontecer em race conditions quando dois webhooks chegam simultaneamente
+      if (createError.code === '23505') {
+        console.log('⚠️ Race condition detectada em atendimento, buscando existente...')
+        
+        // Buscar o atendimento que foi criado pela outra requisição
+        const { data: existingAtendimento, error: retryError } = await supabase
+          .from('atendimentos')
+          .select('id')
+          .eq('contato_id', contatoId)
+          .eq('inbox_id', inboxId)
+          .in('status', ['aguardando', 'ativo'])
+          .single()
+        
+        if (!retryError && existingAtendimento) {
+          console.log('✅ Atendimento encontrado após race condition:', existingAtendimento.id)
+          return { id: existingAtendimento.id, isNew: false }
+        }
+        
+        console.error('❌ Falha ao buscar atendimento após race condition:', retryError)
+        return null
+      }
+      
       console.error('❌ Erro ao criar atendimento:', createError)
       return null
     }
