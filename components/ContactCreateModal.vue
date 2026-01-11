@@ -455,11 +455,17 @@ const handleSubmit = async () => {
     // Extrair apenas os nomes das tags para enviar à API
     const normalizedTags = formData.value.tags.map(tag => tag.name)
 
+    // Mapear campos de inglês para português (formato esperado pela API)
     const contactData = {
-      ...formData.value,
-      name: formData.value.name.trim(),
-      lastName: formData.value.lastName.trim(),
-      email: formData.value.email.trim(),
+      nome: formData.value.name.trim(),
+      sobrenome: formData.value.lastName?.trim() || '',
+      email: formData.value.email?.trim() || '',
+      telefone: formData.value.phone.trim(),
+      cidade: formData.value.city?.trim() || '',
+      pais: formData.value.country?.trim() || '',
+      biografia: formData.value.biography?.trim() || '',
+      empresa: formData.value.company?.trim() || '',
+      endereco: formData.value.address?.trim() || '',
       tags: normalizedTags
     }
 
