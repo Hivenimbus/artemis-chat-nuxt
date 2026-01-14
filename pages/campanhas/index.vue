@@ -1219,7 +1219,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Campanhas - Artemis',
+  title: 'Campanhas - MULTICONEX',
   meta: [
     { name: 'description', content: 'Crie campanhas de disparo em massa no WhatsApp' }
   ]

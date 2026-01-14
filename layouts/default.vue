@@ -41,7 +41,7 @@ const isSidebarMobileOpen = ref(false)
 
 // Meta tags globais
 useHead({
-  titleTemplate: '%s - Artemis',
+  titleTemplate: '%s - MULTICONEX',
   meta: [
     { charset: 'utf-8' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },

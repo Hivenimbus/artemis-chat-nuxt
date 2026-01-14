@@ -20,7 +20,7 @@
 <script setup>
 // Meta tags para página de loading
 useHead({
-  title: 'Carregando - Artemis',
+  title: 'Carregando - MULTICONEX',
   meta: [
     { name: 'description', content: 'Verificando estado de autenticação' }
   ]

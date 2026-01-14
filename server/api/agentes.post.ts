@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
         user_id: newUser.id,
         inbox_id: inboxId
       }))
-      
+
       const { error: inboxError } = await client
         .from('inbox_agents')
         .insert(inboxAgents)
@@ -91,7 +91,7 @@ export default defineEventHandler(async (event) => {
     const emailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Olá ${name},</h2>
-        <p>Você foi convidado para se juntar à equipe no Artemis Chat.</p>
+        <p>Você foi convidado para se juntar à equipe no MULTICONEX.</p>
         <p>Para aceitar o convite e definir sua senha, clique no botão abaixo:</p>
         <a href="${inviteUrl}" style="display: inline-block; padding: 12px 24px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
           Aceitar Convite
@@ -103,7 +103,7 @@ export default defineEventHandler(async (event) => {
 
     // Enviar email em background para não travar a request se demorar
     // Mas aguardar erro se for crítico? O ideal é usar fila, mas aqui vamos await para feedback imediato
-    await sendEmail(email, 'Convite para Artemis Chat', emailHtml)
+    await sendEmail(email, 'Convite para MULTICONEX', emailHtml)
 
     return { success: true, message: 'Convite enviado com sucesso', data: newUser }
 

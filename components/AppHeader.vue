@@ -113,7 +113,7 @@ const userName = computed(() => {
 })
 
 const userEmail = computed(() => {
-  return user.value?.email || 'usuario@artemis.com'
+  return user.value?.email || 'usuario@multiconex.com'
 })
 
 // Estados

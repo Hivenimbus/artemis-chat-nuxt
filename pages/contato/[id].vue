@@ -682,7 +682,7 @@ const executeDeleteContact = async () => {
 
 // Meta tags da página
 useHead({
-  title: contact.value ? `${contact.value.name} - Contatos - Artemis` : 'Contato não encontrado - Artemis',
+  title: contact.value ? `${contact.value.name} - Contatos - MULTICONEX` : 'Contato não encontrado - MULTICONEX',
   meta: [
     { name: 'description', content: contact.value ? `Detalhes do contato ${contact.value.name}` : 'Contato não encontrado' }
   ]

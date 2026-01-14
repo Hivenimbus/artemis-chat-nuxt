@@ -707,7 +707,7 @@ definePageMeta({
 
 // Meta tags da página
 useHead({
-  title: 'Atendimentos - Artemis',
+  title: 'Atendimentos - MULTICONEX',
   meta: [
     { name: 'description', content: 'Painel de atendimentos e chat com clientes' }
   ]

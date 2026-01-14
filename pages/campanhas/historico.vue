@@ -415,7 +415,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Histórico de Campanhas - Artemis',
+  title: 'Histórico de Campanhas - MULTICONEX',
   meta: [
     { name: 'description', content: 'Acompanhe o status e resultados das suas campanhas' }
   ]

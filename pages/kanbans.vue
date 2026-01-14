@@ -1903,7 +1903,7 @@ onMounted(async () => {
 
 // Meta tags
 useHead({
-  title: 'Meu Kanban - Artemis',
+  title: 'Meu Kanban - MULTICONEX',
   meta: [
     { name: 'description', content: 'Quadro kanban para organizar suas tarefas' }
   ]

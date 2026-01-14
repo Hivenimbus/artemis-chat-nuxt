@@ -41,7 +41,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     const info = await transporter.sendMail({
       // Garante que o remetente é válido
-      from: config.smtpFrom || `Artemis Chat <${config.smtpUser}>`, 
+      from: config.smtpFrom || `MULTICONEX <${config.smtpUser}>`, 
       to,
       subject,
       html,

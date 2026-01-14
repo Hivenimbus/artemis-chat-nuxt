@@ -882,7 +882,7 @@ definePageMeta({
 
 // Meta tags da página
 useHead({
-  title: 'Contatos - Artemis',
+  title: 'Contatos - MULTICONEX',
   meta: [
     { name: 'description', content: 'Gerencie sua lista de contatos' }
   ]

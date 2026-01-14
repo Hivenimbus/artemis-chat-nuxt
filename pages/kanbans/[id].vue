@@ -547,7 +547,7 @@ onMounted(() => {
 
 // Meta tags
 useHead({
-  title: computed(() => kanban.value ? `${kanban.value.title} - Artemis` : 'Kanban - Artemis'),
+  title: computed(() => kanban.value ? `${kanban.value.title} - MULTICONEX` : 'Kanban - MULTICONEX'),
   meta: [
     { name: 'description', content: computed(() => kanban.value?.description || 'Quadro kanban') }
   ]

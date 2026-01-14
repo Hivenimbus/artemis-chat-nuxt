@@ -7,14 +7,14 @@
   >
     <!-- Logo e Título -->
     <div class="flex items-center px-4 py-4 border-b border-gray-200 h-16">
-      <img src="/logo.png" alt="Artemis Logo" class="h-11 w-11 object-contain flex-shrink-0" />
+      <img src="/logo.png" alt="MULTICONEX Logo" class="h-11 w-11 object-contain flex-shrink-0" />
       <h1
         class="ml-2 text-2xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
         :class="[
           isExpanded ? 'opacity-100' : 'opacity-0 absolute invisible'
         ]"
       >
-        Artemis Chat
+        MULTICONEX
       </h1>
     </div>
 
@@ -480,7 +480,7 @@ const userName = computed(() => {
 })
 
 const userEmail = computed(() => {
-  return user.value?.email || 'usuario@artemis.com'
+  return user.value?.email || 'usuario@multiconex.com'
 })
 
 // Estado do menu de configurações

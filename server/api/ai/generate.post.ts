@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
         'Authorization': `Bearer ${config.openrouterApiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': config.public.siteUrl, // Opcional, mas recomendado pelo OpenRouter
-        'X-Title': 'Artemis Chat' // Opcional
+        'X-Title': 'MULTICONEX' // Opcional
       },
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview', // Modelo atualizado para Gemini Flash
