@@ -11,6 +11,13 @@ export default defineNuxtConfig({
       inline: ['@supabase/supabase-js', '@supabase/node-fetch']
     }
   },
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/logo.png' }
+      ]
+    }
+  },
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/supabase',

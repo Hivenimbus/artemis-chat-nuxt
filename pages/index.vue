@@ -221,15 +221,7 @@
           </div>
         </form>
 
-        <!-- Footer -->
-        <div class="text-center text-xs text-gray-500">
-          <p>Ao continuar, você concorda com nossos</p>
-          <div class="flex justify-center space-x-4 mt-1">
-            <a href="#" class="hover:text-indigo-600 transition-colors duration-200">Termos de Uso</a>
-            <span>•</span>
-            <a href="#" class="hover:text-indigo-600 transition-colors duration-200">Política de Privacidade</a>
-          </div>
-        </div>
+
       </div>
     </div>
   </div>
