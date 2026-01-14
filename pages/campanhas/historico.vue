@@ -9,7 +9,7 @@
         </div>
         <NuxtLink
           to="/campanhas"
-          class="mt-4 sm:mt-0 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          class="mt-4 sm:mt-0 inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -56,7 +56,7 @@
         </p>
         <NuxtLink
           to="/campanhas"
-          class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Criar primeira campanha
         </NuxtLink>
@@ -126,7 +126,7 @@
               <button
                 v-if="campaign.message_text && campaign.message_text.length > 100"
                 @click="toggleExpand(campaign.id)"
-                class="text-indigo-600 text-sm mt-1 hover:text-indigo-700"
+                class="text-red-600 text-sm mt-1 hover:text-red-700"
               >
                 {{ expandedCampaigns.includes(campaign.id) ? 'Ver menos' : 'Ver mais' }}
               </button>
@@ -229,7 +229,7 @@
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
               <div
-                class="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                class="bg-red-600 h-2 rounded-full transition-all duration-300"
                 :style="{ width: getProgressPercent(campaign) + '%' }"
               ></div>
             </div>
@@ -415,7 +415,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Histórico de Campanhas - MULTICONEX',
+  title: 'Histórico de Campanhas',
   meta: [
     { name: 'description', content: 'Acompanhe o status e resultados das suas campanhas' }
   ]

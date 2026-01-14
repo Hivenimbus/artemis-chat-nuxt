@@ -39,9 +39,9 @@
         <div class="relative">
           <button
             @click="toggleUserMenu"
-            class="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            class="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
           >
-            <div class="h-8 w-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+            <div class="h-8 w-8 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-sm">
               {{ userInitials }}
             </div>
             <span class="hidden md:block text-gray-700 font-medium">{{ userName }}</span>

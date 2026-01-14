@@ -11,7 +11,7 @@
       <div class="flex flex-col sm:flex-row gap-4 mb-6">
         <button
           @click="openNewAppointmentModal"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
         >
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -107,7 +107,7 @@
                 'min-h-24 p-2 border border-gray-200 rounded-lg cursor-pointer transition-colors',
                 day.isCurrentMonth ? 'bg-white' : 'bg-gray-50',
                 day.isToday ? 'border-indigo-500 border-2' : 'border-gray-200',
-                isSelectedDate(day.date) ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                isSelectedDate(day.date) ? 'bg-red-50' : 'hover:bg-gray-50'
               ]"
             >
               <div class="text-sm font-medium" :class="day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'">
@@ -481,7 +481,7 @@ const getAppointmentColor = (appointment) => {
 
 const getStatusColor = (status) => {
   const colors = {
-    scheduled: 'bg-indigo-100 text-indigo-800',
+    scheduled: 'bg-red-100 text-red-800',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-gray-100 text-gray-800',
     failed: 'bg-red-100 text-red-800',

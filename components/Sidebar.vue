@@ -25,14 +25,14 @@
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
           isActive('/atendimentos')
-            ? 'bg-indigo-50 text-indigo-700'
+            ? 'bg-red-50 text-red-700'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         ]"
       >
         <svg
           class="h-5 w-5 flex-shrink-0"
           :class="[
-            isActive('/atendimentos') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+            isActive('/atendimentos') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
           ]"
           fill="none"
           stroke="currentColor"
@@ -60,14 +60,14 @@
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
           isActive('/agendamentos')
-            ? 'bg-indigo-50 text-indigo-700'
+            ? 'bg-red-50 text-red-700'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         ]"
       >
         <svg
           class="h-5 w-5 flex-shrink-0"
           :class="[
-            isActive('/agendamentos') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+            isActive('/agendamentos') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
           ]"
           fill="none"
           stroke="currentColor"
@@ -95,14 +95,14 @@
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
           isActive('/contatos')
-            ? 'bg-indigo-50 text-indigo-700'
+            ? 'bg-red-50 text-red-700'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         ]"
       >
         <svg
           class="h-5 w-5 flex-shrink-0"
           :class="[
-            isActive('/contatos') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+            isActive('/contatos') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
           ]"
           fill="none"
           stroke="currentColor"
@@ -130,14 +130,14 @@
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
           isActive('/campanhas')
-            ? 'bg-indigo-50 text-indigo-700'
+            ? 'bg-red-50 text-red-700'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         ]"
       >
         <svg
           class="h-5 w-5 flex-shrink-0"
           :class="[
-            isActive('/campanhas') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+            isActive('/campanhas') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
           ]"
           fill="none"
           stroke="currentColor"
@@ -165,14 +165,14 @@
         class="flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
         :class="[
           isActive('/kanbans')
-            ? 'bg-indigo-50 text-indigo-700'
+            ? 'bg-red-50 text-red-700'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
         ]"
       >
         <svg
           class="h-5 w-5 flex-shrink-0"
           :class="[
-            isActive('/kanbans') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+            isActive('/kanbans') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
           ]"
           fill="none"
           stroke="currentColor"
@@ -202,14 +202,14 @@
           class="w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 group"
           :class="[
             isSettingsActive
-              ? 'bg-indigo-50 text-indigo-700'
+              ? 'bg-red-50 text-red-700'
               : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
           ]"
         >
           <svg
             class="h-5 w-5 flex-shrink-0"
             :class="[
-              isSettingsActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+              isSettingsActive ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
             ]"
             fill="none"
             stroke="currentColor"
@@ -241,7 +241,7 @@
             class="h-4 w-4 transition-transform duration-200"
             :class="[
               settingsExpanded ? 'transform rotate-180' : '',
-              isSettingsActive ? 'text-indigo-600' : 'text-gray-400'
+              isSettingsActive ? 'text-red-600' : 'text-gray-400'
             ]"
             fill="none"
             stroke="currentColor"
@@ -261,14 +261,14 @@
             class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 group"
             :class="[
               isActive('/configuracoes/etiquetas')
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-red-50 text-red-700'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             ]"
           >
             <svg
               class="h-4 w-4 flex-shrink-0"
               :class="[
-                isActive('/configuracoes/etiquetas') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                isActive('/configuracoes/etiquetas') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
               ]"
               fill="none"
               stroke="currentColor"
@@ -289,14 +289,14 @@
             class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 group"
             :class="[
               isActive('/configuracoes/equipes')
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-red-50 text-red-700'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             ]"
           >
             <svg
               class="h-4 w-4 flex-shrink-0"
               :class="[
-                isActive('/configuracoes/equipes') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                isActive('/configuracoes/equipes') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
               ]"
               fill="none"
               stroke="currentColor"
@@ -317,14 +317,14 @@
             class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 group"
             :class="[
               isActive('/configuracoes/agentes')
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-red-50 text-red-700'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             ]"
           >
             <svg
               class="h-4 w-4 flex-shrink-0"
               :class="[
-                isActive('/configuracoes/agentes') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                isActive('/configuracoes/agentes') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
               ]"
               fill="none"
               stroke="currentColor"
@@ -345,14 +345,14 @@
             class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 group"
             :class="[
               isActive('/configuracoes/caixas-de-entrada')
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-red-50 text-red-700'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             ]"
           >
             <svg
               class="h-4 w-4 flex-shrink-0"
               :class="[
-                isActive('/configuracoes/caixas-de-entrada') ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                isActive('/configuracoes/caixas-de-entrada') ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-500'
               ]"
               fill="none"
               stroke="currentColor"
@@ -385,8 +385,8 @@
         class="flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 group relative overflow-hidden"
         :class="[
           isActive('/painel-superadmin')
-            ? 'bg-gradient-to-r from-purple-600 to-red-600 text-white shadow-lg scale-105'
-            : 'bg-gradient-to-r from-purple-500 to-purple-700 text-white hover:from-purple-600 hover:to-red-600 hover:shadow-lg hover:scale-105'
+            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg scale-105'
+            : 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:scale-105'
         ]"
       >
         <!-- Efeito de brilho/gradiente -->
@@ -440,7 +440,7 @@
     <div class="px-4 py-4 border-t border-gray-200 mt-auto h-16">
       <div class="flex items-center h-full">
         <div class="flex-shrink-0 flex items-center justify-center">
-          <div class="h-11 w-11 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base">
+          <div class="h-11 w-11 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-base">
             {{ userInitials }}
           </div>
         </div>

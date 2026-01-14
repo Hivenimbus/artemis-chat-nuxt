@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-    <!-- Elementos de fundo decorativos -->
-    <div class="absolute inset-0 overflow-hidden">
-      <div class="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
-      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-300 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
-      <div class="absolute top-40 left-1/2 w-80 h-80 bg-pink-300 opacity-10 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
+  <div class="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden" style="background-image: url('/background.png');">
+    <!-- Elementos de fundo decorativos (mantendo com opacidade reduzida para não brigar com a imagem) -->
+    <div class="absolute inset-0 overflow-hidden bg-black/30">
+      <div class="absolute -top-40 -right-40 w-80 h-80 bg-white opacity-5 rounded-full mix-blend-overlay filter blur-xl animate-blob"></div>
+      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-red-300 opacity-5 rounded-full mix-blend-overlay filter blur-xl animate-blob animation-delay-2000"></div>
+      <div class="absolute top-40 left-1/2 w-80 h-80 bg-rose-300 opacity-5 rounded-full mix-blend-overlay filter blur-xl animate-blob animation-delay-4000"></div>
     </div>
 
     <div class="max-w-md w-full relative z-10">
@@ -13,7 +13,7 @@
         
         <!-- Logo/Header -->
         <div class="text-center">
-          <div class="mx-auto h-16 w-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:rotate-6 transition-transform duration-300">
+          <div class="mx-auto h-16 w-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:rotate-6 transition-transform duration-300">
             <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
             </svg>
@@ -26,7 +26,7 @@
             <button 
               type="button"
               @click="toggleMode"
-              class="font-semibold text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text hover:from-indigo-700 hover:to-purple-700 transition-all duration-200"
+              class="font-semibold text-transparent bg-gradient-to-r from-red-600 to-red-500 bg-clip-text hover:from-red-700 hover:to-red-600 transition-all duration-200"
             >
               {{ isSignUp ? 'faça login' : 'crie uma conta' }}
             </button>
@@ -88,7 +88,7 @@
                     name="name"
                     type="text"
                     v-model="form.name"
-                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                     placeholder="Seu nome completo"
                   />
                 </div>
@@ -111,7 +111,7 @@
                   autocomplete="email"
                   required
                   v-model="form.email"
-                  class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                  class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                   placeholder="seu@email.com"
                 />
               </div>
@@ -133,7 +133,7 @@
                   autocomplete="current-password"
                   required
                   v-model="form.password"
-                  class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white password-field"
+                  class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white password-field"
                   :placeholder="isSignUp ? 'Mínimo 6 caracteres' : 'Sua senha'"
                 />
                 <button
@@ -175,7 +175,7 @@
                 name="remember-me"
                 type="checkbox"
                 v-model="form.rememberMe"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200"
+                class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded transition-colors duration-200"
               />
               <label for="remember-me" class="ml-3 block text-sm text-gray-700">
                 Lembrar de mim
@@ -183,7 +183,7 @@
             </div>
 
             <div class="text-sm">
-              <a href="#" class="font-medium text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text hover:from-indigo-700 hover:to-purple-700">
+              <a href="#" class="font-medium text-transparent bg-gradient-to-r from-red-600 to-red-500 bg-clip-text hover:from-red-700 hover:to-red-600">
                 Esqueceu a senha?
               </a>
             </div>
@@ -194,12 +194,12 @@
             <button
               type="submit"
               :disabled="isLoading"
-              class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
+              class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
             >
               <span class="absolute left-0 inset-y-0 flex items-center pl-3">
                 <svg
                   v-if="!isLoading"
-                  class="h-5 w-5 text-indigo-300 group-hover:text-indigo-200 transition-colors duration-200"
+                  class="h-5 w-5 text-red-300 group-hover:text-red-200 transition-colors duration-200"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -208,7 +208,7 @@
                 </svg>
                 <svg
                   v-else
-                  class="h-5 w-5 text-indigo-300 animate-spin"
+                  class="h-5 w-5 text-red-300 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
                 >

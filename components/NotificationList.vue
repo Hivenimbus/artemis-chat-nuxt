@@ -5,7 +5,7 @@
       <button 
         v-if="unreadCount > 0"
         @click="markAllAsRead"
-        class="text-xs text-indigo-600 hover:text-indigo-800"
+        class="text-xs text-red-600 hover:text-red-800"
       >
         Marcar todas como lidas
       </button>
@@ -23,14 +23,14 @@
           v-for="notification in notifications" 
           :key="notification.id"
           class="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors cursor-pointer group relative"
-          :class="{ 'bg-indigo-50/50': !notification.read }"
+          :class="{ 'bg-red-50/50': !notification.read }"
           @click="handleNotificationClick(notification)"
         >
           <div class="flex items-start gap-3 pr-6">
              <div class="flex-shrink-0 mt-0.5">
                <!-- Icon based on type -->
                <span v-if="notification.type === 'reminder'" class="text-yellow-500">🔔</span>
-               <span v-else-if="notification.type === 'campaign'" class="text-indigo-500">📢</span>
+               <span v-else-if="notification.type === 'campaign'" class="text-red-500">📢</span>
                <span v-else class="text-gray-500">ℹ️</span>
              </div>
              <div class="flex-1 min-w-0">
@@ -44,7 +44,7 @@
                  {{ formatDate(notification.created_at) }}
                </p>
              </div>
-             <div v-if="!notification.read" class="w-2 h-2 bg-indigo-600 rounded-full mt-1.5 flex-shrink-0"></div>
+             <div v-if="!notification.read" class="w-2 h-2 bg-red-600 rounded-full mt-1.5 flex-shrink-0"></div>
           </div>
           
           <button

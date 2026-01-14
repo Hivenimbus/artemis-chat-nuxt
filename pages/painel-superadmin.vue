@@ -6,7 +6,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
-              <div class="h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+              <div class="h-12 w-12 bg-red-600 rounded-xl flex items-center justify-center shadow-sm">
                 <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
@@ -37,7 +37,7 @@
               <button
                 @click="refreshData"
                 :disabled="loading || usersLoading"
-                class="inline-flex items-center px-4 py-2.5 text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 disabled:opacity-50"
+                class="inline-flex items-center px-4 py-2.5 text-sm font-semibold rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 disabled:opacity-50"
               >
                 <svg
                   class="h-4 w-4 mr-2"
@@ -54,7 +54,7 @@
               <!-- Botão de retorno -->
               <NuxtLink
                 to="/atendimentos"
-                class="inline-flex items-center px-4 py-2.5 border border-gray-300 text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                class="inline-flex items-center px-4 py-2.5 border border-gray-300 text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
               >
                 <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -72,8 +72,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
-              <div class="p-3 bg-indigo-50 rounded-lg">
-                <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="p-3 bg-red-50 rounded-lg">
+                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
               </div>
@@ -148,7 +148,7 @@
               @click="activeTab = 'users'"
               :class="[
                 activeTab === 'users'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-red-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
                 'inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-200'
               ]"
@@ -162,7 +162,7 @@
               @click="activeTab = 'companies'"
               :class="[
                 activeTab === 'companies'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-red-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
                 'inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-200'
               ]"
@@ -179,7 +179,7 @@
         <div v-if="loading && empresas.length === 0" class="flex justify-center items-center py-16">
           <div class="text-center">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md mb-4">
-              <svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -215,8 +215,8 @@
 
         <!-- Empty State -->
         <div v-else-if="empresas.length === 0" class="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
-          <div class="mx-auto h-20 w-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-            <svg class="h-10 w-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="mx-auto h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <svg class="h-10 w-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
             </svg>
           </div>
@@ -246,7 +246,7 @@
               <input
                 v-model="searchQuery"
                 type="text"
-                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm transition duration-200"
+                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent sm:text-sm transition duration-200"
                 placeholder="Buscar usuários por nome, email, função ou empresa..."
               />
               <button
@@ -293,7 +293,7 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
                         <div class="flex-shrink-0 h-10 w-10">
-                          <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
+                          <div class="h-10 w-10 rounded-full bg-red-600 flex items-center justify-center text-white font-semibold text-sm">
                             {{ user.nome?.charAt(0).toUpperCase() || '?' }}
                           </div>
                         </div>
@@ -311,7 +311,7 @@
                       <span class="px-2.5 py-1 inline-flex text-xs font-medium rounded-full"
                         :class="{
                           'bg-rose-100 text-rose-700': user.role === 'superadmin',
-                          'bg-indigo-100 text-indigo-700': user.role === 'admin',
+                          'bg-red-100 text-red-700': user.role === 'admin',
                           'bg-gray-100 text-gray-700': user.role !== 'superadmin' && user.role !== 'admin'
                         }">
                         {{ user.role === 'superadmin' ? 'Superadmin' : (user.role === 'admin' ? 'Admin' : 'Usuário') }}
@@ -351,7 +351,7 @@
                       <div class="flex items-center justify-end space-x-2">
                         <button 
                           @click="openUserEditModal(user)" 
-                          class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                          class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                           title="Editar Usuário"
                         >
                           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,7 +386,7 @@
             <p class="text-gray-500 mb-5">Não encontramos nenhum usuário correspondente à sua busca.</p>
             <button 
               @click="searchQuery = ''"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+              class="inline-flex items-center px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
             >
               <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -409,7 +409,7 @@
               <input
                 v-model="companySearchQuery"
                 type="text"
-                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm transition duration-200"
+                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent sm:text-sm transition duration-200"
                 placeholder="Buscar empresas por nome..."
               />
               <button
@@ -511,7 +511,7 @@
                       <div class="flex items-center justify-end">
                         <button 
                           @click="openEditModal(empresa)" 
-                          class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                          class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                           title="Editar Empresa"
                         >
                           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -537,7 +537,7 @@
             <p class="text-gray-500 mb-5">Não encontramos nenhuma empresa correspondente à sua busca.</p>
             <button 
               @click="companySearchQuery = ''"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+              class="inline-flex items-center px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors duration-200"
             >
               <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

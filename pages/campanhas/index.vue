@@ -20,7 +20,7 @@
 
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
       </div>
 
       <!-- Formulário de Campanha -->
@@ -28,8 +28,8 @@
         <!-- Seção 1: Seleção de Destinatários -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
@@ -41,28 +41,28 @@
 
           <!-- Opções de seleção -->
           <div class="space-y-4">
-            <label class="flex items-start gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" :class="{ 'border-indigo-500 bg-indigo-50': recipientType === 'all' }">
+            <label class="flex items-start gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" :class="{ 'border-red-500 bg-red-50': recipientType === 'all' }">
               <input
                 type="radio"
                 v-model="recipientType"
                 value="all"
-                class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
               />
               <div class="flex-1">
                 <span class="block text-sm font-medium text-gray-900">Todos os contatos</span>
                 <span class="block text-sm text-gray-500">Enviar para toda a base de contatos cadastrados</span>
               </div>
-              <span class="px-3 py-1 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-full">
+              <span class="px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded-full">
                 {{ totalContacts }} contatos
               </span>
             </label>
 
-            <label class="flex items-start gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" :class="{ 'border-indigo-500 bg-indigo-50': recipientType === 'tags' }">
+            <label class="flex items-start gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors" :class="{ 'border-red-500 bg-red-50': recipientType === 'tags' }">
               <input
                 type="radio"
                 v-model="recipientType"
                 value="tags"
-                class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
               />
               <div class="flex-1">
                 <span class="block text-sm font-medium text-gray-900">Contatos com tags específicas</span>
@@ -84,7 +84,7 @@
                 @click="toggleTag(tag)"
                 class="px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200"
                 :class="isTagSelected(tag) 
-                  ? 'ring-2 ring-offset-2 ring-indigo-500 scale-105' 
+                  ? 'ring-2 ring-offset-2 ring-red-500 scale-105' 
                   : 'hover:scale-105 opacity-80 hover:opacity-100'"
                 :style="getTagStyle(tag)"
               >
@@ -216,7 +216,7 @@
 
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate">{{ att.file?.name || 'Arquivo' }}</p>
-                  <p v-if="att.caption" class="text-xs text-indigo-600 mt-1 truncate">"{{ att.caption }}"</p>
+                  <p v-if="att.caption" class="text-xs text-red-600 mt-1 truncate">"{{ att.caption }}"</p>
                 </div>
 
                 <!-- Ações -->
@@ -224,7 +224,7 @@
                   <button
                     type="button"
                     @click="editAttachment(index)"
-                    class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                     title="Editar"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +274,7 @@
                   type="radio"
                   v-model="sendType"
                   value="now"
-                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                 />
                 <span class="text-sm font-medium text-gray-900">Enviar agora</span>
               </label>
@@ -284,7 +284,7 @@
                   type="radio"
                   v-model="sendType"
                   value="scheduled"
-                  class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                 />
                 <span class="text-sm font-medium text-gray-900">Agendar envio</span>
               </label>
@@ -300,7 +300,7 @@
                   v-model="scheduledDateTime"
                   type="datetime-local"
                   required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
               </div>
             </div>
@@ -313,7 +313,7 @@
               <select
                 v-model="selectedInboxId"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
                 <option value="">Selecione uma caixa de entrada</option>
                 <option
@@ -366,7 +366,7 @@
             <button
               type="submit"
               :disabled="submitting || !canSubmit"
-              class="px-6 py-2.5 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="px-6 py-2.5 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <svg v-if="submitting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -391,8 +391,8 @@
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div class="flex items-center gap-3 mb-4">
-          <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
             </svg>
           </div>
@@ -427,7 +427,7 @@
             type="button"
             @click="confirmSubmit"
             :disabled="submitting"
-            class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             <svg v-if="submitting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -471,7 +471,7 @@
               @dragleave.prevent="modalDragging = false"
               @drop.prevent="handleModalDrop"
               class="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all"
-              :class="modalDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'"
+              :class="modalDragging ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-red-400 hover:bg-gray-50'"
             >
               <input
                 ref="modalFileInputRef"
@@ -553,7 +553,7 @@
             type="button"
             @click="confirmAttachment"
             :disabled="!tempAttachmentFile && editingAttachmentIndex === null"
-            class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <svg v-if="uploadingAttachment" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1219,7 +1219,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Campanhas - MULTICONEX',
+  title: 'Campanhas',
   meta: [
     { name: 'description', content: 'Crie campanhas de disparo em massa no WhatsApp' }
   ]

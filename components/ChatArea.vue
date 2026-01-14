@@ -21,7 +21,7 @@
           <div v-if="selectedContact.profilePictureUrl" class="h-10 w-10 rounded-full overflow-hidden flex-shrink-0">
             <img :src="selectedContact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
           </div>
-          <div v-else class="h-10 w-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+          <div v-else class="h-10 w-10 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
             {{ getInitials(selectedContact.name) }}
           </div>
           <div class="ml-3">
@@ -62,7 +62,7 @@
                           type="checkbox"
                           :checked="isTagSelected(systemTag)"
                           @change="toggleTag(systemTag.nome || systemTag)"
-                          class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                         />
                         <span
                           class="ml-2 text-sm px-2 py-1 rounded-full border text-xs font-medium"
@@ -83,7 +83,7 @@
                   <div class="pt-2">
                     <button
                       @click="showAddTagInput = !showAddTagInput"
-                      class="w-full px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors duration-200"
+                      class="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200"
                     >
                       + Adicionar Tag
                     </button>
@@ -94,12 +94,12 @@
                         v-model="newTag"
                         type="text"
                         placeholder="Nome da tag..."
-                        class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-red-500"
                         @keyup.enter="addNewSystemTag"
                       />
                       <button
                         @click="addNewSystemTag"
-                        class="px-2 py-1 bg-indigo-600 text-white text-sm rounded-r-md hover:bg-indigo-700"
+                        class="px-2 py-1 bg-red-600 text-white text-sm rounded-r-md hover:bg-red-700"
                       >
                         OK
                       </button>
@@ -142,7 +142,7 @@
       <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" id="chat-messages">
         <!-- Loading state -->
         <div v-if="loadingMessages" class="flex justify-center py-8">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
         </div>
 
         <!-- Empty state quando não há mensagens -->
@@ -163,7 +163,7 @@
             :class="[
               'max-w-xs lg:max-w-md px-4 py-2 rounded-lg',
               message.sender === 'user'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-red-600 text-white'
                 : 'bg-white text-gray-900 shadow-sm'
             ]"
           >
@@ -182,7 +182,7 @@
             </div>
 
             <!-- Timestamp da mensagem -->
-            <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-indigo-200' : 'text-gray-500'">
+            <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-red-200' : 'text-gray-500'">
               {{ formatTime(message.timestamp) }}
             </p>
           </div>
@@ -200,7 +200,7 @@
               v-model="newMessage"
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-y"
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-y"
               rows="5"
             ></textarea>
 
@@ -248,7 +248,7 @@
             <button
               v-if="!newMessage.trim() && !selectedFile && !isRecording"
               @click="startAudioRecording"
-              class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              class="bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               title="Gravar áudio"
             >
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,7 +322,7 @@
               <button 
                 @click="toggleAIOptions"
                 class="text-gray-400 hover:text-gray-600 flex items-center space-x-2 text-sm transition-colors"
-                :class="{ 'text-indigo-600': showAIOptions }"
+                :class="{ 'text-red-600': showAIOptions }"
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
@@ -341,7 +341,7 @@
                     v-for="option in aiOptions"
                     :key="option.id"
                     @click="handleAIOption(option)"
-                    class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center space-x-3 transition-colors"
+                    class="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center space-x-3 transition-colors"
                   >
                     <span>{{ option.label }}</span>
                   </button>
@@ -413,7 +413,7 @@
                   <div v-if="selectedContact.profilePictureUrl" class="h-12 w-12 rounded-full overflow-hidden flex-shrink-0">
                     <img :src="selectedContact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
                   </div>
-                  <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                  <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                     {{ getInitials(selectedContact.name) }}
                   </div>
                   <div class="flex-1 min-w-0">
@@ -424,7 +424,7 @@
                       </div>
                       <button 
                         @click="startEditingContact"
-                        class="text-gray-400 hover:text-indigo-600 p-1 rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
+                        class="text-gray-400 hover:text-red-600 p-1 rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
                         title="Editar nome"
                       >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,7 +436,7 @@
                       <input 
                         v-model="editedName"
                         type="text"
-                        class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
                         @keyup.enter="saveContactName"
                         @keyup.esc="cancelEditingContact"
                         ref="editNameInput"
@@ -445,7 +445,7 @@
                         <button 
                           @click="saveContactName"
                           :disabled="savingContact || !editedName.trim()"
-                          class="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50"
+                          class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 disabled:opacity-50"
                         >
                           {{ savingContact ? '...' : 'Salvar' }}
                         </button>
@@ -529,7 +529,7 @@
             <button
               @click="closeTransferModal"
               type="button"
-              class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
               <span class="sr-only">Fechar</span>
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -539,8 +539,8 @@
           </div>
           
           <div class="sm:flex sm:items-start">
-            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
-              <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+              <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
             </div>
@@ -555,7 +555,7 @@
 
                 <!-- Loading State -->
                 <div v-if="loadingAgents" class="flex justify-center py-4">
-                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
                 </div>
 
                 <!-- Lista de Agentes e Equipes -->
@@ -573,7 +573,7 @@
                           :disabled="transferringChat"
                         >
                           <div class="flex items-center">
-                            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-medium mr-3">
+                            <div class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-xs font-medium mr-3">
                               {{ getInitials(agente.name) }}
                             </div>
                             <div>
@@ -661,7 +661,7 @@
             <button
               type="button"
               @click="cancelTransfer"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:w-auto sm:text-sm"
             >
               Cancelar
             </button>
@@ -676,7 +676,7 @@
         <div class="relative bg-white rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:max-w-2xl sm:w-full sm:p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
-              <svg class="h-5 w-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="h-5 w-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               Sugestão da IA ({{ aiSelectedOption }})
@@ -694,7 +694,7 @@
           </div>
           
           <div v-if="aiProcessing" class="py-12 flex flex-col items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mb-4"></div>
             <p class="text-sm text-gray-500">A inteligência artificial está processando seu texto...</p>
           </div>
 
@@ -704,9 +704,9 @@
                 <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Original</h4>
                 <div class="text-sm text-gray-800 whitespace-pre-wrap">{{ aiOriginalText }}</div>
               </div>
-              <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-                <h4 class="text-xs font-semibold text-indigo-500 uppercase tracking-wider mb-2">Sugestão</h4>
-                <div class="text-sm text-indigo-900 whitespace-pre-wrap">{{ aiGeneratedText }}</div>
+              <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                <h4 class="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Sugestão</h4>
+                <div class="text-sm text-red-900 whitespace-pre-wrap">{{ aiGeneratedText }}</div>
               </div>
             </div>
 
@@ -714,14 +714,14 @@
               <button
                 type="button"
                 @click="acceptAIResult"
-                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:col-start-2 sm:text-sm"
               >
                 Aceitar e Substituir
               </button>
               <button
                 type="button"
                 @click="cancelAI"
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:mt-0 sm:col-start-1 sm:text-sm"
               >
                 Cancelar
               </button>

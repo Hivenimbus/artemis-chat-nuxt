@@ -37,7 +37,7 @@
                   v-model="searchCaixaEntrada"
                   type="text"
                   placeholder="Pesquisar caixa de entrada..."
-                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
               </div>
 
@@ -51,7 +51,7 @@
                     :class="[
                       'w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 flex items-center justify-between',
                       selectedCaixaEntrada === caixa.value
-                        ? 'bg-indigo-100 text-indigo-700'
+                        ? 'bg-red-100 text-red-700'
                         : 'text-gray-700 hover:bg-gray-100'
                     ]"
                   >
@@ -74,7 +74,7 @@
             type="text"
             v-model="searchTerm"
             placeholder="Buscar contatos..."
-            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
           />
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +174,7 @@
               :class="[
                 'flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors duration-200 flex items-center justify-center',
                 selectedStatus === status.value
-                  ? 'bg-white text-indigo-700 shadow-sm'
+                  ? 'bg-white text-red-700 shadow-sm'
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
               ]"
             >
@@ -240,7 +240,7 @@
               <div v-if="contact.profilePictureUrl" class="h-12 w-12 rounded-full overflow-hidden">
                 <img :src="contact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
               </div>
-              <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+              <div v-else class="h-12 w-12 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-lg">
                 {{ getInitials(contact.name) }}
               </div>
 
@@ -292,7 +292,7 @@
                 <button
                   v-if="selectedStatus === 'aguardando'"
                   @click.stop="$emit('assign-to-me', contact)"
-                  class="ml-2 flex-shrink-0 px-2 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200 flex items-center space-x-1"
+                  class="ml-2 flex-shrink-0 px-2 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200 flex items-center space-x-1"
                   title="Atribuir este atendimento a mim"
                 >
                   <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -593,7 +593,7 @@ const getTagColor = (tag) => {
     'Resolvido': 'bg-green-100 text-green-800',
     'Entrega': 'bg-blue-100 text-blue-800',
     'Urgente': 'bg-orange-100 text-orange-800',
-    'Novo Cliente': 'bg-indigo-100 text-indigo-800'
+    'Novo Cliente': 'bg-red-100 text-red-800'
   }
 
   return colors[tag] || 'bg-gray-100 text-gray-800'

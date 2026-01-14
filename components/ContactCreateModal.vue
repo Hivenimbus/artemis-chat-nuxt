@@ -28,7 +28,7 @@
                 type="text"
                 required
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Digite o nome"
               />
               <p v-if="errors.name" class="mt-1 text-sm text-red-600">
@@ -44,7 +44,7 @@
                 v-model="formData.lastName"
                 type="text"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Digite o sobrenome"
               />
             </div>
@@ -60,7 +60,7 @@
                 v-model="formData.email"
                 type="email"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="email@exemplo.com (opcional)"
               />
               <p v-if="errors.email" class="mt-1 text-sm text-red-600">
@@ -77,7 +77,7 @@
                 type="tel"
                 required
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="(00) 00000-0000"
               />
               <p v-if="errors.phone" class="mt-1 text-sm text-red-600">
@@ -96,7 +96,7 @@
                 v-model="formData.city"
                 type="text"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Digite a cidade"
               />
             </div>
@@ -109,7 +109,7 @@
                 v-model="formData.country"
                 type="text"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Digite o país"
               />
             </div>
@@ -125,7 +125,7 @@
                 v-model="formData.company"
                 type="text"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Nome da empresa"
               />
             </div>
@@ -138,7 +138,7 @@
                 v-model="formData.address"
                 type="text"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Rua, número, complemento..."
               />
             </div>
@@ -153,7 +153,7 @@
               v-model="formData.biography"
               rows="3"
               :disabled="loading"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Informações adicionais sobre o contato..."
             ></textarea>
           </div>
@@ -172,7 +172,7 @@
                 type="button"
                 @click="toggleTagsDropdown"
                 :disabled="loading"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-left bg-white hover:bg-gray-50 transition-colors duration-200"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-left bg-white hover:bg-gray-50 transition-colors duration-200"
               >
                 <div class="flex items-center justify-between">
                   <div class="flex-1 min-w-0">
@@ -234,7 +234,7 @@
             <button
               type="submit"
               :disabled="loading"
-              class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <svg v-if="loading" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -269,7 +269,7 @@
             <input
               type="checkbox"
               :checked="formData.tags.some(t => t.id === tag.id)"
-              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-3"
+              class="h-4 w-4 text-indigo-600 focus:ring-red-500 border-gray-300 rounded mr-3"
               @click.stop
               @change="toggleTag(tag)"
             />

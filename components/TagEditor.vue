@@ -38,7 +38,7 @@
     <button
       v-if="!editing"
       @click="$emit('toggle-edit')"
-      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
       title="Editar tags"
     >
       <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@
     <button
       v-if="editing"
       @click="cancelEdit"
-      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
       title="Concluir edição"
     >
       <svg class="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,7 +256,7 @@ const getColorMap = () => ({
   '#8B5CF6': 'bg-purple-100 text-purple-800', // Roxo (VIP)
   '#3B82F6': 'bg-blue-100 text-blue-800',     // Azul (Cliente)
   '#10B981': 'bg-green-100 text-green-800',   // Verde (Novo Lead)
-  '#6366F1': 'bg-indigo-100 text-indigo-800', // Índigo (Empresa)
+  '#6366F1': 'bg-red-100 text-red-800', // Índigo (Empresa)
   '#EF4444': 'bg-red-500 text-white',         // Vermelho (Teste 2) - Adicionado especificamente
   '#6B7280': 'bg-gray-100 text-gray-800'      // Cinza padrão
 })
@@ -281,7 +281,7 @@ const getTagClasses = (tag) => {
     'VIP': 'bg-purple-100 text-purple-800',
     'Cliente': 'bg-blue-100 text-blue-800',
     'Novo Lead': 'bg-green-100 text-green-800',
-    'Empresa': 'bg-indigo-100 text-indigo-800'
+    'Empresa': 'bg-red-100 text-red-800'
   }
   return colors[tagName] || 'bg-gray-100 text-gray-800'
 }

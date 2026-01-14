@@ -27,7 +27,7 @@
               :class="[
                 'flex-1 py-2 text-sm font-medium border-b-2 transition-colors',
                 formData.type === type.value
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-red-600 text-red-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               ]"
             >
@@ -44,7 +44,7 @@
               v-model="formData.title"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               placeholder="Título"
             />
           </div>
@@ -57,7 +57,7 @@
             <textarea
               v-model="formData.description"
               rows="3"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               placeholder="Descrição"
             ></textarea>
           </div>
@@ -71,7 +71,7 @@
               v-model="formData.message_text"
               required
               rows="4"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               placeholder="Digite a mensagem a ser enviada..."
             ></textarea>
 
@@ -82,7 +82,7 @@
               <select
                 v-model="formData.inbox_id"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
                 <option value="">Selecione uma caixa de entrada</option>
                 <option
@@ -107,7 +107,7 @@
                       v-model="contactSearch" 
                       type="text" 
                       placeholder="Buscar contatos..." 
-                      class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                      class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 focus:border-red-500"
                     />
                     <svg class="absolute left-2.5 top-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -115,7 +115,7 @@
                  </div>
                  <select 
                     v-model="selectedTagFilter" 
-                    class="py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    class="py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 focus:border-red-500"
                  >
                     <option value="">Todas as tags</option>
                     <option v-for="tag in availableTags" :key="tag.name" :value="tag.name">
@@ -134,7 +134,7 @@
                     :id="'contact-' + contact.id"
                     :value="contact.id"
                     v-model="formData.contact_ids"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                   />
                   <label :for="'contact-' + contact.id" class="ml-2 block text-sm text-gray-900 flex-1 flex items-center gap-2">
                     <span>{{ contact.name }} {{ contact.sobrenome || '' }}</span>
@@ -169,7 +169,7 @@
                 v-model="formData.date_time"
                 type="datetime-local"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@
                 :key="color.value"
                 @click="formData.color = color.value"
                 :class="[
-                  'w-8 h-8 rounded-full border-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500',
+                  'w-8 h-8 rounded-full border-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500',
                   color.class,
                   formData.color === color.value ? 'border-gray-900' : 'border-transparent'
                 ]"
@@ -202,7 +202,7 @@
             </label>
             <select
               v-model="formData.status"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
             >
               <option value="scheduled">Agendado</option>
               <option value="completed">Concluído</option>
@@ -229,7 +229,7 @@
             </button>
             <button
               type="submit"
-              class="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+              class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
             >
               {{ appointment ? 'Salvar' : 'Criar' }}
             </button>

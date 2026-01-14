@@ -14,7 +14,7 @@
                       type="text"
                       v-model="searchTerm"
                       placeholder="Buscar contatos..."
-                      class="w-full pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      class="w-full pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     />
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,9 +27,9 @@
                   <button
                     @click="showTagFilter = !showTagFilter"
                     :class="[
-                      'p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors',
+                      'p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors',
                       showTagFilter || selectedTags.length > 0
-                        ? 'text-indigo-600 border-indigo-300 bg-indigo-50'
+                        ? 'text-red-600 border-red-300 bg-red-50'
                         : 'text-gray-400 hover:text-gray-600 border-gray-300 hover:bg-gray-50'
                     ]"
                     title="Filtrar por tags"
@@ -39,7 +39,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                       </svg>
                       <!-- Badge indicando contagem de filtros -->
-                      <span v-if="selectedTags.length > 0" class="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                      <span v-if="selectedTags.length > 0" class="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
                         {{ selectedTags.length }}
                       </span>
                     </div>
@@ -55,7 +55,7 @@
                       <button 
                         v-if="selectedTags.length > 0"
                         @click="selectedTags = []"
-                        class="text-xs text-indigo-600 hover:text-indigo-800"
+                        class="text-xs text-red-600 hover:text-red-800"
                       >
                         Limpar
                       </button>
@@ -75,7 +75,7 @@
                           type="checkbox"
                           :value="tag.id"
                           v-model="selectedTags"
-                          class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                         />
                         <span 
                           class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
@@ -94,7 +94,7 @@
             <div class="mt-0 sm:mt-0">
               <button
                 @click="openCreateModal"
-                class="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                class="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 <svg class="-ml-1 mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -113,7 +113,7 @@
             <!-- Estado de Loading -->
             <div v-if="loading" class="flex items-center justify-center py-12">
               <div class="flex flex-col items-center space-y-4">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
                 <span class="text-sm text-gray-500">Carregando contatos...</span>
               </div>
             </div>
@@ -130,7 +130,7 @@
                 </div>
                 <button
                   @click="loadContatos"
-                  class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                   Tentar novamente
                 </button>
@@ -151,7 +151,7 @@
                       <div v-if="contact.profilePictureUrl" class="h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden">
                         <img :src="contact.profilePictureUrl" alt="Foto de perfil" class="h-full w-full object-cover" />
                       </div>
-                      <div v-else class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm sm:text-lg">
+                      <div v-else class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-semibold text-sm sm:text-lg">
                         {{ getInitials(contact.name) }}
                       </div>
                     </div>
@@ -192,7 +192,7 @@
 
                   <!-- Ações -->
                   <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-                    <NuxtLink :to="`/atendimentos?contact=${contact.id}`" class="p-1.5 sm:p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-colors">
+                    <NuxtLink :to="`/atendimentos?contact=${contact.id}`" class="p-1.5 sm:p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors">
                       <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                       </svg>
@@ -243,7 +243,7 @@
                         <input
                           v-model="contact.name"
                           type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                           required
                         />
                       </div>
@@ -256,7 +256,7 @@
                         <input
                           v-model="contact.lastName"
                           type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
                     </div>
@@ -271,7 +271,7 @@
                         <input
                           v-model="contact.email"
                           type="email"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
 
@@ -283,7 +283,7 @@
                         <input
                           v-model="contact.phone"
                           type="tel"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                           required
                         />
                       </div>
@@ -299,7 +299,7 @@
                         <input
                           v-model="contact.city"
                           type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
 
@@ -311,7 +311,7 @@
                         <input
                           v-model="contact.country"
                           type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
                     </div>
@@ -326,7 +326,7 @@
                         <input
                           v-model="contact.company"
                           type="text"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
 
@@ -339,7 +339,7 @@
                           v-model="contact.address"
                           type="text"
                           placeholder="Rua, número, complemento..."
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                         />
                       </div>
                     </div>
@@ -353,7 +353,7 @@
                         v-model="contact.biography"
                         rows="3"
                         placeholder="Informações adicionais sobre o contato..."
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
                       ></textarea>
                     </div>
 
@@ -361,7 +361,7 @@
                     <div class="form-field flex justify-end">
                       <button
                         type="submit"
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                       >
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -389,7 +389,7 @@
                 <button
                   v-if="!searchTerm"
                   @click="openCreateModal"
-                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                   <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -436,7 +436,7 @@
                   :class="[
                     'relative inline-flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md',
                     currentPage === page
-                      ? 'bg-indigo-600 text-white border border-indigo-600'
+                      ? 'bg-red-600 text-white border border-red-600'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                   ]"
                 >
@@ -652,7 +652,7 @@ const getTagColor = (tag) => {
     'Cliente': 'bg-blue-100 text-blue-800',
     'Novo Lead': 'bg-green-100 text-green-800',
     'Inativo': 'bg-red-100 text-red-800',
-    'Empresa': 'bg-indigo-100 text-indigo-800'
+    'Empresa': 'bg-red-100 text-red-800'
   }
   return colors[tag] || 'bg-gray-100 text-gray-800'
 }
@@ -882,7 +882,7 @@ definePageMeta({
 
 // Meta tags da página
 useHead({
-  title: 'Contatos - MULTICONEX',
+  title: 'Contatos',
   meta: [
     { name: 'description', content: 'Gerencie sua lista de contatos' }
   ]

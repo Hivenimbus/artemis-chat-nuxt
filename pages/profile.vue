@@ -12,7 +12,7 @@
         <!-- Loading State -->
         <div v-if="loading" class="p-8 flex items-center justify-center">
           <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
             <p class="mt-4 text-sm text-gray-500">Carregando perfil...</p>
           </div>
         </div>
@@ -23,14 +23,14 @@
           <!-- Avatar e Informações Básicas -->
           <div class="flex items-center space-x-6">
             <div class="flex-shrink-0">
-              <div class="h-24 w-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+              <div class="h-24 w-24 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg">
                 {{ userInitials }}
               </div>
             </div>
             <div>
               <h2 class="text-xl font-bold text-gray-900">{{ formData.name || 'Usuário' }}</h2>
               <p class="text-sm text-gray-500">{{ userData?.email }}</p>
-              <div class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+              <div class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                 {{ userRoleFormatted }}
               </div>
             </div>
@@ -80,7 +80,7 @@
                     name="name"
                     id="name"
                     v-model="formData.name"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
+                    class="shadow-sm focus:ring-red-500 focus:border-red-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
                     placeholder="Seu nome"
                   />
                 </div>
@@ -119,7 +119,7 @@
                     name="currentPassword"
                     id="currentPassword"
                     v-model="formData.currentPassword"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
+                    class="shadow-sm focus:ring-red-500 focus:border-red-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
                     placeholder="Digite sua senha atual"
                   />
                 </div>
@@ -134,7 +134,7 @@
                     name="newPassword"
                     id="newPassword"
                     v-model="formData.newPassword"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
+                    class="shadow-sm focus:ring-red-500 focus:border-red-500 block w-full sm:text-sm border-gray-300 rounded-md py-2 px-3 border"
                     placeholder="Digite a nova senha"
                   />
                 </div>
@@ -147,7 +147,7 @@
               <button
                 type="submit"
                 :disabled="saving"
-                class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
               >
                 <svg
                   v-if="saving"
