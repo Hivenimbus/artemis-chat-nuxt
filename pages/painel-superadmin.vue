@@ -802,7 +802,7 @@ definePageMeta({
 
 // Meta tags para SEO
 useHead({
-  title: 'Painel Superadmin - Empresas',
+  title: 'Painel Superadmin',
   meta: [
     { name: 'description', content: 'Painel de administração de empresas do sistema' }
   ]

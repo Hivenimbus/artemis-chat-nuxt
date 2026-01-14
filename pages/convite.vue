@@ -147,6 +147,10 @@ definePageMeta({
   layout: 'auth'
 })
 
+useHead({
+  title: 'Aceitar Convite'
+})
+
 const route = useRoute()
 const token = route.query.token
 const hasToken = computed(() => !!token)

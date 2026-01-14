@@ -174,6 +174,10 @@ definePageMeta({
   middleware: 'auth'
 })
 
+useHead({
+  title: 'Meu Perfil'
+})
+
 const { userData, getUserData } = useUser()
 
 // Estados

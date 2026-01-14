@@ -505,4 +505,12 @@ const getStatusText = (status) => {
 definePageMeta({
   middleware: 'auth'
 })
+
+// Meta tags
+useHead({
+  title: 'Agendamentos',
+  meta: [
+    { name: 'description', content: 'Gerencie seus agendamentos' }
+  ]
+})
 </script>
