@@ -579,7 +579,6 @@ const { fetchContatos, fetchEtiquetas } = useContatos()
 const { getInboxes } = useInboxes()
 const toast = useToast()
 const { user } = useAuth()
-
 // State
 const loading = ref(true)
 const submitting = ref(false)

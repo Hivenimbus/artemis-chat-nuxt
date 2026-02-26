@@ -1,6 +1,11 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, inboxes } from '~/server/db/schema'
 import { eq, and } from 'drizzle-orm'
+=======
+import { eq } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 
 const config = useRuntimeConfig()
 
@@ -24,6 +29,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+<<<<<<< Updated upstream
     // Buscar empresa do usuário
     const userData = await db
       .select({ empresa_id: users.empresa_id, role: users.role })
@@ -31,6 +37,13 @@ export default defineEventHandler(async (event) => {
       .where(eq(users.id, user.id))
       .limit(1)
       .then(r => r[0])
+=======
+    // Buscar dados do usuário para obter empresa_id
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id))
+      .limit(1)
+>>>>>>> Stashed changes
 
     if (!userData?.empresa_id) {
       throw createError({
@@ -40,6 +53,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se o inbox existe e pertence à empresa do usuário
+<<<<<<< Updated upstream
     const inbox = await db
       .select()
       .from(inboxes)
@@ -48,6 +62,13 @@ export default defineEventHandler(async (event) => {
       .then(r => r[0])
 
     if (!inbox) {
+=======
+    const [inbox] = await db.select().from(schema.inboxes)
+      .where(eq(schema.inboxes.id, id))
+      .limit(1)
+
+    if (!inbox || inbox.empresa_id !== userData.empresa_id) {
+>>>>>>> Stashed changes
       throw createError({
         statusCode: 404,
         statusMessage: 'Caixa de entrada não encontrada ou sem permissão'
@@ -76,7 +97,11 @@ export default defineEventHandler(async (event) => {
       })
       console.log(`Conexão iniciada e webhook configurado para instância ${id}`)
     } catch (connectError: any) {
+<<<<<<< Updated upstream
       console.warn('Aviso ao iniciar conexão (pode já estar conectado):', connectError.message)
+=======
+      console.warn('⚠️ Aviso ao iniciar conexão (pode já estar conectado):', connectError.message)
+>>>>>>> Stashed changes
     }
 
     // Buscar QR Code na Evolution API

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, atendimentos, inboxes, contatos, etiquetas, contatoEtiquetas, inboxAgents, equipesAgentes, inboxTeams } from '~/server/db/schema'
 import { eq, and, or, inArray, sql, desc, ne, count } from 'drizzle-orm'
@@ -33,11 +34,29 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Usuário não está associado a nenhuma empresa'
       })
     }
+=======
+import { eq, and, ne, inArray, or, lte, desc, asc } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
 
-    // --- Verificar Permissões de Inboxes ---
+export default defineEventHandler(async (event) => {
+  try {
+    const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
+
+    // Buscar dados do usuário
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData?.empresa_id) throw createError({ statusCode: 403, statusMessage: 'Usuário não está associado a nenhuma empresa' })
+>>>>>>> Stashed changes
+
+    const empresaId = userData.empresa_id
+
+    // --- Permissões de Inboxes ---
     let allowedInboxIds: string[] = []
 
     if (userData.role !== 'admin' && userData.role !== 'superadmin') {
+<<<<<<< Updated upstream
       // 1. Inboxes atribuídas diretamente ao agente
       const directAssignments = await db
         .select({ inbox_id: inboxAgents.inbox_id })
@@ -64,10 +83,27 @@ export default defineEventHandler(async (event) => {
       }
 
       const directIds = directAssignments.map(a => a.inbox_id)
+=======
+      const [directAssignments, userTeams] = await Promise.all([
+        db.select({ inbox_id: schema.inboxAgents.inbox_id }).from(schema.inboxAgents).where(eq(schema.inboxAgents.user_id, user.id)),
+        db.select({ equipe_id: schema.equipesAgentes.equipe_id }).from(schema.equipesAgentes).where(eq(schema.equipesAgentes.agente_id, user.id))
+      ])
+
+      const teamIds = userTeams.map(t => t.equipe_id).filter(Boolean) as string[]
+      let teamInboxIds: string[] = []
+
+      if (teamIds.length > 0) {
+        const teamAssignments = await db.select({ inbox_id: schema.inboxTeams.inbox_id })
+          .from(schema.inboxTeams).where(inArray(schema.inboxTeams.equipe_id, teamIds))
+        teamInboxIds = teamAssignments.map(t => t.inbox_id).filter(Boolean) as string[]
+      }
+
+      const directIds = directAssignments.map(a => a.inbox_id).filter(Boolean) as string[]
+>>>>>>> Stashed changes
       allowedInboxIds = [...new Set([...directIds, ...teamInboxIds])]
     }
 
-    // Obter query parameters
+    // Query params
     const query = getQuery(event)
     const inboxId = query.inbox_id as string
     const status = query.status as string
@@ -76,11 +112,11 @@ export default defineEventHandler(async (event) => {
     const limit = parseInt(query.limit as string) || 50
     const offset = (page - 1) * limit
 
-    // Se usuário solicitou uma inbox específica, verificar se ele tem acesso
     if (inboxId && allowedInboxIds.length > 0 && !allowedInboxIds.includes(inboxId)) {
       throw createError({ statusCode: 403, statusMessage: 'Sem permissão para esta caixa de entrada' })
     }
 
+<<<<<<< Updated upstream
     // --- Cálculos de Counts ---
     const buildPermissionCondition = (statusFilter?: string) => {
       const isMinhasFilter = statusFilter === 'ativo'
@@ -129,15 +165,50 @@ export default defineEventHandler(async (event) => {
       getCount('aguardando'),
       getCount('ativo'),
       getCount('concluido')
-    ])
+=======
+    // Buscar IDs de inboxes da empresa para filtrar atendimentos
+    const companyInboxes = await db.select({ id: schema.inboxes.id }).from(schema.inboxes).where(eq(schema.inboxes.empresa_id, empresaId))
+    const companyInboxIds = companyInboxes.map(i => i.id)
 
-    const counts = {
-      todos: totalCount,
-      aguardando: aguardandoCount,
-      ativo: ativoCount,
-      concluido: concluidoCount
+    if (companyInboxIds.length === 0) {
+      return { success: true, data: { atendimentos: [], counts: { todos: 0, aguardando: 0, ativo: 0, concluido: 0 }, pagination: { page, limit, totalItems: 0, totalPages: 0, startItem: 0, endItem: 0, hasNextPage: false, hasPreviousPage: false } } }
     }
 
+    // Build base conditions
+    const buildConditions = (statusFilter?: string, forCount = false) => {
+      const conditions: any[] = [inArray(schema.atendimentos.inbox_id, companyInboxIds)]
+
+      const isMinhas = statusFilter === 'ativo' && forCount
+      if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhas) {
+        if (isMinhas) {
+          conditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+        } else if (allowedInboxIds.length > 0) {
+          conditions.push(or(
+            inArray(schema.atendimentos.inbox_id, allowedInboxIds),
+            eq(schema.atendimentos.usuario_responsavel_id, user.id)
+          ))
+        } else {
+          conditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+        }
+      }
+
+      if (inboxId) conditions.push(eq(schema.atendimentos.inbox_id, inboxId))
+      if (statusFilter) conditions.push(eq(schema.atendimentos.status, statusFilter))
+      return and(...conditions)
+    }
+
+    // Counts em paralelo
+    const [allRows, aguardRows, ativoRows, concluidoRows] = await Promise.all([
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions()),
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('aguardando', true)),
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('ativo', true)),
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('concluido', true)),
+>>>>>>> Stashed changes
+    ])
+
+    const counts = { todos: allRows.length, aguardando: aguardRows.length, ativo: ativoRows.length, concluido: concluidoRows.length }
+
+<<<<<<< Updated upstream
     // --- Query Principal ---
     const isMinhasQuery = status === 'ativo'
 
@@ -288,11 +359,73 @@ export default defineEventHandler(async (event) => {
     }))
 
     // Calcular informações de paginação
-    const totalPages = Math.ceil(totalItems / limit)
-    const startItem = totalItems === 0 ? 0 : offset + 1
-    const endItem = Math.min(offset + limit, totalItems)
+=======
+    // Main query conditions
+    const mainConditions: any[] = [inArray(schema.atendimentos.inbox_id, companyInboxIds)]
+    const isMinhasQuery = status === 'ativo'
 
-    console.log('API /api/atendimentos: Retornando dados com sucesso')
+    if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasQuery) {
+      if (isMinhasQuery) {
+        mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+      } else if (allowedInboxIds.length > 0) {
+        mainConditions.push(or(
+          inArray(schema.atendimentos.inbox_id, allowedInboxIds),
+          eq(schema.atendimentos.usuario_responsavel_id, user.id)
+        ))
+      } else {
+        mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+      }
+    }
+
+    if (inboxId) mainConditions.push(eq(schema.atendimentos.inbox_id, inboxId))
+    if (status && status !== 'todos') mainConditions.push(eq(schema.atendimentos.status, status))
+    else if (!status) mainConditions.push(ne(schema.atendimentos.status, 'concluido'))
+    if (responsavelId) mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, responsavelId))
+
+    // Buscar atendimentos com joins
+    const atendimentos = await db.query.atendimentos.findMany({
+      where: and(...mainConditions),
+      orderBy: [desc(schema.atendimentos.ultimo_mensagem_time)],
+      limit,
+      offset,
+      with: {
+        contato: {
+          with: { etiqueta: true }
+        },
+        inbox: true,
+        assignee: { columns: { id: true, name: true, email: true } }
+      }
+    })
+
+    const atendimentosFormatados = atendimentos.map(a => ({
+      id: a.id,
+      contato_id: a.contato_id,
+      inbox_id: a.inbox_id,
+      name: a.contato?.nome || 'Contato',
+      phone: a.contato?.telefone || '',
+      email: (a.contato as any)?.email || '',
+      company: (a.contato as any)?.empresa || '',
+      city: (a.contato as any)?.cidade || '',
+      profilePictureUrl: a.contato?.profile_picture_url || '',
+      lastMessage: a.ultimo_mensagem || '',
+      lastMessageTime: a.ultimo_mensagem_time ? new Date(a.ultimo_mensagem_time) : new Date(a.created_at!),
+      unreadCount: a.unread_count || 0,
+      status: a.status,
+      caixa_entrada: a.inbox_id,
+      inbox_name: a.inbox?.name || 'Sem caixa',
+      usuario_responsavel_id: a.usuario_responsavel_id,
+      responsavel_name: a.assignee?.name || null,
+      data_atribuicao: a.data_atribuicao,
+      data_conclusao: a.data_conclusao,
+      created_at: a.created_at,
+      updated_at: a.updated_at,
+      tags: a.contato?.etiqueta ? [{ id: a.contato.etiqueta.id, nome: a.contato.etiqueta.nome, cor: a.contato.etiqueta.cor }] : [],
+      messages: []
+    }))
+
+    const totalItems = allRows.length
+>>>>>>> Stashed changes
+    const totalPages = Math.ceil(totalItems / limit)
 
     return {
       success: true,
@@ -300,12 +433,9 @@ export default defineEventHandler(async (event) => {
         atendimentos: atendimentosFormatados,
         counts,
         pagination: {
-          page,
-          limit,
-          totalItems,
-          totalPages,
-          startItem,
-          endItem,
+          page, limit, totalItems, totalPages,
+          startItem: totalItems === 0 ? 0 : offset + 1,
+          endItem: Math.min(offset + limit, totalItems),
           hasNextPage: page < totalPages,
           hasPreviousPage: page > 1
         }
@@ -313,6 +443,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/atendimentos: Erro no handler:', error)
 
     if (error.statusCode) {
@@ -323,5 +454,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

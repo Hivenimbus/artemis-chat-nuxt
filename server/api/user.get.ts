@@ -1,34 +1,30 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
+=======
+import { eq } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/user: Iniciando requisição')
 
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
-      console.error('API /api/user: Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
+      throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
     console.log('API /api/user: Usuário autenticado:', user.id)
 
-    // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
     if (!uuidRegex.test(user.id)) {
-      console.error('API /api/user: ID de usuário inválido:', user.id)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'ID de usuário inválido'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'ID de usuário inválido' })
     }
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     console.log('API /api/user: Buscando dados na tabela users para ID:', user.id)
     const userData = await db
@@ -44,6 +40,12 @@ export default defineEventHandler(async (event) => {
         statusCode: 404,
         statusMessage: 'Usuário não encontrado'
       })
+=======
+    const [userData] = await db.select().from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData) {
+      throw createError({ statusCode: 404, statusMessage: 'Usuário não encontrado' })
+>>>>>>> Stashed changes
     }
 
     console.log('API /api/user: Dados encontrados com sucesso:', {
@@ -53,12 +55,10 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id
     })
 
-    return {
-      success: true,
-      data: userData
-    }
+    return { success: true, data: userData }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/user: Erro no handler:', {
       error: error,
       statusCode: error.statusCode,
@@ -76,5 +76,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, contatos, etiquetas, contatoEtiquetas } from '~/server/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -25,16 +26,20 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (GET): Buscando contato:', contatoId)
 
+=======
+import { eq, and } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+
+export default defineEventHandler(async (event) => {
+  try {
+>>>>>>> Stashed changes
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      console.error('API /api/contatos/[id] (GET): Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
+    const contatoId = getRouterParam(event, 'id')
+    if (!contatoId) throw createError({ statusCode: 400, statusMessage: 'ID do contato não fornecido' })
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     const userData = await db
       .select()
@@ -104,13 +109,34 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('API /api/contatos/[id] (GET): Retornando contato com sucesso')
+=======
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Usuário não está associado a nenhuma empresa' })
+
+    const contato = await db.query.contatos.findFirst({
+      where: and(eq(schema.contatos.id, contatoId), eq(schema.contatos.empresa_id, userData.empresa_id)),
+      with: { etiqueta: true }
+    })
+
+    if (!contato) throw createError({ statusCode: 404, statusMessage: 'Contato não encontrado' })
+>>>>>>> Stashed changes
 
     return {
       success: true,
-      data: contatoFormatado
+      data: {
+        ...contato,
+        tags: contato.etiqueta ? [(contato.etiqueta as any).nome] : [],
+        name: contato.nome,
+        phone: contato.telefone,
+        profilePictureUrl: contato.profile_picture_url || '',
+        lastContact: contato.created_at
+      }
     }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/contatos/[id] (GET): Erro no handler:', error)
 
     if (error.statusCode) {
@@ -121,5 +147,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

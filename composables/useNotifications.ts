@@ -1,7 +1,11 @@
 export const useNotifications = () => {
   const notifications = useState('notifications', () => [])
   const loading = useState('notifications:loading', () => false)
+<<<<<<< Updated upstream
   const { userData } = useUser()
+=======
+  const { userData } = useUser() // Use useUser for auth state
+>>>>>>> Stashed changes
 
   // Use a ref for polling interval to clear it on unmount if needed
   const pollingInterval = useState('notifications:polling', () => null)
@@ -13,6 +17,10 @@ export const useNotifications = () => {
   const fetchNotifications = async () => {
     // If we don't have user data locally, the server call will likely fail 401, but that's handled
     if (!userData.value) return
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 
     loading.value = true
     try {

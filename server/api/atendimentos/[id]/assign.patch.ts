@@ -1,31 +1,35 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, atendimentos, inboxes, contatos, mensagens } from '~/server/db/schema'
 import { eq, and } from 'drizzle-orm'
+=======
+import { eq } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 
 export default defineEventHandler(async (event) => {
   try {
-    console.log('API /api/atendimentos/[id]/assign: Iniciando atribuição de atendimento')
-
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      console.error('API /api/atendimentos/[id]/assign: Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
-
-    // Obter ID do atendimento
     const atendimentoId = getRouterParam(event, 'id')
-    if (!atendimentoId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'ID do atendimento é obrigatório'
-      })
+    if (!atendimentoId) throw createError({ statusCode: 400, statusMessage: 'ID do atendimento é obrigatório' })
+
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData?.empresa_id) throw createError({ statusCode: 403, statusMessage: 'Usuário não está associado a nenhuma empresa' })
+
+    const atendimento = await db.query.atendimentos.findFirst({
+      where: eq(schema.atendimentos.id, atendimentoId),
+      with: { inbox: true, contato: true, assignee: { columns: { id: true, name: true, email: true } } }
+    })
+
+    if (!atendimento || atendimento.inbox?.empresa_id !== userData.empresa_id) {
+      throw createError({ statusCode: 404, statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa' })
     }
 
+<<<<<<< Updated upstream
     // Obter dados do usuário
     const [userData] = await db.select({ empresa_id: users.empresa_id, role: users.role })
       .from(users)
@@ -135,12 +139,51 @@ export default defineEventHandler(async (event) => {
       tags: [],
       messages: []
     }
+=======
+    const body = await readBody(event).catch(() => ({}))
+    const targetUserId = body?.userId || user.id
+
+    // Verificar usuário alvo se diferente do atual
+    if (targetUserId !== user.id) {
+      const [targetUser] = await db.select({ id: schema.users.id, empresa_id: schema.users.empresa_id })
+        .from(schema.users).where(eq(schema.users.id, targetUserId)).limit(1)
+
+      if (!targetUser || targetUser.empresa_id !== userData.empresa_id) {
+        throw createError({ statusCode: 400, statusMessage: 'Usuário de destino inválido ou de outra empresa' })
+      }
+    }
+
+    const now = new Date()
+    await db.update(schema.atendimentos)
+      .set({ usuario_responsavel_id: targetUserId, status: 'ativo', data_atribuicao: now, updated_at: now })
+      .where(eq(schema.atendimentos.id, atendimentoId))
+
+    const updated = await db.query.atendimentos.findFirst({
+      where: eq(schema.atendimentos.id, atendimentoId),
+      with: { contato: true, inbox: true, assignee: { columns: { id: true, name: true, email: true } } }
+    })
+>>>>>>> Stashed changes
 
     return {
       success: true,
-      data: atendimentoFormatado,
+      data: {
+        id: updated!.id, contato_id: updated!.contato_id, inbox_id: updated!.inbox_id,
+        name: updated!.contato?.nome || 'Contato',
+        phone: updated!.contato?.telefone || '',
+        email: (updated!.contato as any)?.email || '',
+        company: (updated!.contato as any)?.empresa || '',
+        lastMessage: updated!.ultimo_mensagem || '',
+        lastMessageTime: updated!.ultimo_mensagem_time ? new Date(updated!.ultimo_mensagem_time) : new Date(updated!.created_at!),
+        unreadCount: updated!.unread_count || 0, status: updated!.status,
+        caixa_entrada: updated!.inbox_id, inbox_name: updated!.inbox?.name || 'Sem caixa',
+        usuario_responsavel_id: updated!.usuario_responsavel_id,
+        responsavel_name: updated!.assignee?.name || null,
+        data_atribuicao: updated!.data_atribuicao, created_at: updated!.created_at, updated_at: updated!.updated_at,
+        tags: [], messages: []
+      },
       message: 'Atendimento atribuído com sucesso'
     }
+<<<<<<< Updated upstream
 
   } catch (error: any) {
     console.error('API /api/atendimentos/[id]/assign: Erro no handler:', error)
@@ -153,5 +196,10 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+  } catch (error: any) {
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

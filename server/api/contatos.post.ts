@@ -1,22 +1,27 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, contatos, etiquetas, contatoEtiquetas, inboxes } from '~/server/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
+=======
+import { eq, inArray } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 import { checkWhatsAppNumber } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
+<<<<<<< Updated upstream
     console.log('API /api/contatos (POST): Iniciando requisição')
 
+=======
+>>>>>>> Stashed changes
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      console.error('API /api/contatos (POST): Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     const userData = await db
       .select()
@@ -42,45 +47,28 @@ export default defineEventHandler(async (event) => {
     }
 
     // Obter corpo da requisição
-    const body = await readBody(event)
+=======
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Usuário não está associado a nenhuma empresa' })
 
-    // Validar campos obrigatórios
+>>>>>>> Stashed changes
+    const body = await readBody(event)
     const { nome, email, telefone, tags = [] } = body
 
-    if (!nome || !telefone) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Campos obrigatórios: nome, telefone'
-      })
-    }
+    if (!nome || !telefone) throw createError({ statusCode: 400, statusMessage: 'Campos obrigatórios: nome, telefone' })
 
-    // Validar formato do email apenas se fornecido
-    if (email && email.trim()) {
+    if (email?.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email.trim())) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Email inválido'
-        })
-      }
+      if (!emailRegex.test(email.trim())) throw createError({ statusCode: 400, statusMessage: 'Email inválido' })
     }
 
-    // Validar e normalizar telefone (apenas números)
     let cleanPhone = telefone.replace(/\D/g, '')
-
-    // Adicionar código do país 55 se não estiver presente
-    if (!cleanPhone.startsWith('55')) {
-      cleanPhone = '55' + cleanPhone
-    }
-
+    if (!cleanPhone.startsWith('55')) cleanPhone = '55' + cleanPhone
     if (cleanPhone.length < 12 || cleanPhone.length > 13) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Telefone inválido (deve ter 12-13 dígitos com código do país 55)'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'Telefone inválido (deve ter 12-13 dígitos com código do país 55)' })
     }
 
     // Buscar primeira inbox da empresa para validar WhatsApp
+<<<<<<< Updated upstream
     console.log('API /api/contatos (POST): Buscando inbox para validação WhatsApp')
     const inbox = await db
       .select({ id: inboxes.id })
@@ -96,27 +84,30 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Nenhuma caixa de entrada configurada. Configure uma caixa de entrada antes de criar contatos.'
       })
     }
+=======
+    const [inbox] = await db.select({ id: schema.inboxes.id })
+      .from(schema.inboxes).where(eq(schema.inboxes.empresa_id, userData.empresa_id)).limit(1)
 
-    // Verificar se o número possui WhatsApp ativo
-    console.log('API /api/contatos (POST): Validando se número possui WhatsApp')
+    if (!inbox) throw createError({ statusCode: 400, statusMessage: 'Nenhuma caixa de entrada configurada.' })
+>>>>>>> Stashed changes
+
     const whatsappCheck = await checkWhatsAppNumber(inbox.id, cleanPhone)
+    if (whatsappCheck.error) throw createError({ statusCode: 500, statusMessage: `Erro ao verificar WhatsApp: ${whatsappCheck.error}` })
+    if (!whatsappCheck.exists) throw createError({ statusCode: 400, statusMessage: `O número ${cleanPhone} não possui WhatsApp ativo.` })
 
-    if (whatsappCheck.error) {
-      console.error('API /api/contatos (POST): Erro ao verificar WhatsApp:', whatsappCheck.error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: `Erro ao verificar WhatsApp: ${whatsappCheck.error}`
-      })
-    }
+    const [novoContato] = await db.insert(schema.contatos).values({
+      nome: nome.trim(),
+      telefone: cleanPhone,
+      empresa_id: userData.empresa_id,
+    }).returning()
 
-    if (!whatsappCheck.exists) {
-      console.warn('API /api/contatos (POST): Número não possui WhatsApp:', cleanPhone)
-      throw createError({
-        statusCode: 400,
-        statusMessage: `O número ${cleanPhone} não possui WhatsApp ativo. Verifique o número e tente novamente.`
-      })
-    }
+    // Associar etiquetas pelo nome
+    if (tags.length > 0) {
+      const etiquetas = await db.select({ id: schema.etiquetas.id })
+        .from(schema.etiquetas)
+        .where(eq(schema.etiquetas.empresa_id, userData.empresa_id))
 
+<<<<<<< Updated upstream
     console.log('API /api/contatos (POST): Número validado com WhatsApp, criando contato')
 
     // Inserir contato
@@ -198,13 +189,33 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('API /api/contatos (POST): Contato criado com sucesso')
+=======
+      const matchingEtiquetas = etiquetas.filter((e: any) => tags.includes(e.nome))
+      if (matchingEtiquetas.length > 0) {
+        await db.insert(schema.contatoEtiquetas).values(
+          matchingEtiquetas.map((e: any) => ({ contato_id: novoContato.id, etiqueta_id: e.id }))
+        ).onConflictDoNothing()
+      }
+    }
+
+    const contatoCompleto = await db.query.contatos.findFirst({
+      where: eq(schema.contatos.id, novoContato.id),
+      with: { etiqueta: true }
+    })
+>>>>>>> Stashed changes
 
     return {
       success: true,
-      data: contatoFormatado
+      data: {
+        ...contatoCompleto,
+        tags: contatoCompleto?.etiqueta ? [{ name: (contatoCompleto.etiqueta as any).nome }] : [],
+        name: contatoCompleto?.nome, phone: contatoCompleto?.telefone,
+        lastContact: contatoCompleto?.created_at
+      }
     }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/contatos (POST): Erro no handler:', error)
 
     if (error.statusCode) {
@@ -215,5 +226,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

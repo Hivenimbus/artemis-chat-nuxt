@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, kanbans } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
@@ -40,4 +41,25 @@ export default defineEventHandler(async (event) => {
             statusMessage: error.statusMessage || 'Erro interno do servidor'
         })
     }
+=======
+import { eq, and } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+
+export default defineEventHandler(async (event) => {
+    const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Não autenticado' })
+
+    const id = getRouterParam(event, 'id')
+    if (!id) throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
+
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+        .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Sem empresa' })
+
+    await db.delete(schema.kanbans)
+        .where(and(eq(schema.kanbans.id, id), eq(schema.kanbans.empresa_id, userData.empresa_id)))
+
+    return { success: true }
+>>>>>>> Stashed changes
 })

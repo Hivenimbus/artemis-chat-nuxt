@@ -1,14 +1,20 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, inboxes, inboxAgents, inboxTeams, atendimentos, mensagens, contatos, agendamentos, agendamentoContatos, campanhas } from '~/server/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
+=======
+import { eq, and, inArray } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 import { findEvolutionInstanceId } from '../../lib/evolution'
 
-const config = useRuntimeConfig()
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
   try {
     const id = getRouterParam(event, 'id')
+    if (!id) throw createError({ statusCode: 400, statusMessage: 'ID da caixa de entrada é obrigatório' })
 
+<<<<<<< Updated upstream
     if (!id) {
       throw createError({
         statusCode: 400,
@@ -16,15 +22,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+=======
+>>>>>>> Stashed changes
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
+<<<<<<< Updated upstream
     // Buscar empresa do usuário
     const userData = await db
       .select({ empresa_id: users.empresa_id })
@@ -56,17 +62,29 @@ export default defineEventHandler(async (event) => {
     }
 
     // Deletar instância na Evolution API (se existir)
+=======
+    if (!userData?.empresa_id) throw createError({ statusCode: 403, statusMessage: 'Usuário não possui empresa vinculada' })
+
+    const [inbox] = await db.select().from(schema.inboxes)
+      .where(and(eq(schema.inboxes.id, id), eq(schema.inboxes.empresa_id, userData.empresa_id)))
+      .limit(1)
+
+    if (!inbox) throw createError({ statusCode: 404, statusMessage: 'Caixa de entrada não encontrada ou sem permissão' })
+
+    // Delete Evolution instance
+>>>>>>> Stashed changes
     try {
       const evolutionInstanceId = await findEvolutionInstanceId(config, id)
-
       if (evolutionInstanceId) {
+<<<<<<< Updated upstream
         console.log(`Deletando instância na Evolution: ${evolutionInstanceId} (Nome: ${id})`)
+=======
+>>>>>>> Stashed changes
         await $fetch(`${config.evolutionApiUrl}/instance/delete/${evolutionInstanceId}`, {
           method: 'DELETE',
-          headers: {
-            'apikey': config.evolutionApiKey
-          }
+          headers: { 'apikey': config.evolutionApiKey }
         })
+<<<<<<< Updated upstream
         console.log('Instância deletada com sucesso na Evolution API')
       } else {
         console.warn(`Instância não encontrada na Evolution para deleção: ${id}`)
@@ -80,12 +98,14 @@ export default defineEventHandler(async (event) => {
         } catch (e) {
           // Ignorar erro do fallback
         }
+=======
+>>>>>>> Stashed changes
       }
     } catch (evolutionError) {
       console.error('Erro ao deletar instância na Evolution API:', evolutionError)
-      // Continuar mesmo se der erro na Evolution
     }
 
+<<<<<<< Updated upstream
     // --- CLEANUP RELACIONADO ---
     console.log('Iniciando limpeza de dados relacionados à inbox...')
 
@@ -171,5 +191,33 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    // Cleanup related data - get atendimento ids
+    const atendimentosList = await db.select({ id: schema.atendimentos.id })
+      .from(schema.atendimentos).where(eq(schema.atendimentos.inbox_id, id))
+
+    const atendimentoIds = atendimentosList.map(a => a.id)
+
+    if (atendimentoIds.length > 0) {
+      await db.delete(schema.mensagens).where(inArray(schema.mensagens.atendimento_id, atendimentoIds))
+      await db.delete(schema.atendimentos).where(inArray(schema.atendimentos.id, atendimentoIds))
+    }
+
+    await db.delete(schema.inboxAgents).where(eq(schema.inboxAgents.inbox_id, id))
+    await db.delete(schema.inboxTeams).where(eq(schema.inboxTeams.inbox_id, id))
+
+    // Unlink campanhas (keep history)
+    await db.update(schema.campanhas).set({ inbox_id: null }).where(eq(schema.campanhas.inbox_id, id))
+
+    // Delete inbox
+    await db.delete(schema.inboxes)
+      .where(and(eq(schema.inboxes.id, id), eq(schema.inboxes.empresa_id, userData.empresa_id)))
+
+    return { success: true, message: 'Caixa de entrada deletada com sucesso' }
+
+  } catch (error: any) {
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

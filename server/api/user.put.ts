@@ -1,53 +1,44 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
+=======
+import { eq } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 import { hashPassword, verifyPassword } from '~/server/utils/password'
 
 export default defineEventHandler(async (event) => {
   try {
-    console.log('API /api/user.put: Iniciando requisição')
-
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
-      console.error('API /api/user.put: Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
+      throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    // Ler corpo da requisição
     const body = await readBody(event)
     const { name, currentPassword, newPassword } = body
 
     if (!name || name.trim() === '') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Nome é obrigatório'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'Nome é obrigatório' })
     }
 
-    console.log('API /api/user.put: Atualizando usuário:', user.id)
-
-    // Validar se o ID é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
     if (!uuidRegex.test(user.id)) {
-      console.error('API /api/user.put: ID de usuário inválido:', user.id)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'ID de usuário inválido'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'ID de usuário inválido' })
     }
 
+<<<<<<< Updated upstream
     const updateData: Record<string, any> = {
+=======
+    const updateData: Partial<typeof schema.users.$inferInsert> = {
+>>>>>>> Stashed changes
       name: name.trim(),
       updated_at: new Date()
     }
 
-    // Lógica para troca de senha
     if (currentPassword && newPassword) {
+<<<<<<< Updated upstream
       // Buscar usuário completo para validar senha atual
       const userData = await db
         .select({ password: users.password })
@@ -61,32 +52,28 @@ export default defineEventHandler(async (event) => {
           statusCode: 500,
           statusMessage: 'Erro ao validar usuário'
         })
+=======
+      const [userData] = await db.select({ password: schema.users.password }).from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+      if (!userData) {
+        throw createError({ statusCode: 500, statusMessage: 'Erro ao validar usuário' })
+>>>>>>> Stashed changes
       }
 
-      // Validar senha atual
       if (!userData.password) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Usuário não possui senha configurada'
-        })
+        throw createError({ statusCode: 400, statusMessage: 'Usuário não possui senha configurada' })
       }
 
       const isValid = await verifyPassword(currentPassword, userData.password)
       if (!isValid) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Senha atual incorreta'
-        })
+        throw createError({ statusCode: 400, statusMessage: 'Senha atual incorreta' })
       }
 
-      // Hash nova senha
       if (newPassword.length < 6) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'A nova senha deve ter no mínimo 6 caracteres'
-        })
+        throw createError({ statusCode: 400, statusMessage: 'A nova senha deve ter no mínimo 6 caracteres' })
       }
 
+<<<<<<< Updated upstream
       const hashedPassword = await hashPassword(newPassword)
       updateData.password = hashedPassword
     } else if (newPassword && !currentPassword) {
@@ -110,32 +97,26 @@ export default defineEventHandler(async (event) => {
         statusCode: 500,
         statusMessage: 'Erro ao atualizar dados do usuário'
       })
+=======
+      updateData.password = await hashPassword(newPassword)
+    } else if (newPassword && !currentPassword) {
+      throw createError({ statusCode: 400, statusMessage: 'Informe a senha atual para alterar a senha' })
     }
 
-    console.log('API /api/user.put: Usuário atualizado com sucesso:', updatedUser.id)
+    const [updatedUser] = await db.update(schema.users)
+      .set(updateData)
+      .where(eq(schema.users.id, user.id))
+      .returning()
 
-    return {
-      success: true,
-      data: updatedUser
+    if (!updatedUser) {
+      throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar dados do usuário' })
+>>>>>>> Stashed changes
     }
+
+    return { success: true, data: updatedUser }
 
   } catch (error: any) {
-    console.error('API /api/user.put: Erro no handler:', {
-      error: error,
-      statusCode: error.statusCode,
-      statusMessage: error.statusMessage,
-      stack: error.stack
-    })
-
-    // Se já for um erro criado, retornar como está
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Erro genérico
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
-    })
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
   }
 })

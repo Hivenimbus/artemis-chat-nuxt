@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, etiquetas } from '~/server/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -18,24 +19,35 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('API /api/etiquetas POST: Usuário autenticado confirmado:', user.id)
+=======
+import { eq, and } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+
+export default defineEventHandler(async (event) => {
+  try {
+    const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
+>>>>>>> Stashed changes
 
     const body = await readBody(event)
-    const { nome, descricao, cor } = body
+    const { nome, cor } = body
 
+<<<<<<< Updated upstream
     if (!nome || !cor) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Nome e cor são obrigatórios'
       })
     }
+=======
+    if (!nome || !cor) throw createError({ statusCode: 400, statusMessage: 'Nome e cor são obrigatórios' })
+>>>>>>> Stashed changes
 
     if (!/^#[0-9A-Fa-f]{6}$/.test(cor)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Cor deve estar em formato hexadecimal válido (ex: #FF0000)'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'Cor deve estar em formato hexadecimal válido (ex: #FF0000)' })
     }
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     console.log('API /api/etiquetas POST: Buscando dados na tabela users para ID:', user.id)
     const userData = await db
@@ -87,18 +99,28 @@ export default defineEventHandler(async (event) => {
       ))
       .limit(1)
       .then(r => r[0])
+=======
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
-    if (existingEtiqueta) {
-      console.error('API /api/etiquetas POST: Etiqueta duplicada encontrada:', existingEtiqueta.id)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Já existe uma etiqueta com este nome'
-      })
+    if (!userData?.empresa_id) {
+      throw createError({ statusCode: 400, statusMessage: 'Usuário não está associado a nenhuma empresa' })
     }
 
-    // Criar nova etiqueta
-    console.log('API /api/etiquetas POST: Criando nova etiqueta:', {
+    // Check for duplicate
+    const [existingEtiqueta] = await db.select({ id: schema.etiquetas.id })
+      .from(schema.etiquetas)
+      .where(and(eq(schema.etiquetas.empresa_id, userData.empresa_id), eq(schema.etiquetas.nome, nome.trim())))
+      .limit(1)
+>>>>>>> Stashed changes
+
+    if (existingEtiqueta) {
+      throw createError({ statusCode: 400, statusMessage: 'Já existe uma etiqueta com este nome' })
+    }
+
+    const [etiqueta] = await db.insert(schema.etiquetas).values({
       nome: nome.trim(),
+<<<<<<< Updated upstream
       empresaId: userData.empresa_id
     })
     const etiqueta = await db
@@ -119,21 +141,21 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Erro ao criar etiqueta'
       })
     }
+=======
+      cor: cor.toUpperCase(),
+      empresa_id: userData.empresa_id
+    }).returning()
 
-    console.log('API /api/etiquetas POST: Etiqueta criada com sucesso:', etiqueta.id)
+    if (!etiqueta) throw createError({ statusCode: 500, statusMessage: 'Erro ao criar etiqueta' })
+>>>>>>> Stashed changes
 
-    console.log('API /api/etiquetas POST: Retornando dados com sucesso')
     return {
       success: true,
-      data: {
-        ...etiqueta,
-        usageCount: 0,
-        createdAt: etiqueta.created_at,
-        updatedAt: etiqueta.updated_at
-      }
+      data: { ...etiqueta, usageCount: 0, createdAt: etiqueta.created_at, updatedAt: etiqueta.updated_at }
     }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/etiquetas POST: Erro no handler:', {
       error: error,
       statusCode: error.statusCode,
@@ -149,5 +171,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })

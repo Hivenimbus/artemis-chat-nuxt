@@ -1,4 +1,11 @@
+<<<<<<< Updated upstream
 import { uploadFile } from '~/server/lib/storage'
+=======
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { getStorageClient, getPublicUrl } from '~/server/lib/storage'
+import { db, schema } from '~/server/database'
+import { MINIO_BUCKET } from '~/server/lib/storage' // Added this line to re-import MINIO_BUCKET
+>>>>>>> Stashed changes
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,24 +19,47 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Nenhum arquivo enviado' })
     }
 
-    const file = files[0] // Assuming single file upload
+    const file = files[0]
     if (!file.filename) {
       throw createError({ statusCode: 400, statusMessage: 'Arquivo inválido' })
     }
 
     const fileExt = file.filename.split('.').pop()
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-    const filePath = `campaigns/${user.id}/${fileName}`
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt} `
+    const objectKey = `campaigns / ${user.id}/${fileName}`
 
+<<<<<<< Updated upstream
     const contentType = file.type || 'application/octet-stream'
     const publicUrl = await uploadFile(filePath, file.data, contentType)
+=======
+    // Upload to Minio
+    const s3 = getStorageClient()
+    await s3.send(new PutObjectCommand({
+      Bucket: MINIO_BUCKET,
+      Key: objectKey,
+      Body: file.data,
+      ContentType: file.type || 'application/octet-stream',
+    }))
+
+    const publicUrl = getPublicUrl(objectKey)
+
+    // Store media record in DB
+    await db.insert(schema.midias).values({
+      url: publicUrl,
+      path: objectKey,
+      filename: file.filename,
+      size: file.data.length,
+      mime_type: file.type || null,
+      user_id: user.id,
+    })
+>>>>>>> Stashed changes
 
     return {
       success: true,
       publicUrl,
       fileName: file.filename,
       fileType: file.type,
-      filePath
+      filePath: objectKey
     }
 
   } catch (error: any) {

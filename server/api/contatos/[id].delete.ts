@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, contatos } from '~/server/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -25,16 +26,20 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (DELETE): Excluindo contato:', contatoId)
 
+=======
+import { eq, and } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+
+export default defineEventHandler(async (event) => {
+  try {
+>>>>>>> Stashed changes
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      console.error('API /api/contatos/[id] (DELETE): Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
+    const contatoId = getRouterParam(event, 'id')
+    if (!contatoId) throw createError({ statusCode: 400, statusMessage: 'ID do contato não fornecido' })
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     const userData = await db
       .select()
@@ -42,15 +47,21 @@ export default defineEventHandler(async (event) => {
       .where(eq(users.id, user.id))
       .limit(1)
       .then(r => r[0])
+=======
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
-    if (!userData || !userData.empresa_id) {
-      console.error('API /api/contatos/[id] (DELETE): Usuário não possui empresa vinculada')
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Usuário não está associado a nenhuma empresa'
-      })
-    }
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Usuário não está associado a nenhuma empresa' })
 
+    const [contatoExistente] = await db.select({ id: schema.contatos.id, nome: schema.contatos.nome })
+      .from(schema.contatos)
+      .where(and(eq(schema.contatos.id, contatoId), eq(schema.contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+>>>>>>> Stashed changes
+
+    if (!contatoExistente) throw createError({ statusCode: 404, statusMessage: 'Contato não encontrado' })
+
+<<<<<<< Updated upstream
     // Verificar se o contato existe e pertence à empresa do usuário
     const contatoExistente = await db
       .select({ id: contatos.id, nome: contatos.nome })
@@ -84,17 +95,14 @@ export default defineEventHandler(async (event) => {
         nome: contatoExistente.nome
       }
     }
+=======
+    await db.delete(schema.contatos).where(eq(schema.contatos.id, contatoId))
+
+    return { success: true, message: 'Contato excluído com sucesso', data: { id: contatoId, nome: contatoExistente.nome } }
+>>>>>>> Stashed changes
 
   } catch (error: any) {
-    console.error('API /api/contatos/[id] (DELETE): Erro no handler:', error)
-
-    if (error.statusCode) {
-      throw error
-    }
-
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
-    })
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
   }
 })

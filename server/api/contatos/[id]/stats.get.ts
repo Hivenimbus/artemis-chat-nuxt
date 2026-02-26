@@ -1,15 +1,19 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, contatos, atendimentos, inboxes } from '~/server/db/schema'
 import { eq, and, desc, count } from 'drizzle-orm'
+=======
+import { eq, and } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+>>>>>>> Stashed changes
 
 export default defineEventHandler(async (event) => {
   try {
     const user = event.context.user
-    if (!user) {
-      throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
-    }
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
     const contactId = getRouterParam(event, 'id')
+<<<<<<< Updated upstream
 
     if (!contactId) {
       throw createError({ statusCode: 400, statusMessage: 'ID do contato não fornecido' })
@@ -96,6 +100,31 @@ export default defineEventHandler(async (event) => {
         }
       }
     }
+=======
+    if (!contactId) throw createError({ statusCode: 400, statusMessage: 'ID do contato não fornecido' })
+
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
+
+    const [contact] = await db.select({ created_at: schema.contatos.created_at })
+      .from(schema.contatos)
+      .where(and(eq(schema.contatos.id, contactId), eq(schema.contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+
+    if (!contact) throw createError({ statusCode: 404, statusMessage: 'Contato não encontrado' })
+
+    const [atendimentos, interactions] = await Promise.all([
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(eq(schema.atendimentos.contato_id, contactId)),
+      db.query.atendimentos.findMany({
+        where: eq(schema.atendimentos.contato_id, contactId),
+        orderBy: [(t) => t.created_at],
+        limit: 5,
+        with: { assignee: { columns: { name: true } }, inbox: { columns: { name: true } } }
+      })
+    ])
+>>>>>>> Stashed changes
 
     const inboxesMap: Record<string, string> = {}
     if (inboxIds.length > 0) {
@@ -122,6 +151,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
+<<<<<<< Updated upstream
       stats: {
         totalTickets,
         createdAt: contact.created_at
@@ -135,5 +165,17 @@ export default defineEventHandler(async (event) => {
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || 'Erro ao buscar estatísticas do contato'
     })
+=======
+      stats: { totalTickets: atendimentos.length, createdAt: contact.created_at },
+      history: interactions.map(i => ({
+        id: i.id, type: 'ticket', status: i.status,
+        date: i.created_at, description: i.ultimo_mensagem || 'Novo atendimento iniciado',
+        agent: i.assignee?.name || 'Sistema', channel: i.inbox?.name || 'N/A'
+      }))
+    }
+
+  } catch (error: any) {
+    throw createError({ statusCode: error.statusCode || 500, statusMessage: error.statusMessage || 'Erro ao buscar estatísticas' })
+>>>>>>> Stashed changes
   }
 })

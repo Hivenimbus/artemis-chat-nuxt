@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { db } from '~/server/db'
 import { users, contatos, etiquetas, contatoEtiquetas } from '~/server/db/schema'
 import { eq, and, or, inArray, desc, ilike, count } from 'drizzle-orm'
@@ -6,18 +7,22 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos: Iniciando requisição')
 
+=======
+import { eq, ilike, inArray, desc, and, or } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
+
+export default defineEventHandler(async (event) => {
+  try {
+>>>>>>> Stashed changes
     const user = event.context.user
+    if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    if (!user) {
-      console.error('API /api/contatos: Usuário não autenticado no contexto')
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Usuário não autenticado'
-      })
-    }
+    const [userData] = await db.select({ empresa_id: schema.users.empresa_id })
+      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
-    console.log('API /api/contatos: Usuário autenticado:', user.id)
+    if (!userData?.empresa_id) throw createError({ statusCode: 400, statusMessage: 'Usuário não está associado a nenhuma empresa' })
 
+<<<<<<< Updated upstream
     // Buscar dados completos do usuário na tabela users
     const userData = await db
       .select()
@@ -45,6 +50,8 @@ export default defineEventHandler(async (event) => {
     console.log('API /api/contatos: Empresa do usuário:', userData.empresa_id)
 
     // Obter query parameters para busca e paginação
+=======
+>>>>>>> Stashed changes
     const query = getQuery(event)
     const searchTerm = (query.search as string) || ''
     const tagsParam = (query.tags as string) || ''
@@ -53,6 +60,7 @@ export default defineEventHandler(async (event) => {
     const limit = parseInt(query.limit as string) || 10
     const offset = (page - 1) * limit
 
+<<<<<<< Updated upstream
     // Se houver tags selecionadas, buscar IDs dos contatos vinculados
     let contactIdsToFilter: string[] | null = null
 
@@ -81,9 +89,22 @@ export default defineEventHandler(async (event) => {
             }
           }
         }
+=======
+    // Filtro por tags via contato_etiquetas
+    let contactIdsFromTags: string[] | null = null
+    if (tags.length > 0) {
+      const taggedContacts = await db.select({ contato_id: schema.contatoEtiquetas.contato_id })
+        .from(schema.contatoEtiquetas).where(inArray(schema.contatoEtiquetas.etiqueta_id, tags))
+
+      const ids = [...new Set(taggedContacts.map(tc => tc.contato_id).filter(Boolean))] as string[]
+      if (ids.length === 0) {
+        return { success: true, data: { contatos: [], pagination: { page, limit, totalItems: 0, totalPages: 0, startItem: 0, endItem: 0, hasNextPage: false, hasPreviousPage: false } } }
+>>>>>>> Stashed changes
       }
+      contactIdsFromTags = ids
     }
 
+<<<<<<< Updated upstream
     // Construir condições WHERE
     const conditions = [eq(contatos.empresa_id, userData.empresa_id)]
 
@@ -175,14 +196,53 @@ export default defineEventHandler(async (event) => {
     const totalPages = Math.ceil(Number(totalItems) / limit)
     const startItem = Number(totalItems) === 0 ? 0 : offset + 1
     const endItem = Math.min(offset + limit, Number(totalItems))
+=======
+    // Build conditions
+    const conditions: any[] = [eq(schema.contatos.empresa_id, userData.empresa_id)]
+    if (searchTerm) {
+      conditions.push(or(
+        ilike(schema.contatos.nome, `%${searchTerm}%`),
+        ilike(schema.contatos.sobrenome as any, `%${searchTerm}%`),
+        ilike(schema.contatos.telefone, `%${searchTerm}%`)
+      ))
+    }
+    if (contactIdsFromTags) {
+      conditions.push(inArray(schema.contatos.id, contactIdsFromTags))
+    }
 
-    console.log('API /api/contatos: Retornando dados com sucesso')
+    const [totalResult, contatos] = await Promise.all([
+      db.select({ id: schema.contatos.id }).from(schema.contatos).where(and(...conditions)),
+      db.query.contatos.findMany({
+        where: and(...conditions),
+        orderBy: [desc(schema.contatos.created_at)],
+        limit,
+        offset,
+        with: { etiqueta: true }
+      })
+    ])
+
+    const totalItems = totalResult.length
+    const totalPages = Math.ceil(totalItems / limit)
+>>>>>>> Stashed changes
+
+    const contatosFormatados = contatos.map(contato => ({
+      ...contato,
+      tags: contato.etiqueta ? [{ name: contato.etiqueta.nome, color: contato.etiqueta.cor || '#6B7280' }] : [],
+      name: contato.nome,
+      lastName: (contato as any).sobrenome || '',
+      phone: contato.telefone,
+      company: (contato as any).empresa || '',
+      city: (contato as any).cidade || '',
+      profilePictureUrl: contato.profile_picture_url || '',
+      lastContact: contato.created_at
+    }))
 
     return {
       success: true,
       data: {
         contatos: contatosFormatados,
         pagination: {
+<<<<<<< Updated upstream
           page,
           limit,
           totalItems: Number(totalItems),
@@ -191,11 +251,18 @@ export default defineEventHandler(async (event) => {
           endItem,
           hasNextPage: page < totalPages,
           hasPreviousPage: page > 1
+=======
+          page, limit, totalItems, totalPages,
+          startItem: totalItems === 0 ? 0 : offset + 1,
+          endItem: Math.min(offset + limit, totalItems),
+          hasNextPage: page < totalPages, hasPreviousPage: page > 1
+>>>>>>> Stashed changes
         }
       }
     }
 
   } catch (error: any) {
+<<<<<<< Updated upstream
     console.error('API /api/contatos: Erro no handler:', error)
 
     if (error.statusCode) {
@@ -206,5 +273,9 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
     })
+=======
+    if (error.statusCode) throw error
+    throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
+>>>>>>> Stashed changes
   }
 })
