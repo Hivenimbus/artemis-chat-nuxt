@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { notifications } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,17 +9,9 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
-    const { error } = await client
-      .from('notifications')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (error) {
-      console.error('Error clearing notifications:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao limpar notificações' })
-    }
+    await db
+      .delete(notifications)
+      .where(eq(notifications.user_id, user.id))
 
     return {
       success: true
@@ -28,4 +22,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

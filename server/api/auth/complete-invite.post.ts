@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 import { verifyInviteToken, signUserToken } from '~/server/utils/jwt'
 import { hashPassword } from '~/server/utils/password'
 
@@ -16,16 +18,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Convite inválido ou expirado' })
   }
 
-  const client = serverSupabaseServiceRole(event)
-
   // Buscar usuário pelo email para garantir que existe e está pendente
-  const { data: user, error: userError } = await client
-    .from('users')
-    .select('*')
-    .eq('email', payload.email)
-    .single()
+  const user = await db.select().from(users).where(eq(users.email, payload.email)).limit(1).then(r => r[0])
 
-  if (userError || !user) {
+  if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'Usuário não encontrado' })
   }
 
@@ -39,16 +35,13 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await hashPassword(password)
 
   // Atualizar usuário
-  const { error: updateError } = await client
-    .from('users')
-    .update({
+  try {
+    await db.update(users).set({
       password: hashedPassword,
       status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', user.id)
-
-  if (updateError) {
+      updated_at: new Date()
+    }).where(eq(users.id, user.id))
+  } catch (e: any) {
     throw createError({ statusCode: 500, statusMessage: 'Erro ao ativar conta' })
   }
 
@@ -79,4 +72,3 @@ export default defineEventHandler(async (event) => {
     token: authToken
   }
 })
-

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 import { hashPassword, verifyPassword } from '~/server/utils/password'
 
 export default defineEventHandler(async (event) => {
@@ -39,24 +41,22 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role para atualizar dados
-    const client = serverSupabaseServiceRole(event)
-
-    const updateData: any = {
+    const updateData: Record<string, any> = {
       name: name.trim(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date()
     }
 
     // Lógica para troca de senha
     if (currentPassword && newPassword) {
       // Buscar usuário completo para validar senha atual
-      const { data: userData, error: fetchError } = await client
-        .from('users')
-        .select('password')
-        .eq('id', user.id)
-        .single()
-      
-      if (fetchError || !userData) {
+      const userData = await db
+        .select({ password: users.password })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
+        .then(r => r[0])
+
+      if (!userData) {
         throw createError({
           statusCode: 500,
           statusMessage: 'Erro ao validar usuário'
@@ -86,32 +86,26 @@ export default defineEventHandler(async (event) => {
           statusMessage: 'A nova senha deve ter no mínimo 6 caracteres'
         })
       }
-      
+
       const hashedPassword = await hashPassword(newPassword)
       updateData.password = hashedPassword
     } else if (newPassword && !currentPassword) {
-       throw createError({
+      throw createError({
         statusCode: 400,
         statusMessage: 'Informe a senha atual para alterar a senha'
       })
     }
 
     // Atualizar dados do usuário na tabela users
-    const { data: updatedUser, error } = await client
-      .from('users')
-      .update(updateData)
-      .eq('id', user.id)
-      .select()
-      .single()
+    const updatedUser = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, user.id))
+      .returning()
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/user.put: Erro ao atualizar dados do usuário no banco:', {
-        error: error,
-        userId: user.id,
-        code: error.code,
-        message: error.message,
-        details: error.details
-      })
+    if (!updatedUser) {
+      console.error('API /api/user.put: Erro ao atualizar dados do usuário no banco, userId:', user.id)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao atualizar dados do usuário'

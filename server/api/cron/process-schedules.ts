@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
 
     const messagesResult = await processScheduledMessages()
     const campaignsResult = await processScheduledCampaigns()
-    
+
     if (!messagesResult.success) {
       console.error('Error processing messages:', messagesResult.error)
     }

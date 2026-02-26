@@ -1,8 +1,9 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, empresas } from '~/server/db/schema'
+import { eq, asc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
@@ -12,7 +13,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o usuário é superadmin
     if (user.role !== 'superadmin') {
       throw createError({
         statusCode: 403,
@@ -20,48 +20,32 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
-    const { data: users, error } = await client
-      .from('users')
-      .select(`
-        id,
-        name,
-        email,
-        role,
-        status,
-        empresa_id,
-        empresas (
-          id,
-          nome,
-          vencimento
-        )
-      `)
-      .order('name', { ascending: true })
-
-    if (error) {
-      console.error('Erro ao buscar usuários:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar usuários'
+    const result = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        status: users.status,
+        empresa_id: users.empresa_id,
+        empresaNome: empresas.nome,
+        empresaVencimento: empresas.vencimento
       })
-    }
+      .from(users)
+      .leftJoin(empresas, eq(users.empresa_id, empresas.id))
+      .orderBy(asc(users.name))
 
-    // Formatar dados para retorno
-    const usersFormatados = users.map(usuario => ({
+    const usersFormatados = result.map(usuario => ({
       id: usuario.id,
       nome: usuario.name || 'Sem nome',
       email: usuario.email,
       role: usuario.role,
       status: usuario.status || 'pending',
       empresaId: usuario.empresa_id,
-      // Dados da empresa (pode ser null se for órfão)
-      empresaNome: usuario.empresas?.nome || null,
-      empresaVencimento: usuario.empresas?.vencimento || null,
-      
-      // Propriedades derivadas para facilitar exibição no frontend
+      empresaNome: usuario.empresaNome || null,
+      empresaVencimento: usuario.empresaVencimento || null,
       hasEmpresa: !!usuario.empresa_id,
-      empresaStatus: calculateEmpresaStatus(usuario.empresas?.vencimento)
+      empresaStatus: calculateEmpresaStatus(usuario.empresaVencimento)
     }))
 
     return {
@@ -69,7 +53,7 @@ export default defineEventHandler(async (event) => {
       data: usersFormatados
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de admin/users:', error)
 
     if (error.statusCode) {
@@ -83,7 +67,6 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-// Função auxiliar para calcular status (reutilizada lógica de empresas.get.ts simplificada)
 function calculateEmpresaStatus(vencimento: string | null): string {
   if (!vencimento) return 'unknown'
 
@@ -98,4 +81,3 @@ function calculateEmpresaStatus(vencimento: string | null): string {
   if (diffDias <= 30) return 'atencao'
   return 'normal'
 }
-

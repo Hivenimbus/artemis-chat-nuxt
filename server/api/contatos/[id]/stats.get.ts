@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos, atendimentos, inboxes } from '~/server/db/schema'
+import { eq, and, desc, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,83 +9,127 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-    const contactId = event.context.params.id
+    const contactId = getRouterParam(event, 'id')
 
-    // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    if (!contactId) {
+      throw createError({ statusCode: 400, statusMessage: 'ID do contato não fornecido' })
+    }
 
-    if (userError || !userData?.empresa_id) {
+    // Buscar dados do usuário para obter empresa_id
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
+
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
-    // 1. Fetch Contact Details (created_at)
-    const { data: contact, error: contactError } = await client
-      .from('contatos')
-      .select('created_at')
-      .eq('id', contactId)
-      .eq('empresa_id', userData.empresa_id)
-      .single()
+    // 1. Verificar se o contato existe e pertence à empresa
+    const contact = await db
+      .select({ created_at: contatos.created_at })
+      .from(contatos)
+      .where(and(eq(contatos.id, contactId), eq(contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
-    if (contactError) {
+    if (!contact) {
       throw createError({ statusCode: 404, statusMessage: 'Contato não encontrado' })
     }
 
-    // 2. Count Total Tickets (atendimentos)
-    const { count: totalTickets, error: ticketsError } = await client
-      .from('atendimentos')
-      .select('*', { count: 'exact', head: true })
-      .eq('contato_id', contactId)
+    // 2. Contar total de atendimentos do contato
+    const totalTickets = await db
+      .select({ total: count() })
+      .from(atendimentos)
+      .where(eq(atendimentos.contato_id, contactId))
+      .then(r => Number(r[0]?.total ?? 0))
 
-    if (ticketsError) {
-      console.error('Error counting tickets:', ticketsError)
-    }
-
-    // 3. Fetch Recent Interactions (atendimentos)
-    const { data: recentInteractions, error: interactionsError } = await client
-      .from('atendimentos')
-      .select(`
-        id,
-        status,
-        created_at,
-        ultimo_mensagem,
-        users!atendimentos_usuario_responsavel_id_fkey (
-          name
-        ),
-        inboxes (
-          name
-        )
-      `)
-      .eq('contato_id', contactId)
-      .order('created_at', { ascending: false })
+    // 3. Buscar interações recentes (atendimentos) com agente e inbox
+    const recentInteractionsRows = await db
+      .select({
+        id: atendimentos.id,
+        status: atendimentos.status,
+        created_at: atendimentos.created_at,
+        ultimo_mensagem: atendimentos.ultimo_mensagem,
+        usuario_responsavel_id: atendimentos.usuario_responsavel_id,
+        inbox_id: atendimentos.inbox_id
+      })
+      .from(atendimentos)
+      .where(eq(atendimentos.contato_id, contactId))
+      .orderBy(desc(atendimentos.created_at))
       .limit(5)
 
-    if (interactionsError) {
-      console.error('Error fetching interactions:', interactionsError)
+    // Buscar nomes dos agentes e inboxes separadamente
+    const agentIds = [...new Set(recentInteractionsRows
+      .map(i => i.usuario_responsavel_id)
+      .filter(Boolean) as string[])]
+
+    const inboxIds = [...new Set(recentInteractionsRows
+      .map(i => i.inbox_id)
+      .filter(Boolean) as string[])]
+
+    const agentsMap: Record<string, string> = {}
+    if (agentIds.length > 0) {
+      const agentRows = await db
+        .select({ id: users.id, name: users.name })
+        .from(users)
+        .where(eq(users.id, agentIds[0]))
+
+      // Para múltiplos agentes, buscar individualmente ou usar inArray
+      // Aqui usamos um loop simples para manter compatibilidade
+      for (const row of agentRows) {
+        if (row.id && row.name) agentsMap[row.id] = row.name
+      }
+
+      // Buscar demais agentes se houver mais de um
+      if (agentIds.length > 1) {
+        const { inArray } = await import('drizzle-orm')
+        const extraAgents = await db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(inArray(users.id, agentIds))
+
+        for (const row of extraAgents) {
+          if (row.id && row.name) agentsMap[row.id] = row.name
+        }
+      }
     }
+
+    const inboxesMap: Record<string, string> = {}
+    if (inboxIds.length > 0) {
+      const { inArray } = await import('drizzle-orm')
+      const inboxRows = await db
+        .select({ id: inboxes.id, name: inboxes.name })
+        .from(inboxes)
+        .where(inArray(inboxes.id, inboxIds))
+
+      for (const row of inboxRows) {
+        if (row.id) inboxesMap[row.id] = row.name
+      }
+    }
+
+    const history = recentInteractionsRows.map(interaction => ({
+      id: interaction.id,
+      type: 'ticket',
+      status: interaction.status,
+      date: interaction.created_at,
+      description: interaction.ultimo_mensagem || 'Novo atendimento iniciado',
+      agent: (interaction.usuario_responsavel_id && agentsMap[interaction.usuario_responsavel_id]) || 'Sistema',
+      channel: (interaction.inbox_id && inboxesMap[interaction.inbox_id]) || 'N/A'
+    }))
 
     return {
       success: true,
       stats: {
-        totalTickets: totalTickets || 0,
+        totalTickets,
         createdAt: contact.created_at
       },
-      history: recentInteractions?.map(interaction => ({
-        id: interaction.id,
-        type: 'ticket', // ticket, message, note, etc.
-        status: interaction.status,
-        date: interaction.created_at,
-        description: interaction.ultimo_mensagem || 'Novo atendimento iniciado',
-        agent: interaction.users?.name || 'Sistema',
-        channel: interaction.inboxes?.name || 'N/A'
-      })) || []
+      history
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API contatos/[id]/stats.get:', error)
     throw createError({
       statusCode: error.statusCode || 500,
@@ -91,4 +137,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

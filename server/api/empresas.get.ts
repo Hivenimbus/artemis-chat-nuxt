@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, empresas } from '~/server/db/schema'
+import { eq, asc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -20,46 +22,33 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
+    // Buscar todas as empresas ordenadas por nome
+    const empresasList = await db
+      .select()
+      .from(empresas)
+      .orderBy(asc(empresas.nome))
 
-    // Buscar empresas com usuários vinculados
-    const { data: empresas, error } = await client
-      .from('empresas')
-      .select(`
-        id,
-        nome,
-        vencimento,
-        max_usuarios,
-        created_at,
-        updated_at,
-        users (
-          id,
-          name,
-          email,
-          role
-        )
-      `)
-      .order('nome', { ascending: true })
-
-    if (error) {
-      console.error('Erro ao buscar empresas:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar empresas'
+    // Buscar todos os usuários (para associar às empresas)
+    const usuariosList = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        empresa_id: users.empresa_id
       })
-    }
+      .from(users)
 
     // Formatar dados para retorno
-    const empresasFormatadas = empresas.map(empresa => {
-      const usuarios = empresa.users || []
-      const totalUsuarios = usuarios.length
+    const empresasFormatadas = empresasList.map(empresa => {
+      const usuariosDaEmpresa = usuariosList.filter(u => u.empresa_id === empresa.id)
+      const totalUsuarios = usuariosDaEmpresa.length
 
       // Calcular dias até o vencimento
       const hoje = new Date()
-      hoje.setHours(0, 0, 0, 0) // Zerar horas para comparação correta
+      hoje.setHours(0, 0, 0, 0)
       const dataVencimento = new Date(empresa.vencimento)
-      dataVencimento.setHours(0, 0, 0, 0) // Zerar horas para comparação correta
+      dataVencimento.setHours(0, 0, 0, 0)
       const diffDias = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
       // Determinar status do vencimento
@@ -80,7 +69,7 @@ export default defineEventHandler(async (event) => {
         diasParaVencimento: diffDias,
         statusVencimento,
         totalUsuarios,
-        usuarios: usuarios.map(usuario => ({
+        usuarios: usuariosDaEmpresa.map(usuario => ({
           id: usuario.id,
           nome: usuario.name || 'Sem nome',
           email: usuario.email,
@@ -96,7 +85,7 @@ export default defineEventHandler(async (event) => {
       data: empresasFormatadas
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de empresas:', error)
 
     // Se já for um erro criado, retornar como está

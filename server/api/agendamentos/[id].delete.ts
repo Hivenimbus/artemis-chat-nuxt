@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, agendamentos } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,29 +14,21 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Check ownership/permissions
-    const { data: userData } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Erro de permissão' })
     }
 
-    const { error: deleteError } = await client
-      .from('agendamentos')
-      .delete()
-      .eq('id', id)
-      .eq('empresa_id', userData.empresa_id)
-
-    if (deleteError) {
-      console.error('Error deleting agendamento:', deleteError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao excluir agendamento' })
-    }
+    await db
+      .delete(agendamentos)
+      .where(and(eq(agendamentos.id, id), eq(agendamentos.empresa_id, userData.empresa_id)))
 
     return {
       success: true
@@ -45,4 +39,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

@@ -1,45 +1,43 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     const user = event.context.user
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    const id = event.context.params?.id
+    const id = getRouterParam(event, 'id')
     if (!id) throw createError({ statusCode: 400, statusMessage: 'ID não fornecido' })
 
-    const client = serverSupabaseServiceRole(event)
-
     // Verificar permissão (mesma empresa)
-    const { data: requestorData } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const requestorData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    const { data: targetUser } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', id)
-      .single()
+    const targetUser = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!requestorData?.empresa_id || requestorData.empresa_id !== targetUser?.empresa_id) {
       throw createError({ statusCode: 403, statusMessage: 'Sem permissão' })
     }
 
-    // Remover
-    const { error } = await client
-      .from('users')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw createError({ statusCode: 500, statusMessage: 'Erro ao remover' })
+    // Remover usuário
+    await db
+      .delete(users)
+      .where(eq(users.id, id))
 
     return { success: true }
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }
 })
-

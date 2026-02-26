@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { empresas } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -19,9 +21,6 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Acesso negado. Apenas superadmins podem editar empresas.'
       })
     }
-
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
 
     // Obter ID da empresa dos parâmetros da rota
     const empresaId = getRouterParam(event, 'id')
@@ -44,7 +43,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Validar max_usuarios se fornecido
-    let maxUsers = undefined
+    let maxUsers: number | undefined = undefined
     if (body.max_usuarios !== undefined) {
       maxUsers = parseInt(body.max_usuarios)
       if (isNaN(maxUsers) || maxUsers < 1) {
@@ -65,39 +64,41 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se empresa existe
-    const { data: empresaExistente, error: checkError } = await client
-      .from('empresas')
-      .select('id')
-      .eq('id', empresaId)
-      .single()
+    const empresaExistente = await db
+      .select({ id: empresas.id })
+      .from(empresas)
+      .where(eq(empresas.id, empresaId))
+      .limit(1)
+      .then(r => r[0])
 
-    if (checkError || !empresaExistente) {
+    if (!empresaExistente) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Empresa não encontrada'
       })
     }
 
-    // Atualizar empresa
-    const updateData: any = {
+    // Montar dados de atualização
+    const updateData: Record<string, any> = {
       nome: body.nome.trim(),
-      vencimento: dataVencimento.toISOString().split('T')[0], // Formato YYYY-MM-DD
-      updated_at: new Date().toISOString()
+      vencimento: dataVencimento.toISOString().split('T')[0],
+      updated_at: new Date()
     }
-    
+
     if (maxUsers !== undefined) {
       updateData.max_usuarios = maxUsers
     }
 
-    const { data: empresaAtualizada, error: updateError } = await client
-      .from('empresas')
-      .update(updateData)
-      .eq('id', empresaId)
-      .select()
-      .single()
+    // Atualizar empresa
+    const empresaAtualizada = await db
+      .update(empresas)
+      .set(updateData)
+      .where(eq(empresas.id, empresaId))
+      .returning()
+      .then(r => r[0])
 
-    if (updateError) {
-      console.error('Erro ao atualizar empresa:', updateError)
+    if (!empresaAtualizada) {
+      console.error('Erro ao atualizar empresa: nenhum registro retornado')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao atualizar empresa'
@@ -115,7 +116,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de atualização de empresa:', error)
 
     // Se já for um erro criado, retornar como está

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 import { verifyPassword } from '~/server/utils/password'
 import { signUserToken } from '~/server/utils/jwt'
 
@@ -13,16 +15,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = serverSupabaseServiceRole(event)
-
   // Buscar usuário
-  const { data: user, error } = await client
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .single()
+  const user = await db.select().from(users).where(eq(users.email, email)).limit(1).then(r => r[0])
 
-  if (error || !user) {
+  if (!user) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Credenciais inválidas'
@@ -31,7 +27,7 @@ export default defineEventHandler(async (event) => {
 
   // Verificar senha
   if (!user.password) {
-     throw createError({
+    throw createError({
       statusCode: 401,
       statusMessage: 'Usuário não configurado para este tipo de login'
     })
@@ -72,4 +68,3 @@ export default defineEventHandler(async (event) => {
     token
   }
 })
-

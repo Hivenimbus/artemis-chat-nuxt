@@ -1,22 +1,16 @@
-import { serverSupabaseClient } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, etiquetas } from '~/server/db/schema'
+import { eq, and, ne } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas PUT: Iniciando requisição')
 
-    // 1. Tentar obter usuário do contexto (padrão Nuxt Supabase)
-    let user = event.context.user
+    const user = event.context.user
     console.log('API /api/etiquetas PUT: Usuário do contexto:', user?.id)
 
-    // 2. Se não houver usuário no contexto, tentar serverSupabaseUser
     if (!user) {
-      console.log('API /api/etiquetas PUT: Usuário não encontrado no contexto, tentando serverSupabaseUser')
-      user = await serverSupabaseUser(event)
-      console.log('API /api/etiquetas PUT: Resultado serverSupabaseUser:', user?.id)
-    }
-
-    if (!user) {
-      console.error('API /api/etiquetas PUT: Usuário não autenticado (falha em ambas as tentativas)')
+      console.error('API /api/etiquetas PUT: Usuário não autenticado')
       throw createError({
         statusCode: 401,
         statusMessage: 'Usuário não autenticado'
@@ -24,19 +18,6 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log('API /api/etiquetas PUT: Usuário autenticado confirmado:', user.id)
-
-    // Inicializar cliente Supabase apenas para operações de banco
-    const client = await serverSupabaseClient(event)
-
-    // Validar se o ID é um UUID válido
-    const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
-    if (!uuidRegex.test(user.id)) {
-      console.error('API /api/etiquetas PUT: ID de usuário inválido:', user.id)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'ID de usuário inválido'
-      })
-    }
 
     const etiquetaId = getRouterParam(event, 'id')
 
@@ -50,7 +31,6 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { nome, descricao, cor } = body
 
-    // Validação dos campos obrigatórios
     if (!nome || !cor) {
       throw createError({
         statusCode: 400,
@@ -58,7 +38,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validação do formato da cor
     if (!/^#[0-9A-Fa-f]{6}$/.test(cor)) {
       throw createError({
         statusCode: 400,
@@ -66,22 +45,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Buscar dados completos do usuário na tabela users (mesmo padrão da API GET)
+    // Buscar dados completos do usuário na tabela users
     console.log('API /api/etiquetas PUT: Buscando dados na tabela users para ID:', user.id)
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/etiquetas PUT: Erro ao buscar dados do usuário no banco:', {
-        error: error,
-        userId: user.id,
-        code: error.code,
-        message: error.message,
-        details: error.details
-      })
+    if (!userData) {
+      console.error('API /api/etiquetas PUT: Usuário não encontrado no banco:', user.id)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar dados do usuário'
@@ -95,10 +69,9 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id
     })
 
-    if (!userData?.empresa_id) {
+    if (!userData.empresa_id) {
       console.error('API /api/etiquetas PUT: Usuário não possui empresa vinculada:', {
-        userId: userData.id,
-        userData: userData
+        userId: userData.id
       })
       throw createError({
         statusCode: 400,
@@ -114,14 +87,15 @@ export default defineEventHandler(async (event) => {
 
     // Verificar se a etiqueta existe e pertence à empresa do usuário
     console.log('API /api/etiquetas PUT: Verificando existência da etiqueta:', etiquetaId)
-    const { data: existingEtiqueta, error: fetchError } = await client
-      .from('etiquetas')
-      .select('id, empresa_id')
-      .eq('id', etiquetaId)
-      .single()
+    const existingEtiqueta = await db
+      .select({ id: etiquetas.id, empresa_id: etiquetas.empresa_id })
+      .from(etiquetas)
+      .where(eq(etiquetas.id, etiquetaId))
+      .limit(1)
+      .then(r => r[0])
 
-    if (fetchError || !existingEtiqueta) {
-      console.error('API /api/etiquetas PUT: Etiqueta não encontrada:', { etiquetaId, error: fetchError })
+    if (!existingEtiqueta) {
+      console.error('API /api/etiquetas PUT: Etiqueta não encontrada:', etiquetaId)
       throw createError({
         statusCode: 404,
         statusMessage: 'Etiqueta não encontrada'
@@ -143,21 +117,16 @@ export default defineEventHandler(async (event) => {
     // Verificar se já existe outra etiqueta com o mesmo nome na empresa
     if (nome) {
       console.log('API /api/etiquetas PUT: Verificando duplicata:', nome.trim())
-      const { data: duplicateEtiqueta, error: duplicateError } = await client
-        .from('etiquetas')
-        .select('id')
-        .eq('empresa_id', userData.empresa_id)
-        .eq('nome', nome.trim())
-        .neq('id', etiquetaId)
-        .single()
-
-      if (duplicateError && duplicateError.code !== 'PGRST116') {
-        console.error('API /api/etiquetas PUT: Erro ao verificar duplicata:', duplicateError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Erro ao verificar etiqueta existente'
-        })
-      }
+      const duplicateEtiqueta = await db
+        .select({ id: etiquetas.id })
+        .from(etiquetas)
+        .where(and(
+          eq(etiquetas.empresa_id, userData.empresa_id),
+          eq(etiquetas.nome, nome.trim()),
+          ne(etiquetas.id, etiquetaId)
+        ))
+        .limit(1)
+        .then(r => r[0])
 
       if (duplicateEtiqueta) {
         console.error('API /api/etiquetas PUT: Etiqueta duplicada encontrada:', duplicateEtiqueta.id)
@@ -170,26 +139,19 @@ export default defineEventHandler(async (event) => {
 
     // Atualizar etiqueta
     console.log('API /api/etiquetas PUT: Atualizando etiqueta:', etiquetaId)
-    const { data: etiqueta, error: updateError } = await client
-      .from('etiquetas')
-      .update({
+    const etiqueta = await db
+      .update(etiquetas)
+      .set({
         nome: nome.trim(),
         descricao: descricao?.trim() || null,
         cor: cor.toUpperCase()
       })
-      .eq('id', etiquetaId)
-      .select(`
-        id,
-        nome,
-        descricao,
-        cor,
-        created_at,
-        updated_at
-      `)
-      .single()
+      .where(eq(etiquetas.id, etiquetaId))
+      .returning()
+      .then(r => r[0])
 
-    if (updateError) {
-      console.error('API /api/etiquetas PUT: Erro ao atualizar etiqueta:', updateError)
+    if (!etiqueta) {
+      console.error('API /api/etiquetas PUT: Erro ao atualizar etiqueta:', etiquetaId)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao atualizar etiqueta'
@@ -203,13 +165,13 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         ...etiqueta,
-        usageCount: 0, // Placeholder - implementar contagem real futuramente
+        usageCount: 0,
         createdAt: etiqueta.created_at,
         updatedAt: etiqueta.updated_at
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/etiquetas PUT: Erro no handler:', {
       error: error,
       statusCode: error.statusCode,
@@ -217,12 +179,10 @@ export default defineEventHandler(async (event) => {
       stack: error.stack
     })
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

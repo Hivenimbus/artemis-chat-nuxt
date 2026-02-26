@@ -1,10 +1,11 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos/[id] (DELETE): Iniciando requisição')
 
-    // Obter ID do contato dos parâmetros da rota
     const contatoId = getRouterParam(event, 'id')
 
     if (!contatoId) {
@@ -14,7 +15,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validar formato do UUID
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
     if (!uuidRegex.test(contatoId)) {
       throw createError({
@@ -25,7 +25,6 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (DELETE): Excluindo contato:', contatoId)
 
-    // Obter usuário autenticado do contexto
     const user = event.context.user
 
     if (!user) {
@@ -36,22 +35,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (error) {
-      console.error('API /api/contatos/[id] (DELETE): Erro ao buscar dados do usuário:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar dados do usuário'
-      })
-    }
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!userData || !userData.empresa_id) {
       console.error('API /api/contatos/[id] (DELETE): Usuário não possui empresa vinculada')
@@ -62,30 +52,15 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se o contato existe e pertence à empresa do usuário
-    const { data: contatoExistente, error: contatoExistenteError } = await client
-      .from('contatos')
-      .select('id, nome')
-      .eq('id', contatoId)
-      .eq('empresa_id', userData.empresa_id)
-      .single()
-
-    if (contatoExistenteError) {
-      console.error('API /api/contatos/[id] (DELETE): Erro ao verificar contato:', contatoExistenteError)
-
-      if (contatoExistenteError.code === 'PGRST116') {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Contato não encontrado'
-        })
-      }
-
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao verificar contato'
-      })
-    }
+    const contatoExistente = await db
+      .select({ id: contatos.id, nome: contatos.nome })
+      .from(contatos)
+      .where(and(eq(contatos.id, contatoId), eq(contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
     if (!contatoExistente) {
+      console.error('API /api/contatos/[id] (DELETE): Contato não encontrado')
       throw createError({
         statusCode: 404,
         statusMessage: 'Contato não encontrado'
@@ -94,20 +69,10 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (DELETE): Contato encontrado, iniciando exclusão:', contatoExistente.nome)
 
-    // Excluir o contato (as associações com etiquetas serão excluídas em cascata devido ao ON DELETE CASCADE)
-    const { error: exclusaoError } = await client
-      .from('contatos')
-      .delete()
-      .eq('id', contatoId)
-      .eq('empresa_id', userData.empresa_id)
-
-    if (exclusaoError) {
-      console.error('API /api/contatos/[id] (DELETE): Erro ao excluir contato:', exclusaoError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao excluir contato'
-      })
-    }
+    // Excluir o contato (as associações com etiquetas serão excluídas em cascata via ON DELETE CASCADE)
+    await db
+      .delete(contatos)
+      .where(and(eq(contatos.id, contatoId), eq(contatos.empresa_id, userData.empresa_id)))
 
     console.log('API /api/contatos/[id] (DELETE): Contato excluído com sucesso:', contatoId)
 

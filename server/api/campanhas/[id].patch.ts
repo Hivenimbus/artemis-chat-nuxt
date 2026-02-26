@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, campanhas } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -19,28 +21,27 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Ação inválida. Use: cancel, pause ou resume' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Get user's empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
     // Get current campaign
-    const { data: campaign, error: campaignError } = await client
-      .from('campanhas')
-      .select('id, status, empresa_id')
-      .eq('id', id)
-      .eq('empresa_id', userData.empresa_id)
-      .single()
+    const campaign = await db
+      .select({ id: campanhas.id, status: campanhas.status, empresa_id: campanhas.empresa_id })
+      .from(campanhas)
+      .where(and(eq(campanhas.id, id), eq(campanhas.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
-    if (campaignError || !campaign) {
+    if (!campaign) {
       throw createError({ statusCode: 404, statusMessage: 'Campanha não encontrada' })
     }
 
@@ -51,9 +52,9 @@ export default defineEventHandler(async (event) => {
       case 'cancel':
         // Can cancel from: scheduled, processing, sending, paused
         if (!['scheduled', 'processing', 'sending', 'paused'].includes(campaign.status)) {
-          throw createError({ 
-            statusCode: 400, 
-            statusMessage: `Não é possível cancelar uma campanha com status "${campaign.status}"` 
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Não é possível cancelar uma campanha com status "${campaign.status}"`
           })
         }
         newStatus = 'cancelled'
@@ -62,9 +63,9 @@ export default defineEventHandler(async (event) => {
       case 'pause':
         // Can pause from: processing, sending
         if (!['processing', 'sending'].includes(campaign.status)) {
-          throw createError({ 
-            statusCode: 400, 
-            statusMessage: `Não é possível pausar uma campanha com status "${campaign.status}"` 
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Não é possível pausar uma campanha com status "${campaign.status}"`
           })
         }
         newStatus = 'paused'
@@ -73,9 +74,9 @@ export default defineEventHandler(async (event) => {
       case 'resume':
         // Can resume from: paused
         if (campaign.status !== 'paused') {
-          throw createError({ 
-            statusCode: 400, 
-            statusMessage: `Não é possível retomar uma campanha com status "${campaign.status}"` 
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Não é possível retomar uma campanha com status "${campaign.status}"`
           })
         }
         newStatus = 'processing'
@@ -86,20 +87,15 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update campaign status
-    const { data: updatedCampaign, error: updateError } = await client
-      .from('campanhas')
-      .update({ 
+    const updatedCampaign = await db
+      .update(campanhas)
+      .set({
         status: newStatus,
-        updated_at: new Date().toISOString()
+        updated_at: new Date()
       })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (updateError) {
-      console.error('Error updating campaign:', updateError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar campanha' })
-    }
+      .where(eq(campanhas.id, id))
+      .returning()
+      .then(r => r[0])
 
     return {
       success: true,
@@ -108,10 +104,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API campanhas/[id].patch:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao atualizar campanha' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao atualizar campanha'
     })
   }
 })
-

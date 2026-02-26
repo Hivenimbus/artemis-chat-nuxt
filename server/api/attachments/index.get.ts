@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { campaignAttachments } from '~/server/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,22 +9,15 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Get user's attachments
     // Assuming we want to show the latest attachments uploaded by this user for the current campaign context
-    // We might want to limit this or filter by a specific campaign ID if that existed, 
+    // We might want to limit this or filter by a specific campaign ID if that existed,
     // but based on the request, we just want to "persist" data for the user's current session/draft.
-    const { data: attachments, error } = await client
-      .from('campaign_attachments')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Error fetching attachments:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao buscar anexos' })
-    }
+    const attachments = await db
+      .select()
+      .from(campaignAttachments)
+      .where(eq(campaignAttachments.user_id, user.id))
+      .orderBy(desc(campaignAttachments.created_at))
 
     return {
       success: true,
@@ -31,9 +26,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API attachments/index.get:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao buscar anexos' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao buscar anexos'
     })
   }
 })

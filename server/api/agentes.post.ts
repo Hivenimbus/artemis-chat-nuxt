@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, inboxAgents } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 import { signInviteToken } from '~/server/utils/jwt'
 import { sendEmail } from '~/server/utils/email'
 
@@ -14,34 +16,34 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Dados incompletos' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar empresa do usuário criador
-    const { data: creatorData } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const creatorData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!creatorData?.empresa_id) {
       throw createError({ statusCode: 403, statusMessage: 'Usuário sem empresa' })
     }
 
     // Verificar se email já existe
-    const { data: existingUser } = await client
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single()
+    const existingUser = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+      .then(r => r[0])
 
     if (existingUser) {
       throw createError({ statusCode: 400, statusMessage: 'Email já cadastrado' })
     }
 
     // Criar usuário com status pending
-    const { data: newUser, error } = await client
-      .from('users')
-      .insert({
+    const newUser = await db
+      .insert(users)
+      .values({
         name,
         email,
         role,
@@ -50,26 +52,24 @@ export default defineEventHandler(async (event) => {
         invited_by: user.id,
         invited_at: new Date().toISOString()
       })
-      .select()
-      .single()
+      .returning()
+      .then(r => r[0])
 
-    if (error) {
-      console.error('Erro ao criar agente:', error)
+    if (!newUser) {
+      console.error('Erro ao criar agente')
       throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agente' })
     }
 
     // Associar caixas de entrada se fornecidas
     if (inbox_ids && Array.isArray(inbox_ids) && inbox_ids.length > 0) {
-      const inboxAgents = inbox_ids.map((inboxId: string) => ({
+      const inboxAgentsValues = inbox_ids.map((inboxId: string) => ({
         user_id: newUser.id,
         inbox_id: inboxId
       }))
 
-      const { error: inboxError } = await client
-        .from('inbox_agents')
-        .insert(inboxAgents)
-
-      if (inboxError) {
+      try {
+        await db.insert(inboxAgents).values(inboxAgentsValues)
+      } catch (inboxError) {
         console.error('Erro ao associar inboxes:', inboxError)
         // Não falhar a criação do usuário, mas logar erro
       }
@@ -101,13 +101,11 @@ export default defineEventHandler(async (event) => {
       </div>
     `
 
-    // Enviar email em background para não travar a request se demorar
-    // Mas aguardar erro se for crítico? O ideal é usar fila, mas aqui vamos await para feedback imediato
     await sendEmail(email, 'Convite para MULTICONEX', emailHtml)
 
     return { success: true, message: 'Convite enviado com sucesso', data: newUser }
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }

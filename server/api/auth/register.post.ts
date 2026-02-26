@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 import { hashPassword } from '~/server/utils/password'
 import { signUserToken } from '~/server/utils/jwt'
 
@@ -13,14 +15,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const client = serverSupabaseServiceRole(event)
-
   // Verificar se usuário já existe
-  const { data: existingUser } = await client
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single()
+  const existingUser = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1).then(r => r[0])
 
   if (existingUser) {
     throw createError({
@@ -33,23 +29,20 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await hashPassword(password)
 
   // Criar usuário
-  const { data: newUser, error } = await client
-    .from('users')
-    .insert({
+  let newUser
+  try {
+    newUser = await db.insert(users).values({
       email,
       password: hashedPassword,
       name,
       role: 'user',
-      status: 'active' // Ou pending se quiser confirmação
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro ao criar usuário'
-    })
+      status: 'active'
+    }).returning().then(r => r[0])
+  } catch (e: any) {
+    if (e?.code === '23505') {
+      throw createError({ statusCode: 400, statusMessage: 'Email já cadastrado' })
+    }
+    throw createError({ statusCode: 500, statusMessage: 'Erro ao criar usuário' })
   }
 
   // Gerar Token
@@ -78,4 +71,3 @@ export default defineEventHandler(async (event) => {
     token
   }
 })
-

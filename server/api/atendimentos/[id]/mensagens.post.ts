@@ -1,4 +1,7 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, atendimentos, inboxes, contatos, mensagens } from '~/server/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
+import { uploadFile, getPublicUrl } from '~/server/lib/storage'
 import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
@@ -25,17 +28,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Obter dados do usuário
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    const [userData] = await db.select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
 
-    if (userDataError || !userData?.empresa_id) {
-      console.error('API /api/atendimentos/[id]/mensagens POST: Usuário sem empresa:', userDataError)
+    if (!userData?.empresa_id) {
+      console.error('API /api/atendimentos/[id]/mensagens POST: Usuário sem empresa')
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não está associado a nenhuma empresa'
@@ -80,55 +80,35 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se atendimento existe e pertence à empresa
-    const { data: atendimento, error: atendimentoError } = await client
-      .from('atendimentos')
-      .select(`
-        id,
-        status,
-        usuario_responsavel_id,
-        contato_id,
-        inbox_id,
-        inboxes (
-          id,
-          empresa_id
-        ),
-        contatos!atendimentos_contato_id_fkey (
-          id,
-          telefone
-        )
-      `)
-      .eq('id', atendimentoId)
-      .single()
+    // Verificar se atendimento existe e pertence à empresa (via inbox)
+    const [atendimento] = await db
+      .select({
+        id: atendimentos.id,
+        status: atendimentos.status,
+        usuario_responsavel_id: atendimentos.usuario_responsavel_id,
+        contato_id: atendimentos.contato_id,
+        inbox_id: atendimentos.inbox_id,
+        inbox_empresa_id: inboxes.empresa_id,
+        contato_telefone: contatos.telefone
+      })
+      .from(atendimentos)
+      .innerJoin(inboxes, eq(atendimentos.inbox_id, inboxes.id))
+      .innerJoin(contatos, eq(atendimentos.contato_id, contatos.id))
+      .where(eq(atendimentos.id, atendimentoId))
+      .limit(1)
 
     // Validação 1: Verificar se atendimento existe
-    if (atendimentoError || !atendimento) {
-      console.error('API /api/atendimentos/[id]/mensagens POST: Erro ao buscar atendimento:', atendimentoError)
+    if (!atendimento) {
+      console.error('API /api/atendimentos/[id]/mensagens POST: Atendimento não encontrado')
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado'
       })
     }
 
-    // Validação 2: Verificar se relações foram carregadas
-    if (!atendimento.inboxes || !atendimento.contatos) {
-      console.error('API /api/atendimentos/[id]/mensagens POST: Relações não carregadas', {
-        hasInbox: !!atendimento.inboxes,
-        hasContato: !!atendimento.contatos,
-        atendimentoId
-      })
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao carregar dados do atendimento'
-      })
-    }
-
-    // Validação 3: Verificar se pertence à empresa do usuário
-    if (atendimento.inboxes.empresa_id !== userData.empresa_id) {
-      console.error('API /api/atendimentos/[id]/mensagens POST: Empresa diferente', {
-        inboxEmpresaId: atendimento.inboxes.empresa_id,
-        userEmpresaId: userData.empresa_id
-      })
+    // Validação 2: Verificar se pertence à empresa do usuário
+    if (atendimento.inbox_empresa_id !== userData.empresa_id) {
+      console.error('API /api/atendimentos/[id]/mensagens POST: Empresa diferente')
       throw createError({
         statusCode: 403,
         statusMessage: 'Atendimento não pertence à sua empresa'
@@ -145,14 +125,13 @@ export default defineEventHandler(async (event) => {
 
     // Se não tiver responsável, atribuir ao usuário atual
     if (!atendimento.usuario_responsavel_id) {
-      await client
-        .from('atendimentos')
-        .update({
+      await db.update(atendimentos)
+        .set({
           usuario_responsavel_id: user.id,
           status: 'ativo',
-          data_atribuicao: new Date().toISOString()
+          data_atribuicao: new Date()
         })
-        .eq('id', atendimentoId)
+        .where(eq(atendimentos.id, atendimentoId))
     }
 
     // Variáveis para armazenar dados de mídia
@@ -204,30 +183,11 @@ export default defineEventHandler(async (event) => {
       // Caminho no storage: empresa_id/uniqueFileName
       const storagePath = `${userData.empresa_id}/${uniqueFileName}`
 
-      console.log('API /api/atendimentos/[id]/mensagens POST: Fazendo upload para Supabase Storage:', storagePath)
+      console.log('API /api/atendimentos/[id]/mensagens POST: Fazendo upload para MinIO Storage:', storagePath)
 
-      // Upload para Supabase Storage
-      const { data: uploadData, error: uploadError } = await client.storage
-        .from('midias')
-        .upload(storagePath, arquivo.data, {
-          contentType: mimeType,
-          upsert: false
-        })
+      // Upload para MinIO Storage
+      mediaUrl = await uploadFile(storagePath, arquivo.data, mimeType)
 
-      if (uploadError) {
-        console.error('API /api/atendimentos/[id]/mensagens POST: Erro no upload:', uploadError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Erro ao fazer upload do arquivo'
-        })
-      }
-
-      // Obter URL pública
-      const { data: urlData } = client.storage
-        .from('midias')
-        .getPublicUrl(storagePath)
-
-      mediaUrl = urlData.publicUrl
       console.log('API /api/atendimentos/[id]/mensagens POST: Arquivo enviado:', mediaUrl)
     }
 
@@ -238,7 +198,7 @@ export default defineEventHandler(async (event) => {
       texto: texto?.trim() || '',
       remetente: 'user',
       lida: true,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       message_type: messageType
     }
 
@@ -249,43 +209,29 @@ export default defineEventHandler(async (event) => {
       mensagemData.media_name = mediaName
     }
 
-    const { data: novaMensagem, error: mensagemError } = await client
-      .from('mensagens')
-      .insert(mensagemData)
-      .select(`
-        id,
-        atendimento_id,
-        usuario_id,
-        texto,
-        remetente,
-        lida,
-        timestamp,
-        created_at,
-        message_type,
-        media_url,
-        media_type,
-        media_name,
-        users (
-          id,
-          name,
-          email
-        )
-      `)
-      .single()
+    const [novaMensagem] = await db.insert(mensagens)
+      .values(mensagemData)
+      .returning()
 
-    if (mensagemError) {
-      console.error('API /api/atendimentos/[id]/mensagens POST: Erro ao criar mensagem:', mensagemError)
+    if (!novaMensagem) {
+      console.error('API /api/atendimentos/[id]/mensagens POST: Erro ao criar mensagem')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao enviar mensagem'
       })
     }
 
+    // Buscar dados do usuário para formatar resposta
+    const [usuarioData] = await db.select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+
     // Enviar via Evolution API para WhatsApp
     console.log('API /api/atendimentos/[id]/mensagens POST: Enviando para WhatsApp via Evolution API')
 
-    const inboxId = atendimento.inboxes.id
-    const phoneNumber = atendimento.contatos.telefone
+    const inboxId = atendimento.inbox_id!
+    const phoneNumber = atendimento.contato_telefone!
     let evolutionResult: any
 
     if (arquivo && mediaUrl && evolutionMediaType) {
@@ -318,40 +264,36 @@ export default defineEventHandler(async (event) => {
 
     // Atualizar mensagem com dados da Evolution API
     if (evolutionResult.success && evolutionResult.messageId) {
-      await client
-        .from('mensagens')
-        .update({
+      await db.update(mensagens)
+        .set({
           evolution_message_id: evolutionResult.messageId,
           evolution_status: evolutionResult.status || 'sent'
         })
-        .eq('id', novaMensagem.id)
+        .where(eq(mensagens.id, novaMensagem.id))
 
       console.log('API /api/atendimentos/[id]/mensagens POST: Mensagem enviada para WhatsApp com sucesso:', evolutionResult.messageId)
     } else {
       console.error('API /api/atendimentos/[id]/mensagens POST: Falha ao enviar para WhatsApp:', evolutionResult.error)
       // Não falhar a requisição se o envio para WhatsApp falhar, pois a mensagem já foi salva
-      // TODO: Implementar retry ou notificação de falha
     }
 
     // Atualizar informações do atendimento
     const ultimaMensagem = arquivo ? `📎 ${mediaName}` : texto.trim()
-    await client
-      .from('atendimentos')
-      .update({
+    await db.update(atendimentos)
+      .set({
         ultimo_mensagem: ultimaMensagem,
-        ultimo_mensagem_time: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        ultimo_mensagem_time: new Date(),
+        updated_at: new Date()
       })
-      .eq('id', atendimentoId)
+      .where(eq(atendimentos.id, atendimentoId))
 
     // Atualizar informações do contato
-    await client
-      .from('contatos')
-      .update({
-        data_ultimo_contato: new Date().toISOString(),
-        total_mensagens: client.rpc('incrementar_total_mensagens', { contato_id: atendimento.contato_id })
+    await db.update(contatos)
+      .set({
+        data_ultimo_contato: new Date(),
+        total_mensagens: sql`${contatos.total_mensagens} + 1`
       })
-      .eq('id', atendimento.contato_id)
+      .where(eq(contatos.id, atendimento.contato_id!))
 
     console.log('API /api/atendimentos/[id]/mensagens POST: Mensagem enviada com sucesso:', novaMensagem.id)
 
@@ -361,10 +303,10 @@ export default defineEventHandler(async (event) => {
       atendimento_id: novaMensagem.atendimento_id,
       text: novaMensagem.texto,
       sender: novaMensagem.remetente,
-      timestamp: novaMensagem.timestamp ? new Date(novaMensagem.timestamp) : new Date(novaMensagem.created_at),
+      timestamp: novaMensagem.timestamp ? new Date(novaMensagem.timestamp) : new Date(novaMensagem.created_at!),
       lida: novaMensagem.lida,
       usuario_id: novaMensagem.usuario_id,
-      usuario_name: novaMensagem.users?.name || null,
+      usuario_name: usuarioData?.name || null,
       created_at: novaMensagem.created_at,
       message_type: novaMensagem.message_type,
       media_url: novaMensagem.media_url || null,
@@ -378,15 +320,13 @@ export default defineEventHandler(async (event) => {
       message: arquivo ? 'Arquivo enviado com sucesso' : 'Mensagem enviada com sucesso'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/atendimentos/[id]/mensagens POST: Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, campanhas } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,16 +10,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
     // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
@@ -35,27 +37,22 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id,
       user_id: user.id,
       message_text: body.messageText,
-      attachment_url: body.attachment?.path || body.attachmentUrl, // Legacy: Keep populating for now
-      attachment_type: body.attachment?.type || body.attachmentType, // Legacy
+      attachment_url: body.attachment?.path || body.attachmentUrl || null, // Legacy: Keep populating for now
+      attachment_type: body.attachment?.type || body.attachmentType || null, // Legacy
       attachments: body.attachments || [], // New JSONB column
       recipient_type: body.recipientType || 'all',
       target_tags: body.selectedTags || [],
-      scheduled_at: body.sendType === 'scheduled' ? body.scheduledDateTime : null,
-      status: body.sendType === 'scheduled' ? 'scheduled' : 'processing', // If now, start processing (or queue for it)
+      scheduled_at: body.sendType === 'scheduled' ? new Date(body.scheduledDateTime) : null,
+      status: body.sendType === 'scheduled' ? 'scheduled' : 'processing',
       inbox_id: body.inboxId
     }
 
     // Insert campaign
-    const { data: campaign, error: insertError } = await client
-      .from('campanhas')
-      .insert(campaignData)
-      .select()
-      .single()
-
-    if (insertError) {
-      console.error('Error creating campaign:', insertError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao criar campanha' })
-    }
+    const campaign = await db
+      .insert(campanhas)
+      .values(campaignData)
+      .returning()
+      .then(r => r[0])
 
     return {
       success: true,
@@ -64,10 +61,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API campanhas/index.post:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao criar campanha' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao criar campanha'
     })
   }
 })
-

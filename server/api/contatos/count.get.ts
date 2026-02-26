@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos, contatoEtiquetas } from '~/server/db/schema'
+import { eq, and, inArray, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,66 +9,62 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
+    // Buscar dados do usuário para obter empresa_id
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
     const query = getQuery(event)
     const type = query.type as string
-    const tags = query.tags ? (Array.isArray(query.tags) ? query.tags : [query.tags]) : []
+    const tagsParam = query.tags
+    const tags = tagsParam
+      ? (Array.isArray(tagsParam) ? tagsParam : [tagsParam]) as string[]
+      : []
 
-    let count = 0
+    let total = 0
 
     if (type === 'all') {
-      const { count: total, error } = await client
-        .from('contatos')
-        .select('*', { count: 'exact', head: true })
-        .eq('empresa_id', userData.empresa_id)
-      
-      if (error) throw error
-      count = total || 0
+      total = await db
+        .select({ total: count() })
+        .from(contatos)
+        .where(eq(contatos.empresa_id, userData.empresa_id))
+        .then(r => Number(r[0]?.total ?? 0))
+
     } else if (type === 'tags' && tags.length > 0) {
-      // For tags, we need to join with contato_etiquetas
-      // Since supabase client doesn't support complex joins easily for count distinct in one go cleanly with filters on joined table for count only,
-      // we can try a different approach or use RPC if performance is critical.
-      // For now, let's use the standard approach: 
-      // Select contacts where id is in (select contact_id from contato_etiquetas where etiqueta_id in tags)
-      
-      const { count: filteredCount, error } = await client
-        .from('contatos')
-        .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', userData.empresa_id)
-        .in('id', (
-          await client
-            .from('contato_etiquetas')
-            .select('contato_id')
-            .in('etiqueta_id', tags)
-        ).data?.map(c => c.contato_id) || [])
-        
-       if (error) throw error
-       count = filteredCount || 0
+      // Buscar IDs de contatos que possuem as tags informadas
+      const taggedContacts = await db
+        .select({ contato_id: contatoEtiquetas.contato_id })
+        .from(contatoEtiquetas)
+        .where(inArray(contatoEtiquetas.etiqueta_id, tags))
+
+      const contactIds = [...new Set(taggedContacts.map(tc => tc.contato_id!).filter(Boolean))]
+
+      if (contactIds.length > 0) {
+        total = await db
+          .select({ total: count() })
+          .from(contatos)
+          .where(and(eq(contatos.empresa_id, userData.empresa_id), inArray(contatos.id, contactIds)))
+          .then(r => Number(r[0]?.total ?? 0))
+      }
     }
 
     return {
       success: true,
-      count
+      count: total
     }
 
   } catch (error: any) {
     console.error('API contatos/count.get:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao contar contatos' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao contar contatos'
     })
   }
 })
-

@@ -5,12 +5,6 @@ export default defineNuxtConfig({
   devServer: {
     port: 3000
   },
-  // Configuração do Nitro para incluir módulos no bundle (necessário para Docker)
-  nitro: {
-    externals: {
-      inline: ['@supabase/supabase-js', '@supabase/node-fetch']
-    }
-  },
   app: {
     head: {
       link: [
@@ -20,24 +14,11 @@ export default defineNuxtConfig({
   },
   modules: [
     '@nuxtjs/tailwindcss',
-    '@nuxtjs/supabase',
     'nuxt-emoji-picker',
     '@vueuse/nuxt'
   ],
-  supabase: {
-    url: process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
-    key: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
-    // Desativar redirecionamento automático do Supabase Auth pois estamos usando auth própria
-    redirect: false,
-    clientOptions: {
-      auth: {
-        persistSession: false // Não persistir sessão do Supabase Auth
-      }
-    }
-  },
   runtimeConfig: {
     // Private keys (only available on server-side)
-    // Aceita tanto NUXT_* (padrão Nuxt) quanto sem prefixo (compatibilidade)
     evolutionApiUrl: process.env.NUXT_EVOLUTION_API_URL || process.env.EVOLUTION_API_URL,
     evolutionApiKey: process.env.NUXT_EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY,
     openrouterApiKey: process.env.OPENROUTER_APIKEY,
@@ -47,12 +28,15 @@ export default defineNuxtConfig({
     smtpUser: process.env.NUXT_SMTP_USER || process.env.SMTP_USER,
     smtpPass: process.env.NUXT_SMTP_PASS || process.env.SMTP_PASS,
     smtpFrom: process.env.NUXT_SMTP_FROM || process.env.SMTP_FROM,
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseServiceKey: process.env.SUPABASE_SECRET_KEY,
+    // MinIO
+    minioEndpoint: process.env.MINIO_ENDPOINT,
+    minioAccessKey: process.env.MINIO_ACCESS_KEY,
+    minioSecretKey: process.env.MINIO_SECRET_KEY,
+    minioBucket: process.env.MINIO_BUCKET || 'midias',
+    minioPublicUrl: process.env.MINIO_PUBLIC_URL,
+    minioRegion: process.env.MINIO_REGION || 'us-east-1',
 
     public: {
-      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://gphjqwibtdkqxtuwtncz.supabase.co',
-      supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaGpxd2lidGRrcXh0dXd0bmN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1NDU2OTEsImV4cCI6MjA3NjEyMTY5MX0.grLnZKGw8z0ohJ0MIc4xBQRclmajQAposgHKCpuyZ8U',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'http://localhost:3000'
     }
   }

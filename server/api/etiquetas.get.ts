@@ -1,10 +1,11 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, etiquetas } from '~/server/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/etiquetas: Iniciando requisição')
 
-    // Obter usuário do contexto
     const user = event.context.user
 
     if (!user) {
@@ -17,34 +18,17 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/etiquetas: Usuário autenticado:', user.id)
 
-    const client = serverSupabaseServiceRole(event)
-
-    // Validar se o ID é um UUID válido
-    const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
-    if (!uuidRegex.test(user.id)) {
-      console.error('API /api/etiquetas: ID de usuário inválido:', user.id)
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'ID de usuário inválido'
-      })
-    }
-
-    // Buscar dados completos do usuário na tabela users (mesmo padrão da API /api/user)
+    // Buscar dados completos do usuário na tabela users
     console.log('API /api/etiquetas: Buscando dados na tabela users para ID:', user.id)
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/etiquetas: Erro ao buscar dados do usuário no banco:', {
-        error: error,
-        userId: user.id,
-        code: error.code,
-        message: error.message,
-        details: error.details
-      })
+    if (!userData) {
+      console.error('API /api/etiquetas: Usuário não encontrado no banco:', user.id)
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar dados do usuário'
@@ -58,10 +42,9 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id
     })
 
-    if (!userData?.empresa_id) {
+    if (!userData.empresa_id) {
       console.error('API /api/etiquetas: Usuário não possui empresa vinculada:', {
-        userId: userData.id,
-        userData: userData
+        userId: userData.id
       })
       throw createError({
         statusCode: 400,
@@ -75,43 +58,29 @@ export default defineEventHandler(async (event) => {
       role: userData.role
     })
 
-    // Buscar etiquetas da empresa com informações do criador
+    // Buscar etiquetas da empresa
     console.log('API /api/etiquetas: Buscando etiquetas da empresa:', userData.empresa_id)
-    const { data: etiquetas, error: etiquetasError } = await client
-      .from('etiquetas')
-      .select(`
-        id,
-        nome,
-        descricao,
-        cor,
-        created_at,
-        updated_at
-      `)
-      .eq('empresa_id', userData.empresa_id)
-      .order('created_at', { ascending: false })
-
-    if (etiquetasError) {
-      console.error('API /api/etiquetas: Erro ao buscar etiquetas:', {
-        error: etiquetasError,
-        empresaId: userData.empresa_id,
-        code: etiquetasError.code,
-        message: etiquetasError.message
+    const etiquetasData = await db
+      .select({
+        id: etiquetas.id,
+        nome: etiquetas.nome,
+        descricao: etiquetas.descricao,
+        cor: etiquetas.cor,
+        created_at: etiquetas.created_at,
+        updated_at: etiquetas.updated_at
       })
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar etiquetas'
-      })
-    }
+      .from(etiquetas)
+      .where(eq(etiquetas.empresa_id, userData.empresa_id))
+      .orderBy(desc(etiquetas.created_at))
 
-    console.log('API /api/etiquetas: Etiquetas encontradas:', etiquetas?.length || 0)
+    console.log('API /api/etiquetas: Etiquetas encontradas:', etiquetasData.length)
 
-    // Calcular usage count (placeholder - futuro: implementar contagem real)
-    const etiquetasWithCount = etiquetas?.map(etiqueta => ({
+    const etiquetasWithCount = etiquetasData.map(etiqueta => ({
       ...etiqueta,
-      usageCount: 0, // Placeholder - implementar contagem real futuramente
+      usageCount: 0,
       createdAt: etiqueta.created_at,
       updatedAt: etiqueta.updated_at
-    })) || []
+    }))
 
     console.log('API /api/etiquetas: Retornando dados com sucesso')
     return {
@@ -119,7 +88,7 @@ export default defineEventHandler(async (event) => {
       data: etiquetasWithCount
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/etiquetas: Erro no handler:', {
       error: error,
       statusCode: error.statusCode,
@@ -127,12 +96,10 @@ export default defineEventHandler(async (event) => {
       stack: error.stack
     })
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

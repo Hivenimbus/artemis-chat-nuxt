@@ -1,5 +1,4 @@
-import { processEvolutionMessage, validateWebhookOrigin, createServiceSupabaseClient } from '~/lib/evolution'
-// import { webhookLogger } from '~/lib/logger'
+import { processEvolutionMessage, validateWebhookOrigin } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   const startTime = Date.now()
@@ -8,24 +7,21 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const headers = getHeaders(event)
 
-    // Criar cliente Supabase com service role (webhooks não têm usuário autenticado)
-    const supabase = createServiceSupabaseClient()
-
     // Extrair instance do formato antigo ou novo
     const instanceName = body.instance || body.instanceName || body.instanceId
-    console.log(`🔔 [${startTime}] Webhook recebido: ${body.event} (${instanceName})`)
+    console.log(`[${startTime}] Webhook recebido: ${body.event} (${instanceName})`)
 
     // Validar origem do webhook (básico por enquanto)
     if (!validateWebhookOrigin(headers, body.apikey)) {
-      console.log('⚠️ Webhook sem validação de origem')
+      console.log('Webhook sem validação de origem')
     }
 
     // Verificar se é um evento de mensagem (suporta formato antigo e novo)
     if (body.event === 'messages.upsert' || body.event === 'Message') {
-      const result = await processEvolutionMessage(supabase, body)
+      const result = await processEvolutionMessage(body)
 
       const processingTime = Date.now() - startTime
-      console.log(`⚡ [${processingTime}ms] Webhook processado com sucesso`)
+      console.log(`[${processingTime}ms] Webhook processado com sucesso`)
 
       return {
         success: true,
@@ -34,15 +30,15 @@ export default defineEventHandler(async (event) => {
       }
     }
     else if (body.event === 'messages.edit') {
-      console.log('📝 Processando edição de mensagem:', body.instance)
+      console.log('Processando edição de mensagem:', body.instance)
       // TODO: Implementar lógica de edição de mensagens
     }
     else if (body.event === 'status.instance') {
-      console.log('📱 Processando status da instância:', body.instance)
+      console.log('Processando status da instância:', body.instance)
       // TODO: Implementar atualização de status da instância
     }
     else {
-      console.log('📝 Evento não processado:', body.event)
+      console.log('Evento não processado:', body.event)
     }
 
     // Retornar sucesso rapidamente para a Evolution API
@@ -54,9 +50,9 @@ export default defineEventHandler(async (event) => {
       processingTime: `${processingTime}ms`
     }
 
-  } catch (error) {
+  } catch (error: any) {
     const processingTime = Date.now() - startTime
-    console.error(`❌ [${processingTime}ms] Erro ao processar webhook:`, error)
+    console.error(`[${processingTime}ms] Erro ao processar webhook:`, error)
 
     // Mesmo com erro, retornar sucesso para não bloquear a Evolution API
     return {
@@ -67,4 +63,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-

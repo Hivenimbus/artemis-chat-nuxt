@@ -1,10 +1,11 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos, etiquetas, contatoEtiquetas } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos/[id] (GET): Iniciando requisição')
 
-    // Obter ID do contato dos parâmetros da rota
     const contatoId = getRouterParam(event, 'id')
 
     if (!contatoId) {
@@ -14,7 +15,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validar formato do UUID
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
     if (!uuidRegex.test(contatoId)) {
       throw createError({
@@ -25,7 +25,6 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (GET): Buscando contato:', contatoId)
 
-    // Obter usuário autenticado do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
@@ -36,24 +35,23 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/contatos/[id] (GET): Erro ao buscar dados do usuário:', error)
+    if (!userData) {
+      console.error('API /api/contatos/[id] (GET): Erro ao buscar dados do usuário')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar dados do usuário'
       })
     }
 
-    if (!userData?.empresa_id) {
+    if (!userData.empresa_id) {
       console.error('API /api/contatos/[id] (GET): Usuário não possui empresa vinculada')
       throw createError({
         statusCode: 400,
@@ -61,55 +59,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Buscar contato completo com etiquetas
-    const { data: contato, error: contatoError } = await client
-      .from('contatos')
-      .select(`
-        id,
-        nome,
-        sobrenome,
-        email,
-        telefone,
-        cidade,
-        pais,
-        biografia,
-        empresa,
-        endereco,
-        empresa_id,
-        profile_picture_url,
-        created_at,
-        updated_at,
-        contato_etiquetas (
-          etiqueta_id,
-          etiquetas (
-            id,
-            nome,
-            cor
-          )
-        )
-      `)
-      .eq('id', contatoId)
-      .eq('empresa_id', userData.empresa_id) // Garantir que o contato pertence à empresa do usuário
-      .single()
-
-    if (contatoError) {
-      console.error('API /api/contatos/[id] (GET): Erro ao buscar contato:', contatoError)
-
-      // Verificar se é erro de "não encontrado"
-      if (contatoError.code === 'PGRST116') {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Contato não encontrado'
-        })
-      }
-
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar contato'
-      })
-    }
+    // Buscar contato verificando que pertence à empresa do usuário
+    const contato = await db
+      .select()
+      .from(contatos)
+      .where(and(eq(contatos.id, contatoId), eq(contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
     if (!contato) {
+      console.error('API /api/contatos/[id] (GET): Contato não encontrado')
       throw createError({
         statusCode: 404,
         statusMessage: 'Contato não encontrado'
@@ -118,12 +77,20 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos/[id] (GET): Contato encontrado:', contato.id)
 
-    // Formatar dados para o frontend
+    // Buscar etiquetas do contato
+    const tagsLinks = await db
+      .select({
+        etiqueta_id: contatoEtiquetas.etiqueta_id,
+        nome: etiquetas.nome,
+        cor: etiquetas.cor
+      })
+      .from(contatoEtiquetas)
+      .innerJoin(etiquetas, eq(contatoEtiquetas.etiqueta_id, etiquetas.id))
+      .where(eq(contatoEtiquetas.contato_id, contatoId))
+
     const contatoFormatado = {
       ...contato,
-      tags: contato.contato_etiquetas
-        ?.filter(ce => ce.etiquetas)
-        ?.map(ce => ce.etiquetas.nome) || [],
+      tags: tagsLinks.map(t => t.nome),
       name: contato.nome,
       lastName: contato.sobrenome || '',
       phone: contato.telefone,
@@ -143,15 +110,13 @@ export default defineEventHandler(async (event) => {
       data: contatoFormatado
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/contatos/[id] (GET): Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, messageTemplates } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,16 +10,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
-    // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    // Get user data to verify empresa_id
+    const userRows = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
 
-    if (userError || !userData?.empresa_id) {
+    const userData = userRows[0]
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
@@ -25,50 +27,40 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Conteúdo é obrigatório' })
     }
 
-    // Check if template exists for user
-    const { data: existingTemplate } = await client
-      .from('message_templates')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
+    // Check if a template already exists for this user
+    const existingRows = await db
+      .select({ id: messageTemplates.id })
+      .from(messageTemplates)
+      .where(eq(messageTemplates.user_id, user.id))
+      .limit(1)
+
+    const existingTemplate = existingRows[0]
 
     let templateData
-    let operationError
 
     if (existingTemplate) {
       // Update existing
-      const { data, error } = await client
-        .from('message_templates')
-        .update({
+      const updated = await db
+        .update(messageTemplates)
+        .set({
           content: body.content,
-          updated_at: new Date().toISOString()
+          updated_at: new Date()
         })
-        .eq('id', existingTemplate.id)
-        .select()
-        .single()
-      
-      templateData = data
-      operationError = error
+        .where(eq(messageTemplates.id, existingTemplate.id))
+        .returning()
+
+      templateData = updated[0]
     } else {
       // Insert new
-      const { data, error } = await client
-        .from('message_templates')
-        .insert({
+      const inserted = await db
+        .insert(messageTemplates)
+        .values({
           user_id: user.id,
-          empresa_id: userData.empresa_id,
-          content: body.content,
-          updated_at: new Date().toISOString()
+          content: body.content
         })
-        .select()
-        .single()
+        .returning()
 
-      templateData = data
-      operationError = error
-    }
-
-    if (operationError) {
-      console.error('Error saving template:', operationError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao salvar modelo de mensagem' })
+      templateData = inserted[0]
     }
 
     return {
@@ -78,9 +70,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API templates/index.post:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao salvar modelo' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao salvar modelo'
     })
   }
 })

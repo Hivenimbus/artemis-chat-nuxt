@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, campaignAttachments } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,16 +10,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
     // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
@@ -26,47 +28,38 @@ export default defineEventHandler(async (event) => {
     }
 
     let attachmentData
-    let operationError
 
     // Check if we are updating an existing attachment (if ID provided)
     if (body.id) {
-        const { data, error } = await client
-            .from('campaign_attachments')
-            .update({
-                file_url: body.fileUrl,
-                file_type: body.fileType,
-                file_name: body.fileName,
-                caption: body.caption,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', body.id)
-            .eq('user_id', user.id) // Security check
-            .select()
-            .single()
-        
-        attachmentData = data
-        operationError = error
+      attachmentData = await db
+        .update(campaignAttachments)
+        .set({
+          file_url: body.fileUrl,
+          file_type: body.fileType || null,
+          file_name: body.fileName || null,
+          caption: body.caption || null,
+          updated_at: new Date()
+        })
+        .where(and(eq(campaignAttachments.id, body.id), eq(campaignAttachments.user_id, user.id)))
+        .returning()
+        .then(r => r[0])
     } else {
-        // Create new
-        const { data, error } = await client
-            .from('campaign_attachments')
-            .insert({
-                empresa_id: userData.empresa_id,
-                user_id: user.id,
-                file_url: body.fileUrl,
-                file_type: body.fileType,
-                file_name: body.fileName,
-                caption: body.caption
-            })
-            .select()
-            .single()
-
-        attachmentData = data
-        operationError = error
+      // Create new
+      attachmentData = await db
+        .insert(campaignAttachments)
+        .values({
+          empresa_id: userData.empresa_id,
+          user_id: user.id,
+          file_url: body.fileUrl,
+          file_type: body.fileType || null,
+          file_name: body.fileName || null,
+          caption: body.caption || null
+        })
+        .returning()
+        .then(r => r[0])
     }
 
-    if (operationError) {
-      console.error('Error saving attachment:', operationError)
+    if (!attachmentData) {
       throw createError({ statusCode: 500, statusMessage: 'Erro ao salvar anexo' })
     }
 
@@ -77,9 +70,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API attachments/index.post:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao salvar anexo' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao salvar anexo'
     })
   }
 })

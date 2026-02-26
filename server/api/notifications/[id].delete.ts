@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { notifications } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -9,21 +11,12 @@ export default defineEventHandler(async (event) => {
 
     const id = getRouterParam(event, 'id')
     if (!id) {
-        throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
+      throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
-    const { error } = await client
-      .from('notifications')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
-
-    if (error) {
-      console.error('Error deleting notification:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao excluir notificação' })
-    }
+    await db
+      .delete(notifications)
+      .where(and(eq(notifications.id, id), eq(notifications.user_id, user.id)))
 
     return {
       success: true
@@ -34,4 +27,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { notifications } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -10,24 +12,20 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { id, all } = body
 
-    const client = serverSupabaseServiceRole(event)
-
-    let query = client.from('notifications').update({ read: true }).eq('user_id', user.id)
-
     if (!all) {
       if (!id) {
         throw createError({ statusCode: 400, statusMessage: 'ID da notificação é obrigatório' })
       }
-      query = query.eq('id', id)
+
+      await db
+        .update(notifications)
+        .set({ read: true })
+        .where(and(eq(notifications.user_id, user.id), eq(notifications.id, id)))
     } else {
-        query = query.eq('read', false)
-    }
-
-    const { error } = await query
-
-    if (error) {
-      console.error('Error marking notification as read:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar notificação' })
+      await db
+        .update(notifications)
+        .set({ read: true })
+        .where(and(eq(notifications.user_id, user.id), eq(notifications.read, false)))
     }
 
     return {
@@ -39,4 +37,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

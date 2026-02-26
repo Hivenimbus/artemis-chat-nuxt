@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -11,7 +13,6 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
@@ -21,7 +22,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o usuário é superadmin
     if (user.role !== 'superadmin') {
       throw createError({
         statusCode: 403,
@@ -29,32 +29,24 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
-
-    // Impedir auto-exclusão
     if (id === user.id) {
-      throw createError({ statusCode: 400, statusMessage: 'Você não pode excluir a si mesmo.' })
-    }
-
-    // 2. Excluir da tabela pública 'users'
-    const { error: deleteError } = await client
-      .from('users')
-      .delete()
-      .eq('id', id)
-
-    if (deleteError) {
       throw createError({
-        statusCode: 500,
-        statusMessage: `Erro ao excluir usuário da tabela pública: ${deleteError.message}`
+        statusCode: 400,
+        statusMessage: 'Você não pode excluir a si mesmo.'
       })
     }
 
-    // 3. Excluir do Auth (Requer Service Role)
-    // No sistema customizado, o token é apenas um JWT, não gerenciamos Auth do Supabase diretamente aqui.
-    // Mas mantemos a lógica se necessário para remover outros dados ou se houver integração futura.
-    const serviceClient = serverSupabaseServiceRole(event)
-    // ... restante da lógica omitida ou adaptada ...
+    const [deleted] = await db
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning({ id: users.id })
+
+    if (!deleted) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Usuário não encontrado'
+      })
+    }
 
     return {
       success: true,
@@ -69,4 +61,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

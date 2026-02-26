@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, agendamentos, agendamentoContatos } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,51 +15,48 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
     // Check ownership/permissions (ensure user belongs to same company)
-    const { data: userData } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Erro de permissão' })
     }
 
-    // Update fields
-    const updateData: any = {}
+    // Build update fields
+    const updateData: Record<string, any> = {}
     if (body.title !== undefined) updateData.title = body.title
     if (body.description !== undefined) updateData.description = body.description
-    if (body.start_time !== undefined) updateData.start_time = body.start_time
-    if (body.end_time !== undefined) updateData.end_time = body.end_time
+    if (body.start_time !== undefined) updateData.start_time = new Date(body.start_time)
+    if (body.end_time !== undefined) updateData.end_time = new Date(body.end_time)
     if (body.status !== undefined) updateData.status = body.status
     if (body.message_text !== undefined) updateData.message_text = body.message_text
     if (body.inbox_id !== undefined) updateData.inbox_id = body.inbox_id
     if (body.color !== undefined) updateData.color = body.color
-    updateData.updated_at = new Date().toISOString()
+    updateData.updated_at = new Date()
 
-    const { data: updatedAgendamento, error: updateError } = await client
-      .from('agendamentos')
-      .update(updateData)
-      .eq('id', id)
-      .eq('empresa_id', userData.empresa_id) // Security check
-      .select()
-      .single()
+    const updatedAgendamento = await db
+      .update(agendamentos)
+      .set(updateData)
+      .where(and(eq(agendamentos.id, id), eq(agendamentos.empresa_id, userData.empresa_id)))
+      .returning()
+      .then(r => r[0])
 
-    if (updateError) {
-      console.error('Error updating agendamento:', updateError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar agendamento' })
+    if (!updatedAgendamento) {
+      throw createError({ statusCode: 404, statusMessage: 'Agendamento não encontrado' })
     }
 
     // Update contacts if provided
     if (body.contact_ids && Array.isArray(body.contact_ids)) {
       // First delete existing links
-      await client
-        .from('agendamento_contatos')
-        .delete()
-        .eq('agendamento_id', id)
+      await db
+        .delete(agendamentoContatos)
+        .where(eq(agendamentoContatos.agendamento_id, id))
 
       // Then insert new ones
       if (body.contact_ids.length > 0) {
@@ -66,9 +65,7 @@ export default defineEventHandler(async (event) => {
           contato_id: contactId
         }))
 
-        await client
-          .from('agendamento_contatos')
-          .insert(contactLinks)
+        await db.insert(agendamentoContatos).values(contactLinks)
       }
     }
 
@@ -82,4 +79,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

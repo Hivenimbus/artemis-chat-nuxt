@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -12,7 +14,6 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Obter usuário do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
@@ -22,7 +23,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o usuário é superadmin
     if (user.role !== 'superadmin') {
       throw createError({
         statusCode: 403,
@@ -30,58 +30,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
-
-    // 2. Validar dados de entrada
-    const updateData: any = {}
+    const updateData: Record<string, any> = {}
     if (body.name !== undefined) updateData.name = body.name
+    if (body.email !== undefined) updateData.email = body.email
     if (body.role !== undefined) updateData.role = body.role
     if (body.status !== undefined) updateData.status = body.status
-    if (body.empresa_id !== undefined) updateData.empresa_id = body.empresa_id // Pode ser null
+    if (body.empresa_id !== undefined) updateData.empresa_id = body.empresa_id
 
-    // Se não houver nada para atualizar
     if (Object.keys(updateData).length === 0) {
       return { success: true, message: 'Nenhum dado para atualizar' }
     }
 
-    // 3. Atualizar usuário na tabela 'users' (tabela pública)
-    const { data: updatedUser, error: updateError } = await client
-      .from('users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
+    updateData.updated_at = new Date()
 
-    if (updateError) {
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning()
+
+    if (!updatedUser) {
       throw createError({
-        statusCode: 500,
-        statusMessage: `Erro ao atualizar usuário: ${updateError.message}`
+        statusCode: 404,
+        statusMessage: 'Usuário não encontrado'
       })
     }
-
-    // 4. Se o email foi alterado, precisaríamos atualizar no Auth do Supabase também.
-    // Por enquanto, o plano especificou dados básicos. A alteração de email no Auth requer admin API do Supabase (service role), 
-    // mas vamos manter o foco na tabela pública 'users' conforme padrão atual do projeto onde 'users' espelha dados.
-    // Nota: Alterar email geralmente requer re-confirmação, então por segurança vamos alterar apenas na tabela users por enquanto
-    // ou assumir que o email é imutável via essa interface simples para evitar inconsistências de auth.
-    // Se o body contiver email e for diferente, vamos tentar atualizar.
-    
-    // Como o plano mencionou "Nome, Email, Função, Empresa", vamos assumir atualização na tabela users.
-
-    if (body.email !== undefined) {
-        // Atualiza email apenas na tabela users por enquanto para refletir na UI
-        // Atualização real de auth requereria service role client e admin.updateUserById
-        const { error: emailError } = await client
-            .from('users')
-            .update({ email: body.email })
-            .eq('id', id)
-        
-        if (emailError) {
-             console.error('Erro ao atualizar email na tabela users', emailError)
-        }
-    }
-
 
     return {
       success: true,
@@ -96,4 +69,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

@@ -1,4 +1,5 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { empresas } from '~/server/db/schema'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -19,9 +20,6 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Acesso negado. Apenas superadmins podem acessar este recurso.'
       })
     }
-
-    // Usar Service Role já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
 
     // Obter dados do corpo da requisição
     const body = await readBody(event)
@@ -64,25 +62,18 @@ export default defineEventHandler(async (event) => {
     }
 
     // Criar nova empresa
-    const { data: empresa, error } = await client
-      .from('empresas')
-      .insert({
+    const empresa = await db
+      .insert(empresas)
+      .values({
         nome: nome.trim(),
         vencimento: dataVenc.toISOString().split('T')[0],
         max_usuarios: maxUsers
       })
-      .select(`
-        id,
-        nome,
-        vencimento,
-        max_usuarios,
-        created_at,
-        updated_at
-      `)
-      .single()
+      .returning()
+      .then(r => r[0])
 
-    if (error) {
-      console.error('Erro ao criar empresa:', error)
+    if (!empresa) {
+      console.error('Erro ao criar empresa: nenhum registro retornado')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao criar empresa'
@@ -122,7 +113,7 @@ export default defineEventHandler(async (event) => {
       message: 'Empresa criada com sucesso!'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de criação de empresa:', error)
 
     // Se já for um erro criado, retornar como está

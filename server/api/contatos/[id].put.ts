@@ -1,20 +1,11 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
-
-// Definir interface para o tipo de usuário retornado pelo Supabase
-interface DatabaseUser {
-  id: string
-  email: string
-  role: string
-  empresa_id: string
-  created_at: string
-  updated_at: string
-}
+import { db } from '~/server/db'
+import { users, contatos, etiquetas, contatoEtiquetas } from '~/server/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos/[id] (PUT): Iniciando requisição')
 
-    // Obter ID do contato dos parâmetros da rota
     const contatoId = getRouterParam(event, 'id')
 
     if (!contatoId) {
@@ -24,7 +15,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Validar formato do UUID
     const uuidRegex = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i
     if (!uuidRegex.test(contatoId)) {
       throw createError({
@@ -33,7 +23,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário autenticado do contexto (injetado pelo middleware 01-auth-check)
     const user = event.context.user
 
     if (!user) {
@@ -44,25 +33,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
-    const { data: userDataResponse, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    // Cast para o tipo definido
-    const userData = userDataResponse as unknown as DatabaseUser
-
-    if (error) {
-      console.error('API /api/contatos/[id] (PUT): Erro ao buscar dados do usuário:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar dados do usuário'
-      })
-    }
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (!userData || !userData.empresa_id) {
       console.error('API /api/contatos/[id] (PUT): Usuário não possui empresa vinculada')
@@ -75,7 +52,6 @@ export default defineEventHandler(async (event) => {
     // Obter corpo da requisição
     const body = await readBody(event)
 
-    // Validar campos obrigatórios
     const { nome, email, telefone, tags = [] } = body
 
     if (!nome || !telefone) {
@@ -96,10 +72,9 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Validar e normalizar telefone (apenas números)
+    // Validar e normalizar telefone
     let cleanPhone = telefone.replace(/\D/g, '')
 
-    // Adicionar código do país 55 se não estiver presente
     if (!cleanPhone.startsWith('55')) {
       cleanPhone = '55' + cleanPhone
     }
@@ -111,31 +86,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('API /api/contatos/[id] (PUT): Dados validados, atualizando contato:', contatoId)
+    console.log('API /api/contatos/[id] (PUT): Dados validados, verificando contato:', contatoId)
 
     // Verificar se o contato existe e pertence à empresa do usuário
-    const { data: contatoExistente, error: contatoExistenteError } = await client
-      .from('contatos')
-      .select('id, email')
-      .eq('id', contatoId)
-      .eq('empresa_id', userData.empresa_id)
-      .single()
-
-    if (contatoExistenteError) {
-      console.error('API /api/contatos/[id] (PUT): Erro ao verificar contato:', contatoExistenteError)
-
-      if (contatoExistenteError.code === 'PGRST116') {
-        throw createError({
-          statusCode: 404,
-          statusMessage: 'Contato não encontrado'
-        })
-      }
-
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao verificar contato'
-      })
-    }
+    const contatoExistente = await db
+      .select({ id: contatos.id, email: contatos.email })
+      .from(contatos)
+      .where(and(eq(contatos.id, contatoId), eq(contatos.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
     if (!contatoExistente) {
       throw createError({
@@ -145,139 +104,87 @@ export default defineEventHandler(async (event) => {
     }
 
     // Atualizar dados do contato
-    const updateData: any = {
-      nome: nome.trim(),
-      sobrenome: body.sobrenome?.trim() || null,
-      email: email?.trim().toLowerCase() || null,
-      telefone: cleanPhone,
-      cidade: body.cidade?.trim() || null,
-      pais: body.pais?.trim() || null,
-      biografia: body.biografia?.trim() || null,
-      empresa: body.empresa?.trim() || null,
-      endereco: body.endereco?.trim() || null,
-      updated_at: new Date().toISOString()
-    };
-
-    // Usando any para contornar problemas de tipagem com o cliente supabase
-    const { data: contatoAtualizadoResponse, error: atualizacaoError } = await (client
-      .from('contatos')
-      .update(updateData as never)
-      .eq('id', contatoId)
-      .eq('empresa_id', userData.empresa_id)
-      .select()
-      .single() as any)
-
-    // Cast para any para evitar erros de tipagem estritos do TS com supabase
-    const contatoAtualizado = contatoAtualizadoResponse as any
-
-    if (atualizacaoError) {
-      console.error('API /api/contatos/[id] (PUT): Erro ao atualizar contato:', atualizacaoError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao atualizar contato'
+    await db
+      .update(contatos)
+      .set({
+        nome: nome.trim(),
+        sobrenome: body.sobrenome?.trim() || null,
+        email: email?.trim().toLowerCase() || null,
+        telefone: cleanPhone,
+        cidade: body.cidade?.trim() || null,
+        pais: body.pais?.trim() || null,
+        biografia: body.biografia?.trim() || null,
+        empresa: body.empresa?.trim() || null,
+        endereco: body.endereco?.trim() || null,
+        updated_at: new Date()
       })
-    }
+      .where(and(eq(contatos.id, contatoId), eq(contatos.empresa_id, userData.empresa_id)))
 
-    console.log('API /api/contatos/[id] (PUT): Contato atualizado:', contatoAtualizado.id)
+    console.log('API /api/contatos/[id] (PUT): Contato atualizado:', contatoId)
 
-    // Atualizar etiquetas associadas
-    const { error: removeAssociacoesError } = await client
-      .from('contato_etiquetas')
-      .delete()
-      .eq('contato_id', contatoId)
+    // Atualizar etiquetas: remover todas e reinserir
+    await db
+      .delete(contatoEtiquetas)
+      .where(eq(contatoEtiquetas.contato_id, contatoId))
 
-    if (removeAssociacoesError) {
-      console.error('API /api/contatos/[id] (PUT): Erro ao remover associações de etiquetas:', removeAssociacoesError)
-    } else {
-      if (tags && tags.length > 0) {
-        console.log('API /api/contatos/[id] (PUT): Associando novas etiquetas:', tags)
+    if (tags && tags.length > 0) {
+      console.log('API /api/contatos/[id] (PUT): Associando novas etiquetas:', tags)
 
-        const { data: etiquetasExistentes, error: etiquetasError } = await client
-          .from('etiquetas')
-          .select('id, nome')
-          .eq('empresa_id', userData.empresa_id)
-          .in('nome', tags)
+      try {
+        const etiquetasExistentes = await db
+          .select({ id: etiquetas.id, nome: etiquetas.nome })
+          .from(etiquetas)
+          .where(and(eq(etiquetas.empresa_id, userData.empresa_id), inArray(etiquetas.nome, tags)))
 
-        if (etiquetasError) {
-          console.error('API /api/contatos/[id] (PUT): Erro ao buscar etiquetas:', etiquetasError)
-        } else if (etiquetasExistentes && etiquetasExistentes.length > 0) {
-          const associacoesEtiquetas = etiquetasExistentes.map((etiqueta: any) => ({
+        if (etiquetasExistentes.length > 0) {
+          const associacoes = etiquetasExistentes.map(etiqueta => ({
             contato_id: contatoId,
             etiqueta_id: etiqueta.id
           }))
 
-          const { error: associacaoError } = await client
-            .from('contato_etiquetas')
-            .insert(associacoesEtiquetas as any)
-
-          if (associacaoError) {
-            console.error('API /api/contatos/[id] (PUT): Erro ao associar etiquetas:', associacaoError)
-          } else {
-            console.log('API /api/contatos/[id] (PUT): Etiquetas associadas com sucesso')
-          }
+          await db.insert(contatoEtiquetas).values(associacoes)
+          console.log('API /api/contatos/[id] (PUT): Etiquetas associadas com sucesso')
         }
+      } catch (etiquetaErr) {
+        console.error('API /api/contatos/[id] (PUT): Erro ao associar etiquetas:', etiquetaErr)
       }
     }
 
-    // Buscar contato completo com etiquetas para retornar
-    const { data: contatoCompletoResponse, error: buscaError } = await client
-      .from('contatos')
-      .select(`
-        id,
-        nome,
-        sobrenome,
-        email,
-        telefone,
-        cidade,
-        pais,
-        biografia,
-        empresa,
-        endereco,
-        empresa_id,
-        created_at,
-        updated_at,
-        contato_etiquetas (
-          etiqueta_id,
-          etiquetas (
-            id,
-            nome,
-            cor
-          )
-        )
-      `)
-      .eq('id', contatoId)
-      .single()
+    // Buscar contato completo atualizado com etiquetas
+    const contatoAtualizado = await db
+      .select()
+      .from(contatos)
+      .where(eq(contatos.id, contatoId))
+      .limit(1)
+      .then(r => r[0])
 
-    const contatoCompleto = contatoCompletoResponse as any
+    const tagsLinks = await db
+      .select({
+        etiqueta_id: contatoEtiquetas.etiqueta_id,
+        nome: etiquetas.nome,
+        cor: etiquetas.cor
+      })
+      .from(contatoEtiquetas)
+      .innerJoin(etiquetas, eq(contatoEtiquetas.etiqueta_id, etiquetas.id))
+      .where(eq(contatoEtiquetas.contato_id, contatoId))
 
-    if (buscaError) {
-      console.error('API /api/contatos/[id] (PUT): Erro ao buscar contato completo:', buscaError)
+    const contatoFormatado = {
+      ...contatoAtualizado,
+      tags: tagsLinks.map(t => ({
+        id: t.etiqueta_id,
+        name: t.nome,
+        color: t.cor
+      })),
+      name: contatoAtualizado?.nome,
+      lastName: contatoAtualizado?.sobrenome || '',
+      phone: contatoAtualizado?.telefone,
+      country: contatoAtualizado?.pais || '',
+      company: contatoAtualizado?.empresa || '',
+      address: contatoAtualizado?.endereco || '',
+      city: contatoAtualizado?.cidade || '',
+      biography: contatoAtualizado?.biografia || '',
+      lastContact: contatoAtualizado?.created_at
     }
-
-    // Helper para formatar
-    const formatContact = (c: any) => ({
-      ...c,
-      tags: c.contato_etiquetas
-        ?.filter((ce: any) => ce.etiquetas)
-        ?.map((ce: any) => ({
-          id: ce.etiquetas.id,
-          name: ce.etiquetas.nome,
-          color: ce.etiquetas.cor
-        })) || [],
-      name: c.nome,
-      lastName: c.sobrenome || '',
-      phone: c.telefone,
-      country: c.pais || '',
-      company: c.empresa || '',
-      address: c.endereco || '',
-      city: c.cidade || '',
-      biography: c.biografia || '',
-      lastContact: c.created_at
-    })
-
-    const contatoFormatado = contatoCompleto 
-      ? formatContact(contatoCompleto)
-      : formatContact({ ...contatoAtualizado, contato_etiquetas: [] })
 
     console.log('API /api/contatos/[id] (PUT): Contato atualizado com sucesso')
 

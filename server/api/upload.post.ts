@@ -1,4 +1,4 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { uploadFile } from '~/server/lib/storage'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,31 +14,15 @@ export default defineEventHandler(async (event) => {
 
     const file = files[0] // Assuming single file upload
     if (!file.filename) {
-        throw createError({ statusCode: 400, statusMessage: 'Arquivo inválido' })
+      throw createError({ statusCode: 400, statusMessage: 'Arquivo inválido' })
     }
 
     const fileExt = file.filename.split('.').pop()
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
     const filePath = `campaigns/${user.id}/${fileName}`
 
-    const client = serverSupabaseServiceRole(event)
-
-    const { error: uploadError } = await client
-      .storage
-      .from('midias')
-      .upload(filePath, file.data, {
-        contentType: file.type
-      })
-
-    if (uploadError) {
-      console.error('Supabase storage upload error:', uploadError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao fazer upload do arquivo' })
-    }
-
-    const { data: { publicUrl } } = client
-      .storage
-      .from('midias')
-      .getPublicUrl(filePath)
+    const contentType = file.type || 'application/octet-stream'
+    const publicUrl = await uploadFile(filePath, file.data, contentType)
 
     return {
       success: true,
@@ -50,10 +34,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API upload error:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno no upload' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno no upload'
     })
   }
 })
-

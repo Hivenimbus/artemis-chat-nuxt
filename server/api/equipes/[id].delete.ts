@@ -1,48 +1,48 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, equipes } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     const user = event.context.user
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
-    
+
     const id = event.context.params?.id
     if (!id) throw createError({ statusCode: 400, statusMessage: 'ID não fornecido' })
 
-    const client = serverSupabaseServiceRole(event)
-
     // Verificar permissões (se é da mesma empresa)
-    const { data: team, error: fetchError } = await client
-      .from('equipes')
-      .select('empresa_id')
-      .eq('id', id)
-      .single()
+    const team = await db
+      .select({ empresa_id: equipes.empresa_id })
+      .from(equipes)
+      .where(eq(equipes.id, id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (fetchError || !team) {
-       throw createError({ statusCode: 404, statusMessage: 'Equipe não encontrada' })
+    if (!team) {
+      throw createError({ statusCode: 404, statusMessage: 'Equipe não encontrada' })
     }
 
-    const { data: userData } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    // Buscar dados do usuário solicitante
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (userData?.role !== 'superadmin' && userData?.empresa_id !== team.empresa_id) {
       throw createError({ statusCode: 403, statusMessage: 'Sem permissão' })
     }
 
-    const { error } = await client
-      .from('equipes')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw createError({ statusCode: 500, statusMessage: 'Erro ao excluir equipe' })
+    // Excluir equipe
+    await db
+      .delete(equipes)
+      .where(eq(equipes.id, id))
 
     return { success: true }
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }
 })
-

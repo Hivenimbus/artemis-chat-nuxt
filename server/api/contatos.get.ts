@@ -1,10 +1,11 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos, etiquetas, contatoEtiquetas } from '~/server/db/schema'
+import { eq, and, or, inArray, desc, ilike, count } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos: Iniciando requisição')
 
-    // Obter usuário do contexto
     const user = event.context.user
 
     if (!user) {
@@ -17,24 +18,23 @@ export default defineEventHandler(async (event) => {
 
     console.log('API /api/contatos: Usuário autenticado:', user.id)
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/contatos: Erro ao buscar dados do usuário:', error)
+    if (!userData) {
+      console.error('API /api/contatos: Erro ao buscar dados do usuário')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar dados do usuário'
       })
     }
 
-    if (!userData?.empresa_id) {
+    if (!userData.empresa_id) {
       console.error('API /api/contatos: Usuário não possui empresa vinculada')
       throw createError({
         statusCode: 400,
@@ -46,35 +46,24 @@ export default defineEventHandler(async (event) => {
 
     // Obter query parameters para busca e paginação
     const query = getQuery(event)
-    const searchTerm = query.search as string || ''
-    const tagsParam = query.tags as string || ''
+    const searchTerm = (query.search as string) || ''
+    const tagsParam = (query.tags as string) || ''
     const tags = tagsParam ? tagsParam.split(',') : []
     const page = parseInt(query.page as string) || 1
     const limit = parseInt(query.limit as string) || 10
     const offset = (page - 1) * limit
 
-    // Se houver tags selecionadas, fazer pré-consulta para obter IDs dos contatos
-    let contactIdsToFilter: any[] | null = null
-    
+    // Se houver tags selecionadas, buscar IDs dos contatos vinculados
+    let contactIdsToFilter: string[] | null = null
+
     if (tags.length > 0) {
-      // Buscar contatos que possuem QUALQUER UMA das tags selecionadas (OR)
-      const { data: taggedContacts, error: tagError } = await client
-        .from('contato_etiquetas')
-        .select('contato_id')
-        .in('etiqueta_id', tags)
+      const taggedContacts = await db
+        .select({ contato_id: contatoEtiquetas.contato_id })
+        .from(contatoEtiquetas)
+        .where(inArray(contatoEtiquetas.etiqueta_id, tags))
 
-      if (tagError) {
-        console.error('API /api/contatos: Erro ao buscar tags:', tagError)
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Erro ao filtrar por tags'
-        })
-      }
+      contactIdsToFilter = [...new Set(taggedContacts.map(tc => tc.contato_id!).filter(Boolean))]
 
-      // Extrair IDs únicos
-      contactIdsToFilter = [...new Set(taggedContacts?.map(tc => tc.contato_id) || [])]
-      
-      // Se filtrou por tags mas não achou ninguém, pode retornar vazio direto
       if (contactIdsToFilter.length === 0) {
         return {
           success: true,
@@ -95,79 +84,81 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Construir query base
-    let queryBuilder = client
-      .from('contatos')
-      .select(`
-        id,
-        nome,
-        sobrenome,
-        email,
-        telefone,
-        cidade,
-        pais,
-        biografia,
-        empresa,
-        endereco,
-        empresa_id,
-        profile_picture_url,
-        created_at,
-        updated_at,
-        contato_etiquetas (
-          etiqueta_id,
-          etiquetas (
-            id,
-            nome,
-            cor
-          )
-        )
-      `, { count: 'exact' })
-      .eq('empresa_id', userData.empresa_id)
-      .order('created_at', { ascending: false })
+    // Construir condições WHERE
+    const conditions = [eq(contatos.empresa_id, userData.empresa_id)]
 
-    // Aplicar filtro de busca se existir
     if (searchTerm) {
-      queryBuilder = queryBuilder.or(`nome.ilike.%${searchTerm}%,sobrenome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%,empresa.ilike.%${searchTerm}%,cidade.ilike.%${searchTerm}%`)
+      conditions.push(
+        or(
+          ilike(contatos.nome, `%${searchTerm}%`),
+          ilike(contatos.sobrenome, `%${searchTerm}%`),
+          ilike(contatos.email, `%${searchTerm}%`),
+          ilike(contatos.telefone, `%${searchTerm}%`),
+          ilike(contatos.empresa, `%${searchTerm}%`),
+          ilike(contatos.cidade, `%${searchTerm}%`)
+        )!
+      )
     }
 
-    // Aplicar filtro de tags se necessário
     if (contactIdsToFilter !== null) {
-      queryBuilder = queryBuilder.in('id', contactIdsToFilter)
+      conditions.push(inArray(contatos.id, contactIdsToFilter))
     }
 
-    // Aplicar paginação
-    queryBuilder = queryBuilder.range(offset, offset + limit - 1)
+    const whereClause = and(...conditions)
 
-    // Executar query
-    const { data: contatos, error: contatosError, count } = await queryBuilder
+    // Contar total de registros
+    const totalItems = await db
+      .select({ total: count() })
+      .from(contatos)
+      .where(whereClause)
+      .then(r => r[0]?.total ?? 0)
 
-    if (contatosError) {
-      console.error('API /api/contatos: Erro ao buscar contatos:', contatosError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar contatos'
-      })
+    // Buscar contatos com paginação
+    const contatosRows = await db
+      .select()
+      .from(contatos)
+      .where(whereClause)
+      .orderBy(desc(contatos.created_at))
+      .limit(limit)
+      .offset(offset)
+
+    // Buscar etiquetas dos contatos encontrados
+    let tagsByContato: Record<string, any[]> = {}
+
+    if (contatosRows.length > 0) {
+      const contatoIds = contatosRows.map(c => c.id)
+
+      const tagsLinks = await db
+        .select({
+          contato_id: contatoEtiquetas.contato_id,
+          etiqueta_id: contatoEtiquetas.etiqueta_id,
+          nome: etiquetas.nome,
+          cor: etiquetas.cor
+        })
+        .from(contatoEtiquetas)
+        .innerJoin(etiquetas, eq(contatoEtiquetas.etiqueta_id, etiquetas.id))
+        .where(inArray(contatoEtiquetas.contato_id, contatoIds))
+
+      tagsByContato = tagsLinks.reduce((acc, t) => {
+        if (!acc[t.contato_id!]) acc[t.contato_id!] = []
+        acc[t.contato_id!].push({ id: t.etiqueta_id, nome: t.nome, cor: t.cor })
+        return acc
+      }, {} as Record<string, any[]>)
     }
 
-    console.log('API /api/contatos: Contatos encontrados:', contatos?.length || 0)
+    console.log('API /api/contatos: Contatos encontrados:', contatosRows.length)
 
     // Formatar dados para o frontend
-    const contatosFormatados = contatos?.map(contato => {
-      // Extrair tags do relacionamento com informações completas (nome e cor)
-      const tags = contato.contato_etiquetas
-        ?.filter(ce => ce.etiquetas) // Filtrar etiquetas nulas
-        ?.map(ce => ({
-          name: ce.etiquetas.nome,
-          color: ce.etiquetas.cor || '#6B7280' // Cor padrão caso não definida
-        })) || []
-
-      // Remover campo de relacionamento do objeto final
-      const { contato_etiquetas, ...contatoLimpo } = contato
+    const contatosFormatados = contatosRows.map(contato => {
+      const etiquetasContato = (tagsByContato[contato.id] || []).map(e => ({
+        name: e.nome,
+        color: e.cor || '#6B7280'
+      }))
 
       return {
-        ...contatoLimpo,
-        tags,
-        name: contato.nome, // Manter compatibilidade com frontend existente
+        ...contato,
+        tags: etiquetasContato,
+        name: contato.nome,
         lastName: contato.sobrenome || '',
         phone: contato.telefone,
         country: contato.pais || '',
@@ -176,15 +167,14 @@ export default defineEventHandler(async (event) => {
         city: contato.cidade || '',
         biography: contato.biografia || '',
         profilePictureUrl: contato.profile_picture_url || '',
-        lastContact: contato.created_at // Usar created_at como lastContact inicial
+        lastContact: contato.created_at
       }
-    }) || []
+    })
 
     // Calcular informações de paginação
-    const totalItems = count || 0
-    const totalPages = Math.ceil(totalItems / limit)
-    const startItem = totalItems === 0 ? 0 : offset + 1
-    const endItem = Math.min(offset + limit, totalItems)
+    const totalPages = Math.ceil(Number(totalItems) / limit)
+    const startItem = Number(totalItems) === 0 ? 0 : offset + 1
+    const endItem = Math.min(offset + limit, Number(totalItems))
 
     console.log('API /api/contatos: Retornando dados com sucesso')
 
@@ -195,7 +185,7 @@ export default defineEventHandler(async (event) => {
         pagination: {
           page,
           limit,
-          totalItems,
+          totalItems: Number(totalItems),
           totalPages,
           startItem,
           endItem,
@@ -205,15 +195,13 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/contatos: Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

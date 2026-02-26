@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, inboxes } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 const config = useRuntimeConfig()
 
@@ -13,7 +15,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário do contexto (definido no middleware 01-auth-check.ts)
     const user = event.context.user
 
     if (!user) {
@@ -23,18 +24,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role para bypass no RLS e autenticação customizada
-    const client = serverSupabaseServiceRole(event)
+    // Buscar empresa do usuário
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    // Buscar dados do usuário para obter empresa_id e verificar permissões
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
-
-    if (userDataError || !userData?.empresa_id) {
-       console.error('Erro ao buscar dados do usuário:', userDataError)
+    if (!userData?.empresa_id) {
+      console.error('Erro ao buscar dados do usuário')
       throw createError({
         statusCode: 403,
         statusMessage: 'Erro ao verificar permissões do usuário'
@@ -42,14 +41,14 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se o inbox existe e pertence à empresa do usuário
-    const { data: inbox, error: fetchError } = await client
-      .from('inboxes')
-      .select('*')
-      .eq('id', id)
-      .eq('empresa_id', userData.empresa_id) // Garantir que pertence à mesma empresa
-      .single()
+    const inbox = await db
+      .select()
+      .from(inboxes)
+      .where(and(eq(inboxes.id, id), eq(inboxes.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
-    if (fetchError || !inbox) {
+    if (!inbox) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Caixa de entrada não encontrada ou sem permissão'
@@ -61,15 +60,12 @@ export default defineEventHandler(async (event) => {
       const response = await $fetch(`${config.evolutionApiUrl}/instance/status`, {
         method: 'GET',
         headers: {
-          'apikey': id // Usar o ID da instância
+          'apikey': id
         }
       })
 
-      // Mapear resposta do novo endpoint (PascalCase)
-      // Connected: true, LoggedIn: true -> Conectado
-      const instanceData = response.data || {}
-      
-      // Suporte a ambos formatos (camelCase antigo e PascalCase novo)
+      const instanceData = (response as any).data || {}
+
       const connected = instanceData.Connected === true || instanceData.connected === true
       const loggedIn = instanceData.LoggedIn === true || instanceData.loggedIn === true
       const name = instanceData.Name || instanceData.name
@@ -77,64 +73,38 @@ export default defineEventHandler(async (event) => {
       const isConnected = connected && loggedIn
       const state = isConnected ? 'open' : (connected ? 'connecting' : 'closed')
 
-      // Se conectou, atualizar no Supabase
+      // Atualizar status no banco se mudou
       if (isConnected && inbox.status !== 'connected') {
-        try {
-          await client
-            .from('inboxes')
-            .update({
-              status: 'connected',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-        } catch (updateError) {
-          console.error('Erro ao atualizar status no Supabase:', updateError)
-          // Não falhar, apenas logar o erro
-        }
-      } 
-      // Se desconectou (e estava conectado), atualizar no Supabase
-      else if (!isConnected && inbox.status === 'connected') {
-        try {
-          await client
-            .from('inboxes')
-            .update({
-              status: 'disconnected',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-        } catch (updateError) {
-          console.error('Erro ao atualizar status (disconnected) no Supabase:', updateError)
-        }
+        await db
+          .update(inboxes)
+          .set({ status: 'connected', updated_at: new Date() })
+          .where(eq(inboxes.id, id))
+      } else if (!isConnected && inbox.status === 'connected') {
+        await db
+          .update(inboxes)
+          .set({ status: 'disconnected', updated_at: new Date() })
+          .where(eq(inboxes.id, id))
       }
 
       return {
         success: true,
         data: {
-          state: state,
+          state,
           connected: isConnected,
           instanceName: name
         }
       }
 
-    } catch (evolutionError) {
+    } catch (evolutionError: any) {
       console.error('Erro ao buscar status na Evolution API:', evolutionError)
 
-      // Se a instância não for encontrada, considera desconectado
       if (evolutionError.response?.status === 404 || evolutionError.response?.status === 403) {
-        
-        // Se estava marcado como conectado no banco, atualizar para desconectado
+        // Se estava marcado como conectado, atualizar para desconectado
         if (inbox.status === 'connected') {
-            try {
-              await client
-                .from('inboxes')
-                .update({
-                  status: 'disconnected',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', id)
-            } catch (updateError) {
-              console.error('Erro ao atualizar status (not_found) no Supabase:', updateError)
-            }
+          await db
+            .update(inboxes)
+            .set({ status: 'disconnected', updated_at: new Date() })
+            .where(eq(inboxes.id, id))
         }
 
         return {
@@ -147,22 +117,19 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Outros erros
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao verificar status da conexão'
       })
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no handler de status de conexão:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

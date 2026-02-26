@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { campaignAttachments } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,24 +10,25 @@ export default defineEventHandler(async (event) => {
     }
 
     const id = getRouterParam(event, 'id')
+    if (!id) {
+      throw createError({ statusCode: 400, statusMessage: 'ID do anexo é obrigatório' })
+    }
+
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
     // Verify ownership and update
-    const { data: attachment, error: updateError } = await client
-      .from('campaign_attachments')
-      .update({
-        caption: body.caption,
-        updated_at: new Date().toISOString()
+    const attachment = await db
+      .update(campaignAttachments)
+      .set({
+        caption: body.caption || null,
+        updated_at: new Date()
       })
-      .eq('id', id)
-      .eq('user_id', user.id) // Ensure user owns it
-      .select()
-      .single()
+      .where(and(eq(campaignAttachments.id, id), eq(campaignAttachments.user_id, user.id)))
+      .returning()
+      .then(r => r[0])
 
-    if (updateError) {
-      console.error('Error updating attachment:', updateError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar anexo' })
+    if (!attachment) {
+      throw createError({ statusCode: 404, statusMessage: 'Anexo não encontrado' })
     }
 
     return {
@@ -35,10 +38,9 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API attachments/[id].put:', error)
-    throw createError({ 
-      statusCode: error.statusCode || 500, 
-      statusMessage: error.statusMessage || 'Erro interno ao atualizar anexo' 
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Erro interno ao atualizar anexo'
     })
   }
 })
-

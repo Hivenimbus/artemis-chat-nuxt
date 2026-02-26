@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, equipes, inboxTeams } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,60 +14,53 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Dados incompletos' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Verificar permissão
-    const { data: requestorData } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const requestorData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (requestorData?.empresa_id !== empresa_id) {
-       // Se for superadmin pode tudo, mas aqui vamos assumir validação básica
-       // TODO: Melhorar validação de superadmin se necessário
-       if (user.role !== 'superadmin') {
-         throw createError({ statusCode: 403, statusMessage: 'Sem permissão para esta empresa' })
-       }
+      if (user.role !== 'superadmin') {
+        throw createError({ statusCode: 403, statusMessage: 'Sem permissão para esta empresa' })
+      }
     }
 
     // Criar equipe
-    const { data: newTeam, error } = await client
-      .from('equipes')
-      .insert({
+    const newTeam = await db
+      .insert(equipes)
+      .values({
         nome,
-        descricao,
         empresa_id
       })
-      .select()
-      .single()
+      .returning()
+      .then(r => r[0])
 
-    if (error) {
-      console.error('Erro ao criar equipe:', error)
+    if (!newTeam) {
+      console.error('Erro ao criar equipe: nenhum registro retornado')
       throw createError({ statusCode: 500, statusMessage: 'Erro ao criar equipe' })
     }
 
     // Associar caixas de entrada se fornecidas
     if (inbox_ids && Array.isArray(inbox_ids) && inbox_ids.length > 0) {
-      const inboxTeams = inbox_ids.map((inboxId: string) => ({
+      const inboxTeamRows = inbox_ids.map((inboxId: string) => ({
         equipe_id: newTeam.id,
         inbox_id: inboxId
       }))
-      
-      const { error: inboxError } = await client
-        .from('inbox_teams')
-        .insert(inboxTeams)
 
-      if (inboxError) {
+      try {
+        await db.insert(inboxTeams).values(inboxTeamRows)
+      } catch (inboxError) {
         console.error('Erro ao associar inboxes à equipe:', inboxError)
       }
     }
 
     return { success: true, data: newTeam }
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }
 })
-

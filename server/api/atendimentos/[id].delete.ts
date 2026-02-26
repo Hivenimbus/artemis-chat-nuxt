@@ -1,11 +1,12 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
-import { createServiceSupabaseClient } from '~/lib/evolution'
+import { db } from '~/server/db'
+import { users, atendimentos, inboxes, contatos, mensagens } from '~/server/db/schema'
+import { eq, isNotNull } from 'drizzle-orm'
+import { deleteFile } from '~/server/lib/storage'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/atendimentos/[id].delete: Iniciando exclusão de atendimento')
 
-    // Obter usuário autenticado do contexto
     const user = event.context.user
 
     if (!user) {
@@ -15,9 +16,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
-    // Obter ID do atendimento
     const atendimentoId = getRouterParam(event, 'id')
     if (!atendimentoId) {
       throw createError({
@@ -26,16 +24,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter dados do usuário (para verificar empresa)
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    // Obter dados do usuário
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    const userEmpresaId = (userData as any)?.empresa_id
-
-    if (userDataError || !userEmpresaId) {
+    if (!userData?.empresa_id) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não está associado a nenhuma empresa'
@@ -43,20 +40,18 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se atendimento existe e pertence à empresa
-    const { data: atendimento, error: atendimentoError } = await client
-      .from('atendimentos')
-      .select(`
-        id,
-        inboxes!inner (
-          empresa_id
-        )
-      `)
-      .eq('id', atendimentoId)
-      .single()
+    const atendimento = await db
+      .select({
+        id: atendimentos.id,
+        inbox_empresa_id: inboxes.empresa_id
+      })
+      .from(atendimentos)
+      .leftJoin(inboxes, eq(atendimentos.inbox_id, inboxes.id))
+      .where(eq(atendimentos.id, atendimentoId))
+      .limit(1)
+      .then(r => r[0])
 
-    const atendimentoData = atendimento as any
-
-    if (atendimentoError || !atendimentoData || atendimentoData.inboxes?.empresa_id !== userEmpresaId) {
+    if (!atendimento || atendimento.inbox_empresa_id !== userData.empresa_id) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa'
@@ -64,98 +59,63 @@ export default defineEventHandler(async (event) => {
     }
 
     // 1. Buscar mensagens com mídia para exclusão do storage
-    const { data: mensagensComMidia, error: midiaError } = await client
-      .from('mensagens')
-      .select('media_url')
-      .eq('atendimento_id', atendimentoId)
-      .not('media_url', 'is', null)
+    const mensagensComMidia = await db
+      .select({ media_url: mensagens.media_url })
+      .from(mensagens)
+      .where(eq(mensagens.atendimento_id, atendimentoId))
 
-    if (midiaError) {
-      console.error('Erro ao buscar mídias do atendimento:', midiaError)
-      // Não paramos aqui, tentamos excluir o resto
-    }
+    const mensagensComMidiaFiltradas = mensagensComMidia.filter(m => m.media_url)
 
     // 2. Excluir arquivos do Storage
-    if (mensagensComMidia && mensagensComMidia.length > 0) {
+    if (mensagensComMidiaFiltradas.length > 0) {
       const pathsToDelete: string[] = []
-      
-      mensagensComMidia.forEach((msg: any) => {
+
+      for (const msg of mensagensComMidiaFiltradas) {
         if (msg.media_url) {
           try {
-            // URL típica: .../storage/v1/object/public/midias/EMPRESA_ID/ARQUIVO
-            // Queremos extrair tudo depois de "midias/"
             const urlParts = msg.media_url.split('/midias/')
             if (urlParts.length > 1) {
-              // O path é a segunda parte
-              // Decode URI component para lidar com espaços e caracteres especiais
               const path = decodeURIComponent(urlParts[1])
               pathsToDelete.push(path)
-              console.log(`🔍 Path identificado para exclusão: ${path} (URL: ${msg.media_url})`)
+              console.log(`Path identificado para exclusão: ${path}`)
             } else {
-              console.warn(`⚠️ Não foi possível extrair path da URL: ${msg.media_url}`)
+              console.warn(`Não foi possível extrair path da URL: ${msg.media_url}`)
             }
           } catch (e) {
             console.error('Erro ao extrair path da mídia:', msg.media_url, e)
           }
         }
-      })
+      }
 
       if (pathsToDelete.length > 0) {
-        console.log(`🗑️ Tentando excluir ${pathsToDelete.length} arquivos do storage midias`)
-        
-        // Usar Service Role Client para garantir permissão de exclusão
-        const adminClient = createServiceSupabaseClient()
-        
-        const { error: storageError, data: storageData } = await adminClient.storage
-          .from('midias')
-          .remove(pathsToDelete)
-
-        if (storageError) {
-          console.error('❌ Erro ao excluir arquivos do storage:', storageError)
-        } else {
-          console.log('✅ Arquivos excluídos do storage com sucesso:', storageData)
+        console.log(`Tentando excluir ${pathsToDelete.length} arquivos do storage midias`)
+        for (const path of pathsToDelete) {
+          try {
+            await deleteFile(path)
+          } catch (e) {
+            console.error('Erro ao excluir arquivo do storage:', path, e)
+          }
         }
       }
     }
 
     // 3. Desvincular contato (limpar ultimo_atendimento_id)
-    // Isso evita erro de FK na tabela contatos
-    const { error: updateContactError } = await client
-      .from('contatos')
-      // @ts-ignore
-      .update({ ultimo_atendimento_id: null })
-      .eq('ultimo_atendimento_id', atendimentoId)
-
-    if (updateContactError) {
-      console.error('Erro ao desvincular contato:', updateContactError)
-      // Se der erro aqui, provavelmente vai dar erro no delete do atendimento, mas seguimos
-    }
+    await db
+      .update(contatos)
+      .set({ ultimo_atendimento_id: null })
+      .where(eq(contatos.ultimo_atendimento_id, atendimentoId))
 
     // 4. Excluir mensagens vinculadas
-    const { error: deleteMessagesError } = await client
-      .from('mensagens')
-      .delete()
-      .eq('atendimento_id', atendimentoId)
-
-    if (deleteMessagesError) {
-      console.error('Erro ao excluir mensagens do atendimento:', deleteMessagesError)
-    }
+    await db
+      .delete(mensagens)
+      .where(eq(mensagens.atendimento_id, atendimentoId))
 
     // 5. Excluir o atendimento
-    const { error: deleteError } = await client
-      .from('atendimentos')
-      .delete()
-      .eq('id', atendimentoId)
+    await db
+      .delete(atendimentos)
+      .where(eq(atendimentos.id, atendimentoId))
 
-    if (deleteError) {
-      console.error('Erro ao excluir atendimento:', deleteError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao excluir atendimento do banco de dados: ' + deleteError.message
-      })
-    }
-
-    console.log(`✅ Atendimento ${atendimentoId} excluído com sucesso`)
+    console.log(`Atendimento ${atendimentoId} excluído com sucesso`)
 
     return {
       success: true,
@@ -164,7 +124,7 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('API /api/atendimentos/[id].delete: Erro:', error)
-    
+
     if (error.statusCode) {
       throw error
     }

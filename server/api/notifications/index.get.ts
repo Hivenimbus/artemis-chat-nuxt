@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { notifications } from '~/server/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,23 +9,16 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
-    const { data, error } = await client
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    const data = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.user_id, user.id))
+      .orderBy(desc(notifications.created_at))
       .limit(50)
-
-    if (error) {
-      console.error('Error fetching notifications:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao buscar notificações' })
-    }
 
     return {
       success: true,
-      data: data || []
+      data
     }
 
   } catch (error) {
@@ -31,4 +26,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

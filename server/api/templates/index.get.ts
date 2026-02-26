@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { messageTemplates } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,19 +9,14 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
+    // Get user's template (draft); return null if none exists
+    const rows = await db
+      .select({ content: messageTemplates.content })
+      .from(messageTemplates)
+      .where(eq(messageTemplates.user_id, user.id))
+      .limit(1)
 
-    // Get user's template (draft)
-    const { data: template, error } = await client
-      .from('message_templates')
-      .select('content')
-      .eq('user_id', user.id)
-      .single()
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error('Error fetching template:', error)
-      // Don't throw error, just return null if fetch failed (might be no template)
-    }
+    const template = rows.length > 0 ? rows[0] : null
 
     return {
       success: true,
@@ -35,4 +32,3 @@ export default defineEventHandler(async (event) => {
     }
   }
 })
-

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, atendimentos, inboxes, contatos, mensagens } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -24,38 +26,36 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Obter dados do usuário
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    const [userData] = await db.select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
 
-    if (userDataError || !userData?.empresa_id) {
-      console.error('API /api/atendimentos/[id]/assign: Usuário sem empresa:', userDataError)
+    if (!userData?.empresa_id) {
+      console.error('API /api/atendimentos/[id]/assign: Usuário sem empresa')
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não está associado a nenhuma empresa'
       })
     }
 
-    // Verificar se atendimento existe e pertence à empresa
-    const { data: atendimento, error: atendimentoError } = await client
-      .from('atendimentos')
-      .select(`
-        id,
-        status,
-        usuario_responsavel_id,
-        inboxes!inner (
-          empresa_id
-        )
-      `)
-      .eq('id', atendimentoId)
-      .single()
+    // Verificar se atendimento existe e pertence à empresa (via inbox)
+    const [atendimento] = await db
+      .select({
+        id: atendimentos.id,
+        status: atendimentos.status,
+        usuario_responsavel_id: atendimentos.usuario_responsavel_id,
+        inbox_id: atendimentos.inbox_id,
+        contato_id: atendimentos.contato_id,
+        empresa_id: inboxes.empresa_id
+      })
+      .from(atendimentos)
+      .innerJoin(inboxes, eq(atendimentos.inbox_id, inboxes.id))
+      .where(eq(atendimentos.id, atendimentoId))
+      .limit(1)
 
-    if (atendimentoError || !atendimento || atendimento.inboxes.empresa_id !== userData.empresa_id) {
+    if (!atendimento || atendimento.empresa_id !== userData.empresa_id) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa'
@@ -65,16 +65,15 @@ export default defineEventHandler(async (event) => {
     // Verificar se foi fornecido um ID de usuário alvo para transferência
     const body = await readBody(event).catch(() => ({}))
     const targetUserId = body?.userId || user.id
-    
+
     // Verificar se o usuário alvo existe e pertence à mesma empresa (se for diferente do usuário atual)
     if (targetUserId !== user.id) {
-      const { data: targetUser, error: targetError } = await client
-        .from('users')
-        .select('id, empresa_id')
-        .eq('id', targetUserId)
-        .single()
-        
-      if (targetError || !targetUser || targetUser.empresa_id !== userData.empresa_id) {
+      const [targetUser] = await db.select({ id: users.id, empresa_id: users.empresa_id })
+        .from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1)
+
+      if (!targetUser || targetUser.empresa_id !== userData.empresa_id) {
         throw createError({
           statusCode: 400,
           statusMessage: 'Usuário de destino inválido ou de outra empresa'
@@ -83,54 +82,33 @@ export default defineEventHandler(async (event) => {
     }
 
     // Atualizar atendimento
-    const { data: atendimentoAtualizado, error: updateError } = await client
-      .from('atendimentos')
-      .update({
+    const now = new Date().toISOString()
+    const [atendimentoAtualizado] = await db.update(atendimentos)
+      .set({
         usuario_responsavel_id: targetUserId,
         status: 'ativo',
-        data_atribuicao: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        data_atribuicao: new Date(now),
+        updated_at: new Date(now)
       })
-      .eq('id', atendimentoId)
-      .select(`
-        id,
-        contato_id,
-        inbox_id,
-        usuario_responsavel_id,
-        status,
-        ultimo_mensagem,
-        ultimo_mensagem_time,
-        unread_count,
-        data_atribuicao,
-        created_at,
-        updated_at,
-        contatos!atendimentos_contato_id_fkey (
-          id,
-          nome,
-          telefone,
-          email,
-          empresa
-        ),
-        inboxes (
-          id,
-          name,
-          description
-        ),
-        users!atendimentos_usuario_responsavel_id_fkey (
-          id,
-          name,
-          email
-        )
-      `)
-      .single()
+      .where(eq(atendimentos.id, atendimentoId))
+      .returning()
 
-    if (updateError) {
-      console.error('API /api/atendimentos/[id]/assign: Erro ao atribuir atendimento:', updateError)
+    if (!atendimentoAtualizado) {
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao atribuir atendimento'
       })
     }
+
+    // Buscar dados relacionados
+    const [[contato], [inbox], [responsavel]] = await Promise.all([
+      db.select({ id: contatos.id, nome: contatos.nome, telefone: contatos.telefone, email: contatos.email, empresa: contatos.empresa })
+        .from(contatos).where(eq(contatos.id, atendimentoAtualizado.contato_id!)).limit(1),
+      db.select({ id: inboxes.id, name: inboxes.name, description: inboxes.description })
+        .from(inboxes).where(eq(inboxes.id, atendimentoAtualizado.inbox_id!)).limit(1),
+      db.select({ id: users.id, name: users.name, email: users.email })
+        .from(users).where(eq(users.id, atendimentoAtualizado.usuario_responsavel_id!)).limit(1)
+    ])
 
     console.log('API /api/atendimentos/[id]/assign: Atendimento atribuído com sucesso:', atendimentoId)
 
@@ -139,18 +117,18 @@ export default defineEventHandler(async (event) => {
       id: atendimentoAtualizado.id,
       contato_id: atendimentoAtualizado.contato_id,
       inbox_id: atendimentoAtualizado.inbox_id,
-      name: atendimentoAtualizado.contatos?.nome || 'Contato',
-      phone: atendimentoAtualizado.contatos?.telefone || '',
-      email: atendimentoAtualizado.contatos?.email || '',
-      company: atendimentoAtualizado.contatos?.empresa || '',
+      name: contato?.nome || 'Contato',
+      phone: contato?.telefone || '',
+      email: contato?.email || '',
+      company: contato?.empresa || '',
       lastMessage: atendimentoAtualizado.ultimo_mensagem || '',
-      lastMessageTime: atendimentoAtualizado.ultimo_mensagem_time ? new Date(atendimentoAtualizado.ultimo_mensagem_time) : new Date(atendimentoAtualizado.created_at),
+      lastMessageTime: atendimentoAtualizado.ultimo_mensagem_time ? new Date(atendimentoAtualizado.ultimo_mensagem_time) : new Date(atendimentoAtualizado.created_at!),
       unreadCount: atendimentoAtualizado.unread_count || 0,
       status: atendimentoAtualizado.status,
       caixa_entrada: atendimentoAtualizado.inbox_id,
-      inbox_name: atendimentoAtualizado.inboxes?.name || 'Sem caixa',
+      inbox_name: inbox?.name || 'Sem caixa',
       usuario_responsavel_id: atendimentoAtualizado.usuario_responsavel_id,
-      responsavel_name: atendimentoAtualizado.users?.name || null,
+      responsavel_name: responsavel?.name || null,
       data_atribuicao: atendimentoAtualizado.data_atribuicao,
       created_at: atendimentoAtualizado.created_at,
       updated_at: atendimentoAtualizado.updated_at,
@@ -164,15 +142,13 @@ export default defineEventHandler(async (event) => {
       message: 'Atendimento atribuído com sucesso'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/atendimentos/[id]/assign: Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

@@ -47,11 +47,11 @@ export default defineEventHandler(async (event) => {
       headers: {
         'Authorization': `Bearer ${config.openrouterApiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': config.public.siteUrl, // Opcional, mas recomendado pelo OpenRouter
-        'X-Title': 'MULTICONEX' // Opcional
+        'HTTP-Referer': config.public.siteUrl,
+        'X-Title': 'MULTICONEX'
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview', // Modelo atualizado para Gemini Flash
+        model: 'google/gemini-3-flash-preview',
         messages: [
           {
             role: 'system',
@@ -80,7 +80,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: cleanResult
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na geração de IA:', error)
     throw createError({
       statusCode: 500,
@@ -88,4 +88,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, agendamentos, agendamentoContatos } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,16 +10,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const client = serverSupabaseServiceRole(event)
 
     // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
@@ -26,27 +28,22 @@ export default defineEventHandler(async (event) => {
       empresa_id: userData.empresa_id,
       user_id: user.id,
       title: body.title,
-      description: body.description,
-      start_time: body.start_time,
-      end_time: body.end_time,
+      description: body.description || null,
+      start_time: new Date(body.start_time),
+      end_time: body.end_time ? new Date(body.end_time) : null,
       type: body.type,
       status: body.status || 'scheduled',
-      message_text: body.message_text,
+      message_text: body.message_text || null,
       inbox_id: body.inbox_id || null,
-      color: body.color
+      color: body.color || null
     }
 
     // Insert agendamento
-    const { data: agendamento, error: insertError } = await client
-      .from('agendamentos')
-      .insert(agendamentoData)
-      .select()
-      .single()
-
-    if (insertError) {
-      console.error('Error creating agendamento:', insertError)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agendamento' })
-    }
+    const agendamento = await db
+      .insert(agendamentos)
+      .values(agendamentoData)
+      .returning()
+      .then(r => r[0])
 
     // Link contacts if provided
     if (body.contact_ids && Array.isArray(body.contact_ids) && body.contact_ids.length > 0) {
@@ -55,11 +52,9 @@ export default defineEventHandler(async (event) => {
         contato_id: contactId
       }))
 
-      const { error: linksError } = await client
-        .from('agendamento_contatos')
-        .insert(contactLinks)
-
-      if (linksError) {
+      try {
+        await db.insert(agendamentoContatos).values(contactLinks)
+      } catch (linksError) {
         console.error('Error linking contacts:', linksError)
         // Note: The agendamento was created, but contacts failed.
         // We could delete the agendamento here or just return a warning.
@@ -76,4 +71,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

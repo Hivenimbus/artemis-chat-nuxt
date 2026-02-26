@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, equipes, inboxTeams } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -11,77 +13,61 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { nome, descricao, inbox_ids } = body
 
-    const client = serverSupabaseServiceRole(event)
-
     // Verificar se equipe existe e pertence à empresa do usuário
-    const { data: teamData, error: fetchError } = await client
-      .from('equipes')
-      .select('empresa_id')
-      .eq('id', id)
-      .single()
-      
-    if (fetchError || !teamData) {
-       throw createError({ statusCode: 404, statusMessage: 'Equipe não encontrada' })
+    const teamData = await db
+      .select({ empresa_id: equipes.empresa_id })
+      .from(equipes)
+      .where(eq(equipes.id, id))
+      .limit(1)
+      .then(r => r[0])
+
+    if (!teamData) {
+      throw createError({ statusCode: 404, statusMessage: 'Equipe não encontrada' })
     }
 
-    const { data: userData } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    // Buscar dados do usuário solicitante
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
     if (userData?.role !== 'superadmin' && userData?.empresa_id !== teamData.empresa_id) {
       throw createError({ statusCode: 403, statusMessage: 'Sem permissão' })
     }
 
     // Atualizar equipe
-    const { error } = await client
-      .from('equipes')
-      .update({ 
-        nome, 
-        descricao,
-        updated_at: new Date().toISOString()
+    await db
+      .update(equipes)
+      .set({
+        nome,
+        updated_at: new Date()
       })
-      .eq('id', id)
-
-    if (error) throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar equipe' })
+      .where(eq(equipes.id, id))
 
     // Atualizar associações de inboxes se fornecido
     if (inbox_ids && Array.isArray(inbox_ids)) {
       // Remover associações existentes
-      const { error: deleteError } = await client
-        .from('inbox_teams')
-        .delete()
-        .eq('equipe_id', id)
+      await db
+        .delete(inboxTeams)
+        .where(eq(inboxTeams.equipe_id, id))
 
-      if (deleteError) {
-        console.error('Erro ao limpar inboxes da equipe:', deleteError)
-        throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar associações de inboxes' })
-      }
-
-      // Inserir novas
+      // Inserir novas associações
       if (inbox_ids.length > 0) {
-        const inboxTeams = inbox_ids.map((inboxId: string) => ({
+        const inboxTeamRows = inbox_ids.map((inboxId: string) => ({
           equipe_id: id,
           inbox_id: inboxId
         }))
-        
-        const { error: insertError } = await client
-          .from('inbox_teams')
-          .insert(inboxTeams)
 
-        if (insertError) {
-          console.error('Erro ao adicionar inboxes à equipe:', insertError)
-          throw createError({ statusCode: 500, statusMessage: 'Erro ao atualizar associações de inboxes' })
-        }
+        await db.insert(inboxTeams).values(inboxTeamRows)
       }
     }
 
     return { success: true }
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno' })
   }
 })
-

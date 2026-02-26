@@ -809,7 +809,7 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const supabase = useSupabaseClient()
+
 const { userData } = useUser()
 const { confirm } = useConfirm()
 
@@ -951,22 +951,16 @@ const selectKanban = (id) => {
 // Carregar kanbans do usuário
 const loadKanbans = async () => {
   try {
-    const { data, error } = await supabase
-      .from('kanbans')
-      .select('*')
-      .order('created_at', { ascending: true })
-
-    if (error) throw error
-    kanbans.value = data || []
+    const response = await $fetch('/api/kanbans')
+    kanbans.value = (response.data || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 
     // Selecionar primeiro kanban se não houver nenhum selecionado
     if (!currentKanbanId.value && kanbans.value.length > 0) {
       currentKanbanId.value = kanbans.value[0].id
       await loadKanbanData()
     }
-  } catch (error) {
-    console.error('Error loading kanbans:', error)
-    error.value = 'Erro ao carregar kanbans'
+  } catch (err) {
+    console.error('Error loading kanbans:', err)
     showNotification('Erro ao carregar seus kanbans. Tente recarregar a página.', 'error')
   }
 }
@@ -977,30 +971,11 @@ const loadKanbanData = async () => {
 
   try {
     loading.value = true
-
-    // Carregar colunas
-    const { data: columnsData, error: columnsError } = await supabase
-      .from('kanban_columns')
-      .select('*')
-      .eq('kanban_id', currentKanbanId.value)
-      .order('position', { ascending: true })
-
-    if (columnsError) throw columnsError
-    columns.value = columnsData || []
-
-    // Carregar cards
-    const { data: cardsData, error: cardsError } = await supabase
-      .from('kanban_cards')
-      .select('*')
-      .eq('kanban_id', currentKanbanId.value)
-      .order('position', { ascending: true })
-
-    if (cardsError) throw cardsError
-    cards.value = cardsData || []
-
-  } catch (error) {
-    console.error('Error loading kanban data:', error)
-    error.value = 'Erro ao carregar dados do kanban'
+    const response = await $fetch(`/api/kanbans/${currentKanbanId.value}`)
+    columns.value = (response.data?.columns || []).sort((a, b) => a.position - b.position)
+    cards.value = (response.data?.cards || []).sort((a, b) => a.position - b.position)
+  } catch (err) {
+    console.error('Error loading kanban data:', err)
   } finally {
     loading.value = false
   }
@@ -1027,25 +1002,15 @@ const confirmEditKanban = async () => {
 
   try {
     savingEditKanban.value = true
-    const { error } = await supabase
-      .from('kanbans')
-      .update({
-        title: name.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-
-    if (error) throw error
+    await $fetch(`/api/kanbans/${id}`, { method: 'PATCH', body: { title: name.trim() } })
 
     const kanban = kanbans.value.find(k => k.id === id)
-    if (kanban) {
-      kanban.title = name.trim()
-    }
+    if (kanban) kanban.title = name.trim()
     
     closeEditKanbanModal()
     showNotification('Kanban atualizado com sucesso.', 'success')
-  } catch (error) {
-    console.error('Error updating kanban:', error)
+  } catch (err) {
+    console.error('Error updating kanban:', err)
     showNotification('Erro ao atualizar kanban. Tente novamente.', 'error')
   } finally {
     savingEditKanban.value = false
@@ -1079,31 +1044,22 @@ const confirmDeleteKanban = async () => {
 
   try {
     deletingKanban.value = true
-    const { error } = await supabase
-      .from('kanbans')
-      .delete()
-      .eq('id', kanbanId)
-
-    if (error) throw error
+    await $fetch(`/api/kanbans/${kanbanId}`, { method: 'DELETE' })
 
     // Remove kanban from local state
     const index = kanbans.value.findIndex(k => k.id === kanbanId)
-    if (index > -1) {
-      kanbans.value.splice(index, 1)
-    }
+    if (index > -1) kanbans.value.splice(index, 1)
 
     // If current kanban was deleted, switch to first available
     if (currentKanbanId.value === kanbanId) {
       currentKanbanId.value = kanbans.value[0]?.id || null
-      if (currentKanbanId.value) {
-        await loadKanbanData()
-      }
+      if (currentKanbanId.value) await loadKanbanData()
     }
 
     closeDeleteKanbanModal()
     showNotification('Kanban excluído com sucesso.', 'success')
-  } catch (error) {
-    console.error('Error deleting kanban:', error)
+  } catch (err) {
+    console.error('Error deleting kanban:', err)
     showNotification('Erro ao excluir kanban. Tente novamente.', 'error')
   } finally {
     deletingKanban.value = false
@@ -1204,53 +1160,33 @@ const saveKanban = async () => {
   try {
     savingKanban.value = true
 
-    if (!userData.value?.empresa_id) {
-      throw new Error('Usuário não vinculado a uma empresa')
-    }
-
-    // Create new kanban
-    const { data: newKanban, error: kanbanError } = await supabase
-      .from('kanbans')
-      .insert({
-        title: kanbanForm.value.name.trim(),
-        description: null,
-        empresa_id: userData.value.empresa_id,
-        created_by: userData.value.id
-      })
-      .select()
-      .single()
-
-    if (kanbanError) throw kanbanError
-
-    // Create columns for this kanban
     const columnsToCreate = kanbanForm.value.columns
       .filter(col => col.name.trim())
       .map((col, index) => ({
-        kanban_id: newKanban.id,
         title: col.name.trim(),
         icon: col.icon,
         color: col.color,
         position: index
       }))
 
-    if (columnsToCreate.length > 0) {
-      const { error: columnsError } = await supabase
-        .from('kanban_columns')
-        .insert(columnsToCreate)
+    const response = await $fetch('/api/kanbans', {
+      method: 'POST',
+      body: {
+        title: kanbanForm.value.name.trim(),
+        columns: columnsToCreate
+      }
+    })
 
-      if (columnsError) throw columnsError
+    const newKanban = response.data?.kanban
+    if (newKanban) {
+      kanbans.value.push(newKanban)
+      currentKanbanId.value = newKanban.id
+      await loadKanbanData()
     }
 
-    // Add to local state
-    kanbans.value.push(newKanban)
-
-    // Switch to new kanban
-    currentKanbanId.value = newKanban.id
-    await loadKanbanData()
-
     closeKanbanModal()
-  } catch (error) {
-    console.error('Error creating kanban:', error)
+  } catch (err) {
+    console.error('Error creating kanban:', err)
     showNotification('Erro ao criar kanban. Tente novamente.', 'error')
   } finally {
     savingKanban.value = false
@@ -1321,36 +1257,28 @@ const confirmAddColumn = async () => {
   try {
     savingColumn.value = true
 
-    const { data: newColumn, error } = await supabase
-      .from('kanban_columns')
-      .insert({
-        kanban_id: currentKanbanId.value,
+    const response = await $fetch(`/api/kanbans/${currentKanbanId.value}/columns`, {
+      method: 'POST',
+      body: {
         title: addColumnForm.value.name.trim(),
         icon: addColumnForm.value.icon,
-        color: addColumnForm.value.color,
-        position: columns.value.length
-      })
-      .select()
-      .single()
+        color: addColumnForm.value.color
+      }
+    })
 
-    if (error) throw error
-
-    columns.value.push(newColumn)
+    columns.value.push(response.data)
 
     // Scroll to the new column after DOM update
     nextTick(() => {
       const boardColumns = boardColumnsRef.value
       if (boardColumns) {
-        boardColumns.scrollTo({
-          left: boardColumns.scrollWidth,
-          behavior: 'smooth'
-        })
+        boardColumns.scrollTo({ left: boardColumns.scrollWidth, behavior: 'smooth' })
       }
     })
 
     closeAddColumnModal()
-  } catch (error) {
-    console.error('Error adding column:', error)
+  } catch (err) {
+    console.error('Error adding column:', err)
     showNotification('Erro ao adicionar coluna. Tente novamente.', 'error')
   } finally {
     savingColumn.value = false
@@ -1359,65 +1287,32 @@ const confirmAddColumn = async () => {
 
 const handleRenameColumn = async ({ columnId, newTitle }) => {
   try {
-    const { error } = await supabase
-      .from('kanban_columns')
-      .update({
-        title: newTitle,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', columnId)
-
-    if (error) throw error
-
+    await $fetch(`/api/kanbans/columns/${columnId}`, { method: 'PATCH', body: { title: newTitle } })
     const column = columns.value.find(c => c.id === columnId)
-    if (column) {
-      column.title = newTitle
-    }
-  } catch (error) {
-    console.error('Error renaming column:', error)
+    if (column) column.title = newTitle
+  } catch (err) {
+    console.error('Error renaming column:', err)
     showNotification('Erro ao renomear coluna. Tente novamente.', 'error')
   }
 }
 
 const handleUpdateColumnIcon = async ({ columnId, icon }) => {
   try {
-    const { error } = await supabase
-      .from('kanban_columns')
-      .update({
-        icon: icon,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', columnId)
-
-    if (error) throw error
-
+    await $fetch(`/api/kanbans/columns/${columnId}`, { method: 'PATCH', body: { icon } })
     const column = columns.value.find(c => c.id === columnId)
-    if (column) {
-      column.icon = icon
-    }
-  } catch (error) {
-    console.error('Error updating column icon:', error)
+    if (column) column.icon = icon
+  } catch (err) {
+    console.error('Error updating column icon:', err)
   }
 }
 
 const handleUpdateColumnColor = async ({ columnId, color }) => {
   try {
-    const { error } = await supabase
-      .from('kanban_columns')
-      .update({
-        color: color,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', columnId)
-
-    if (error) throw error
-
+    await $fetch(`/api/kanbans/columns/${columnId}`, { method: 'PATCH', body: { color } })
     const column = columns.value.find(c => c.id === columnId)
-    if (column) {
-      column.color = color
-    }
-  } catch (error) {
-    console.error('Error updating column color:', error)
+    if (column) column.color = color
+  } catch (err) {
+    console.error('Error updating column color:', err)
   }
 }
 
@@ -1438,32 +1333,16 @@ const handleMoveColumn = async ({ columnId, direction }) => {
     columnsCopy[currentIndex] = columnsCopy[newIndex]
     columnsCopy[newIndex] = temp
 
-    // Update positions in database
-    const updates = columnsCopy.map((col, index) => ({
-      id: col.id,
-      position: index
-    }))
-
-    for (const update of updates) {
-      const { error } = await supabase
-        .from('kanban_columns')
-        .update({
-          position: update.position,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', update.id)
-
-      if (error) throw error
-    }
-
-    // Update positions in local state
-    columnsCopy.forEach((col, index) => {
-      col.position = index
-    })
-
+    // Update positions in local state first (optimistic)
+    columnsCopy.forEach((col, index) => { col.position = index })
     columns.value = columnsCopy
-  } catch (error) {
-    console.error('Error moving column:', error)
+
+    // Update positions in database
+    await Promise.all(columnsCopy.map((col, index) =>
+      $fetch(`/api/kanbans/columns/${col.id}`, { method: 'PATCH', body: { position: index } })
+    ))
+  } catch (err) {
+    console.error('Error moving column:', err)
     showNotification('Erro ao mover coluna. Tente novamente.', 'error')
   }
 }
@@ -1489,59 +1368,16 @@ const confirmDeleteColumn = async () => {
     deletingColumn.value = true
     const columnId = columnToDelete.value.id
 
-    // Move cards to first column before deleting
-    const firstColumn = columns.value.find(c => c.id !== columnId)
-    if (firstColumn) {
-      const { error: moveError } = await supabase
-        .from('kanban_cards')
-        .update({
-          column_id: firstColumn.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('column_id', columnId)
+    // The API handles moving cards to the first available column
+    await $fetch(`/api/kanbans/columns/${columnId}`, { method: 'DELETE' })
 
-      if (moveError) throw moveError
-    }
-
-    // Delete the column
-    const { error } = await supabase
-      .from('kanban_columns')
-      .delete()
-      .eq('id', columnId)
-
-    if (error) throw error
-
-    // Remove from local state
-    const columnIndex = columns.value.findIndex(c => c.id === columnId)
-    if (columnIndex > -1) {
-      columns.value.splice(columnIndex, 1)
-    }
-
-    // Update positions of remaining columns
-    const updates = columns.value.map((col, index) => ({
-      id: col.id,
-      position: index
-    }))
-
-    for (const update of updates) {
-      const { error } = await supabase
-        .from('kanban_columns')
-        .update({
-          position: update.position,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', update.id)
-
-      if (error) throw error
-    }
-
-    // Reload data to update cards
+    // Reload data to refresh state
     await loadKanbanData()
     
     closeDeleteColumnModal()
     showNotification('Coluna excluída com sucesso.', 'success')
-  } catch (error) {
-    console.error('Error deleting column:', error)
+  } catch (err) {
+    console.error('Error deleting column:', err)
     showNotification('Erro ao excluir coluna. Tente novamente.', 'error')
   } finally {
     deletingColumn.value = false
@@ -1600,18 +1436,11 @@ const handleDeleteCard = async (cardId) => {
   cards.value.splice(cardIndex, 1)
 
   try {
-    // Sincronizar com banco em background
-    const { error } = await supabase
-      .from('kanban_cards')
-      .delete()
-      .eq('id', cardId)
-
-    if (error) throw error
-
+    await $fetch(`/api/kanbans/cards/${cardId}`, { method: 'DELETE' })
     // Reposition remaining cards in the same column
     await repositionCardsInColumn(deletedCardColumn)
-  } catch (error) {
-    console.error('Error deleting card:', error)
+  } catch (err) {
+    console.error('Error deleting card:', err)
     // Rollback: restaurar card na UI
     cards.value.splice(cardIndex, 0, cardToDelete)
     showNotification('Erro ao excluir tarefa. Tente novamente.', 'error')
@@ -1643,22 +1472,16 @@ const handleCardMoved = async (moveData) => {
     targetCard.position = newIndex !== undefined ? newIndex : 0
 
     // Sincronizar com banco em background
-    const { error } = await supabase
-      .from('kanban_cards')
-      .update({
-        column_id: toColumnId,
-        position: newIndex !== undefined ? newIndex : 0,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', cardId)
-
-    if (error) throw error
+    await $fetch(`/api/kanbans/cards/${cardId}`, {
+      method: 'PATCH',
+      body: { column_id: toColumnId, position: newIndex !== undefined ? newIndex : 0 }
+    })
 
     // Reposition cards in both columns
     await repositionCardsInColumn(oldColumnId)
     await repositionCardsInColumn(toColumnId)
-  } catch (error) {
-    console.error('Error moving card:', error)
+  } catch (err) {
+    console.error('Error moving card:', err)
     // Rollback: restaurar estado original
     targetCard.column_id = originalState.column_id
     targetCard.position = originalState.position
@@ -1710,22 +1533,16 @@ const handleMoveCard = async (moveData) => {
     card.position = newPosition
 
     // Sincronizar com banco em background
-    const { error } = await supabase
-      .from('kanban_cards')
-      .update({
-        column_id: toColumnId,
-        position: newPosition,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', cardId)
-
-    if (error) throw error
+    await $fetch(`/api/kanbans/cards/${cardId}`, {
+      method: 'PATCH',
+      body: { column_id: toColumnId, position: newPosition }
+    })
 
     // Reposition cards in both columns
     await repositionCardsInColumn(oldColumnId)
     await repositionCardsInColumn(toColumnId)
-  } catch (error) {
-    console.error('Error moving card:', error)
+  } catch (err) {
+    console.error('Error moving card:', err)
     // Rollback: restaurar estado original
     card.column_id = originalState.column_id
     card.position = originalState.position
@@ -1746,25 +1563,16 @@ const repositionCardsInColumn = async (columnId) => {
       position: index
     }))
 
-    for (const update of updates) {
-      const { error } = await supabase
-        .from('kanban_cards')
-        .update({
-          position: update.position,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', update.id)
-
-      if (error) throw error
-    }
+    await Promise.all(updates.map(update =>
+      $fetch(`/api/kanbans/cards/${update.id}`, { method: 'PATCH', body: { position: update.position } })
+    ))
 
     // Update local state
     columnCards.forEach((card, index) => {
       card.position = index
-      card.updated_at = new Date().toISOString()
     })
-  } catch (error) {
-    console.error('Error repositioning cards:', error)
+  } catch (err) {
+    console.error('Error repositioning cards:', err)
   }
 }
 
@@ -1775,61 +1583,45 @@ const saveCard = async () => {
 
     if (editingCard.value) {
       // Update existing card
-      const { error } = await supabase
-        .from('kanban_cards')
-        .update({
+      const oldColumnId = editingCard.value.column_id
+      await $fetch(`/api/kanbans/cards/${editingCard.value.id}`, {
+        method: 'PATCH',
+        body: {
           title: cardForm.value.title,
           description: cardForm.value.description,
           column_id: cardForm.value.column_id,
-          is_urgent: cardForm.value.is_urgent,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingCard.value.id)
-
-      if (error) throw error
+          is_urgent: cardForm.value.is_urgent
+        }
+      })
 
       // Update local state
       editingCard.value.title = cardForm.value.title
       editingCard.value.description = cardForm.value.description
       editingCard.value.column_id = cardForm.value.column_id
       editingCard.value.is_urgent = cardForm.value.is_urgent
-      editingCard.value.updated_at = new Date().toISOString()
 
       // Reposition if column changed
-      if (editingCard.value.column_id !== cardForm.value.column_id) {
-        await repositionCardsInColumn(editingCard.value.column_id)
+      if (oldColumnId !== cardForm.value.column_id) {
+        await repositionCardsInColumn(oldColumnId)
         await repositionCardsInColumn(cardForm.value.column_id)
       }
     } else {
       // Create new card
-      const maxPosition = Math.max(
-        ...cards.value
-          .filter(card => card.kanban_id === currentKanbanId.value && card.column_id === cardForm.value.column_id)
-          .map(card => card.position),
-        -1
-      )
-
-      const { data: newCard, error } = await supabase
-        .from('kanban_cards')
-        .insert({
-          kanban_id: currentKanbanId.value,
+      const response = await $fetch(`/api/kanbans/${currentKanbanId.value}/cards`, {
+        method: 'POST',
+        body: {
           column_id: cardForm.value.column_id,
           title: cardForm.value.title,
           description: cardForm.value.description,
-          is_urgent: cardForm.value.is_urgent,
-          position: maxPosition + 1
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      cards.value.push(newCard)
+          is_urgent: cardForm.value.is_urgent
+        }
+      })
+      cards.value.push(response.data)
     }
 
     closeCardModal()
-  } catch (error) {
-    console.error('Error saving card:', error)
+  } catch (err) {
+    console.error('Error saving card:', err)
     showNotification('Erro ao salvar tarefa. Tente novamente.', 'error')
   } finally {
     savingCard.value = false

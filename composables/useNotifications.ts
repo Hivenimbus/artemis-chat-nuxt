@@ -1,9 +1,8 @@
 export const useNotifications = () => {
   const notifications = useState('notifications', () => [])
   const loading = useState('notifications:loading', () => false)
-  const user = useSupabaseUser() // We might not strictly need this if we rely on server context user, but good for local checks
-  const { userData } = useUser() // Better to use useUser from the app
-  
+  const { userData } = useUser()
+
   // Use a ref for polling interval to clear it on unmount if needed
   const pollingInterval = useState('notifications:polling', () => null)
 
@@ -13,7 +12,7 @@ export const useNotifications = () => {
 
   const fetchNotifications = async () => {
     // If we don't have user data locally, the server call will likely fail 401, but that's handled
-    if (!userData.value && !user.value) return 
+    if (!userData.value) return
 
     loading.value = true
     try {
@@ -60,18 +59,18 @@ export const useNotifications = () => {
   }
 
   const startPolling = () => {
-     if (process.client && !pollingInterval.value) {
-        // Initial fetch
-        fetchNotifications()
-        
-        // Poll every 10 seconds
-        pollingInterval.value = setInterval(() => {
-           // Only fetch if tab is visible to save resources
-           if (document.visibilityState === 'visible') {
-              fetchNotifications()
-           }
-        }, 10000)
-     }
+    if (process.client && !pollingInterval.value) {
+      // Initial fetch
+      fetchNotifications()
+
+      // Poll every 10 seconds
+      pollingInterval.value = setInterval(() => {
+        // Only fetch if tab is visible to save resources
+        if (document.visibilityState === 'visible') {
+          fetchNotifications()
+        }
+      }, 10000)
+    }
   }
 
   const clearNotifications = async () => {
@@ -90,7 +89,7 @@ export const useNotifications = () => {
       await $fetch(`/api/notifications/${id}`, {
         method: 'DELETE'
       })
-      
+
       // Remove locally
       notifications.value = notifications.value.filter(n => n.id !== id)
     } catch (error) {

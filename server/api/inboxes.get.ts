@@ -1,8 +1,9 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, inboxes, inboxAgents, inboxTeams, equipesAgentes } from '~/server/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
-    // Obter usuário do contexto
     const user = event.context.user
 
     if (!user) {
@@ -12,113 +13,84 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar empresa do usuário
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userDataError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não possui empresa vinculada'
       })
     }
 
-    // Buscar inboxes
-    let query = client
-      .from('inboxes')
-      .select('*')
-      .eq('empresa_id', userData.empresa_id)
-      .order('created_at', { ascending: false })
+    // Admins e superadmins veem todas as inboxes da empresa
+    if (userData.role === 'admin' || userData.role === 'superadmin') {
+      const data = await db
+        .select()
+        .from(inboxes)
+        .where(eq(inboxes.empresa_id, userData.empresa_id))
+        .orderBy(inboxes.created_at)
 
-    // Se não for admin, filtrar apenas as inboxes atribuídas
-    if (userData.role !== 'admin' && userData.role !== 'superadmin') {
-      // 1. Buscar IDs das inboxes atribuídas diretamente ao agente
-      const { data: directAssignments, error: directError } = await client
-        .from('inbox_agents')
-        .select('inbox_id')
-        .eq('user_id', user.id)
-
-      if (directError) {
-        console.error('Erro ao buscar atribuições diretas:', directError)
-        throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões' })
-      }
-
-      // 2. Buscar equipes que o agente participa
-      const { data: userTeams, error: teamsError } = await client
-        .from('equipes_agentes')
-        .select('equipe_id')
-        .eq('agente_id', user.id)
-
-      if (teamsError) {
-        console.error('Erro ao buscar equipes do usuário:', teamsError)
-        throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões de equipe' })
-      }
-
-      const teamIds = userTeams?.map(t => t.equipe_id) || []
-      
-      let teamInboxIds: string[] = []
-
-      // 3. Se participa de equipes, buscar inboxes atribuídas a essas equipes
-      if (teamIds.length > 0) {
-        const { data: teamAssignments, error: teamInboxError } = await client
-          .from('inbox_teams')
-          .select('inbox_id')
-          .in('equipe_id', teamIds)
-
-        if (teamInboxError) {
-          console.error('Erro ao buscar atribuições de equipe:', teamInboxError)
-          throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar permissões de inboxes da equipe' })
-        }
-        
-        if (teamAssignments) {
-          teamInboxIds = teamAssignments.map(t => t.inbox_id)
-        }
-      }
-
-      // Unir IDs únicos (diretos + equipes)
-      const directIds = directAssignments?.map(a => a.inbox_id) || []
-      const allAllowedInboxIds = [...new Set([...directIds, ...teamInboxIds])]
-      
-      // Se não tiver nenhuma atribuída, retornar array vazio
-      if (allAllowedInboxIds.length === 0) {
-        return {
-          success: true,
-          data: []
-        }
-      }
-
-      query = query.in('id', allAllowedInboxIds)
+      return { success: true, data }
     }
 
-    const { data: inboxes, error } = await query
+    // Agentes: buscar inboxes atribuídas diretamente
+    const directAssignments = await db
+      .select({ inbox_id: inboxAgents.inbox_id })
+      .from(inboxAgents)
+      .where(eq(inboxAgents.user_id, user.id))
 
-    if (error) {
-      console.error('Erro ao buscar inboxes:', error)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar caixas de entrada'
-      })
+    // Buscar equipes que o agente participa
+    const userTeams = await db
+      .select({ equipe_id: equipesAgentes.equipe_id })
+      .from(equipesAgentes)
+      .where(eq(equipesAgentes.agente_id, user.id))
+
+    const teamIds = userTeams.map(t => t.equipe_id)
+
+    let teamInboxIds: string[] = []
+
+    if (teamIds.length > 0) {
+      const teamAssignments = await db
+        .select({ inbox_id: inboxTeams.inbox_id })
+        .from(inboxTeams)
+        .where(inArray(inboxTeams.equipe_id, teamIds))
+
+      teamInboxIds = teamAssignments.map(t => t.inbox_id)
     }
 
-    return {
-      success: true,
-      data: inboxes || []
+    const directIds = directAssignments.map(a => a.inbox_id)
+    const allAllowedInboxIds = [...new Set([...directIds, ...teamInboxIds])]
+
+    if (allAllowedInboxIds.length === 0) {
+      return { success: true, data: [] }
     }
 
-  } catch (error) {
+    const data = await db
+      .select()
+      .from(inboxes)
+      .where(
+        and(
+          eq(inboxes.empresa_id, userData.empresa_id),
+          inArray(inboxes.id, allAllowedInboxIds)
+        )
+      )
+      .orderBy(inboxes.created_at)
+
+    return { success: true, data }
+
+  } catch (error: any) {
     console.error('Erro no handler de listagem de inboxes:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users } from '~/server/db/schema'
+import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -27,28 +29,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role para buscar dados, já que não estamos usando Supabase Auth
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
     console.log('API /api/user: Buscando dados na tabela users para ID:', user.id)
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/user: Erro ao buscar dados do usuário no banco:', {
-        error: error,
-        userId: user.id,
-        code: error.code,
-        message: error.message,
-        details: error.details
-      })
+    if (!userData) {
+      console.error('API /api/user: Usuário não encontrado no banco:', user.id)
       throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao buscar dados do usuário'
+        statusCode: 404,
+        statusMessage: 'Usuário não encontrado'
       })
     }
 
@@ -64,7 +58,7 @@ export default defineEventHandler(async (event) => {
       data: userData
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/user: Erro no handler:', {
       error: error,
       statusCode: error.statusCode,

@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, inboxes } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 const config = useRuntimeConfig()
 
@@ -13,7 +15,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Obter usuário do contexto (definido no middleware 01-auth-check.ts)
     const user = event.context.user
 
     if (!user) {
@@ -23,18 +24,15 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Usar Service Role para bypass no RLS e autenticação customizada
-    const client = serverSupabaseServiceRole(event)
+    // Buscar empresa do usuário
+    const userData = await db
+      .select({ empresa_id: users.empresa_id, role: users.role })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    // Buscar dados do usuário para obter empresa_id e verificar permissões
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id, role')
-      .eq('id', user.id)
-      .single()
-
-    if (userDataError || !userData?.empresa_id) {
-       console.error('Erro ao buscar dados do usuário:', userDataError)
+    if (!userData?.empresa_id) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Erro ao verificar permissões do usuário'
@@ -42,14 +40,14 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verificar se o inbox existe e pertence à empresa do usuário
-    const { data: inbox, error: fetchError } = await client
-      .from('inboxes')
-      .select('*')
-      .eq('id', id)
-      .eq('empresa_id', userData.empresa_id) // Garantir que pertence à mesma empresa
-      .single()
+    const inbox = await db
+      .select()
+      .from(inboxes)
+      .where(and(eq(inboxes.id, id), eq(inboxes.empresa_id, userData.empresa_id)))
+      .limit(1)
+      .then(r => r[0])
 
-    if (fetchError || !inbox) {
+    if (!inbox) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Caixa de entrada não encontrada ou sem permissão'
@@ -57,13 +55,12 @@ export default defineEventHandler(async (event) => {
     }
 
     // Tentar conectar e configurar webhook antes de buscar QR Code
-    // Isso é necessário pois agora a configuração do webhook é feita no endpoint /connect
     try {
-      console.log(`🔌 Iniciando conexão da instância ${id}...`)
+      console.log(`Iniciando conexão da instância ${id}...`)
       await $fetch(`${config.evolutionApiUrl}/instance/connect`, {
         method: 'POST',
         headers: {
-          'apikey': id, // Usar o ID da instância como token
+          'apikey': id,
           'Content-Type': 'application/json'
         },
         body: {
@@ -77,11 +74,9 @@ export default defineEventHandler(async (event) => {
           ]
         }
       })
-      console.log(`✅ Conexão iniciada e webhook configurado para instância ${id}`)
+      console.log(`Conexão iniciada e webhook configurado para instância ${id}`)
     } catch (connectError: any) {
-      // Se der erro de "already connected" ou similar, apenas logamos e continuamos para buscar o QR
-      // Se a instância não existir, vai falhar no próximo passo (busca do QR)
-      console.warn('⚠️ Aviso ao iniciar conexão (pode já estar conectado):', connectError.message)
+      console.warn('Aviso ao iniciar conexão (pode já estar conectado):', connectError.message)
     }
 
     // Buscar QR Code na Evolution API
@@ -89,7 +84,7 @@ export default defineEventHandler(async (event) => {
       const response: any = await $fetch(`${config.evolutionApiUrl}/instance/qr`, {
         method: 'GET',
         headers: {
-          'apikey': id // Usar o ID da instância
+          'apikey': id
         }
       })
 
@@ -98,8 +93,8 @@ export default defineEventHandler(async (event) => {
       return {
         success: true,
         data: {
-          base64: qrData?.Qrcode, // Corrigido: Qrcode em maiúsculo
-          code: qrData?.Code,     // Corrigido: Code em maiúsculo
+          base64: qrData?.Qrcode,
+          code: qrData?.Code,
           pairingCode: qrData?.pairingCode
         }
       }
@@ -107,7 +102,6 @@ export default defineEventHandler(async (event) => {
     } catch (evolutionError: any) {
       console.error('Erro ao buscar QR Code na Evolution API:', evolutionError)
 
-      // Verificar se é erro 404 ou similar (instância não encontrada)
       if (evolutionError.response?.status === 404 || evolutionError.response?.status === 403) {
         throw createError({
           statusCode: 404,
@@ -115,7 +109,6 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      // Outros erros
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar QR Code. Tente novamente em instantes.'
@@ -125,12 +118,10 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.error('Erro no handler de QR Code:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'

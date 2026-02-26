@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, atendimentos, inboxes, mensagens } from '~/server/db/schema'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -24,72 +26,48 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Obter dados do usuário
-    const { data: userData, error: userDataError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const [userData] = await db.select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
 
-    if (userDataError || !userData?.empresa_id) {
-      console.error('API /api/atendimentos/[id]/read: Usuário sem empresa:', userDataError)
+    if (!userData?.empresa_id) {
+      console.error('API /api/atendimentos/[id]/read: Usuário sem empresa')
       throw createError({
         statusCode: 403,
         statusMessage: 'Usuário não está associado a nenhuma empresa'
       })
     }
 
-    // Verificar se atendimento existe e pertence à empresa
-    const { data: atendimento, error: atendimentoError } = await client
-      .from('atendimentos')
-      .select(`
-        id,
-        inboxes!inner (
-          empresa_id
-        )
-      `)
-      .eq('id', atendimentoId)
-      .single()
+    // Verificar se atendimento existe e pertence à empresa (via inbox)
+    const [atendimento] = await db
+      .select({ id: atendimentos.id, empresa_id: inboxes.empresa_id })
+      .from(atendimentos)
+      .innerJoin(inboxes, eq(atendimentos.inbox_id, inboxes.id))
+      .where(eq(atendimentos.id, atendimentoId))
+      .limit(1)
 
-    if (atendimentoError || !atendimento || atendimento.inboxes.empresa_id !== userData.empresa_id) {
+    if (!atendimento || atendimento.empresa_id !== userData.empresa_id) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa'
       })
     }
 
-    // Marcar mensagens não lidas como lidas
-    // Filtramos por remetente 'contact' (mensagens recebidas) que ainda não foram lidas
-    const { error: updateMessagesError } = await client
-      .from('mensagens')
-      .update({ lida: true })
-      .eq('atendimento_id', atendimentoId)
-      .eq('lida', false)
-      .eq('remetente', 'contact')
-
-    if (updateMessagesError) {
-      console.error('API /api/atendimentos/[id]/read: Erro ao atualizar mensagens:', updateMessagesError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao marcar mensagens como lidas'
-      })
-    }
+    // Marcar mensagens não lidas como lidas (remetente 'contact')
+    await db.update(mensagens)
+      .set({ lida: true })
+      .where(and(
+        eq(mensagens.atendimento_id, atendimentoId),
+        eq(mensagens.lida, false),
+        eq(mensagens.remetente, 'contact')
+      ))
 
     // Atualizar contador de mensagens não lidas no atendimento
-    const { error: updateAtendimentoError } = await client
-      .from('atendimentos')
-      .update({ unread_count: 0 })
-      .eq('id', atendimentoId)
-
-    if (updateAtendimentoError) {
-      console.error('API /api/atendimentos/[id]/read: Erro ao atualizar contador do atendimento:', updateAtendimentoError)
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao atualizar contador do atendimento'
-      })
-    }
+    await db.update(atendimentos)
+      .set({ unread_count: 0 })
+      .where(eq(atendimentos.id, atendimentoId))
 
     console.log('API /api/atendimentos/[id]/read: Mensagens marcadas como lidas com sucesso')
 
@@ -98,7 +76,7 @@ export default defineEventHandler(async (event) => {
       message: 'Mensagens marcadas como lidas'
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/atendimentos/[id]/read: Erro no handler:', error)
 
     if (error.statusCode) {
@@ -111,4 +89,3 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
-

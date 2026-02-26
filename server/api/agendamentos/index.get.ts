@@ -1,4 +1,6 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, agendamentos, agendamentoContatos, contatos } from '~/server/db/schema'
+import { eq, and, gte, lte, inArray, asc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -7,16 +9,15 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Get user data to find empresa_id
-    const { data: userData, error: userError } = await client
-      .from('users')
-      .select('empresa_id')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select({ empresa_id: users.empresa_id })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (userError || !userData?.empresa_id) {
+    if (!userData?.empresa_id) {
       throw createError({ statusCode: 400, statusMessage: 'Usuário sem empresa vinculada' })
     }
 
@@ -27,47 +28,79 @@ export default defineEventHandler(async (event) => {
     const type = query.type as string
     const status = query.status as string
 
-    // Build query
-    let queryBuilder = client
-      .from('agendamentos')
-      .select(`
-        *,
-        agendamento_contatos (
-          contato_id,
-          contatos (
-            id,
-            nome,
-            sobrenome,
-            telefone,
-            email
-          )
-        )
-      `)
-      .eq('empresa_id', userData.empresa_id)
+    // Build conditions
+    const conditions = [eq(agendamentos.empresa_id, userData.empresa_id)]
 
     if (startDate) {
-      queryBuilder = queryBuilder.gte('start_time', startDate)
+      conditions.push(gte(agendamentos.start_time, new Date(startDate)))
     }
     if (endDate) {
-      queryBuilder = queryBuilder.lte('start_time', endDate)
+      conditions.push(lte(agendamentos.start_time, new Date(endDate)))
     }
     if (type) {
-      queryBuilder = queryBuilder.eq('type', type)
+      conditions.push(eq(agendamentos.type, type))
     }
     if (status) {
-      queryBuilder = queryBuilder.eq('status', status)
+      conditions.push(eq(agendamentos.status, status))
     }
 
-    const { data: agendamentos, error } = await queryBuilder.order('start_time', { ascending: true })
+    // Fetch agendamentos
+    const schedules = await db
+      .select()
+      .from(agendamentos)
+      .where(and(...conditions))
+      .orderBy(asc(agendamentos.start_time))
 
-    if (error) {
-      console.error('Error fetching agendamentos:', error)
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao buscar agendamentos' })
+    // Fetch related contacts separately
+    if (schedules.length > 0) {
+      const scheduleIds = schedules.map(a => a.id)
+
+      const contactLinks = await db
+        .select({
+          agendamento_id: agendamentoContatos.agendamento_id,
+          contato_id: agendamentoContatos.contato_id,
+          nome: contatos.nome,
+          sobrenome: contatos.sobrenome,
+          telefone: contatos.telefone,
+          email: contatos.email
+        })
+        .from(agendamentoContatos)
+        .innerJoin(contatos, eq(agendamentoContatos.contato_id, contatos.id))
+        .where(inArray(agendamentoContatos.agendamento_id, scheduleIds))
+
+      // Group contact links by agendamento_id
+      const contactsBySchedule: Record<string, typeof contactLinks> = {}
+      for (const link of contactLinks) {
+        if (!contactsBySchedule[link.agendamento_id]) {
+          contactsBySchedule[link.agendamento_id] = []
+        }
+        contactsBySchedule[link.agendamento_id].push(link)
+      }
+
+      // Merge contacts into agendamentos
+      const result = schedules.map(schedule => ({
+        ...schedule,
+        agendamento_contatos: (contactsBySchedule[schedule.id] || []).map(link => ({
+          contato_id: link.contato_id,
+          contatos: {
+            id: link.contato_id,
+            nome: link.nome,
+            sobrenome: link.sobrenome,
+            telefone: link.telefone,
+            email: link.email
+          }
+        }))
+      }))
+
+      return {
+        success: true,
+        data: result
+      }
     }
 
     return {
       success: true,
-      data: agendamentos
+      data: schedules.map(schedule => ({ ...schedule, agendamento_contatos: [] }))
     }
 
   } catch (error) {
@@ -75,4 +108,3 @@ export default defineEventHandler(async (event) => {
     throw error
   }
 })
-

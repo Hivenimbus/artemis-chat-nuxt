@@ -1,11 +1,12 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { db } from '~/server/db'
+import { users, contatos, etiquetas, contatoEtiquetas, inboxes } from '~/server/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { checkWhatsAppNumber } from '~/server/lib/evolution'
 
 export default defineEventHandler(async (event) => {
   try {
     console.log('API /api/contatos (POST): Iniciando requisição')
 
-    // Obter usuário autenticado
     const user = event.context.user
 
     if (!user) {
@@ -16,24 +17,23 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const client = serverSupabaseServiceRole(event)
-
     // Buscar dados completos do usuário na tabela users
-    const { data: userData, error } = await client
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    const userData = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1)
+      .then(r => r[0])
 
-    if (error) {
-      console.error('API /api/contatos (POST): Erro ao buscar dados do usuário:', error)
+    if (!userData) {
+      console.error('API /api/contatos (POST): Erro ao buscar dados do usuário')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao buscar dados do usuário'
       })
     }
 
-    if (!userData?.empresa_id) {
+    if (!userData.empresa_id) {
       console.error('API /api/contatos (POST): Usuário não possui empresa vinculada')
       throw createError({
         statusCode: 400,
@@ -82,15 +82,15 @@ export default defineEventHandler(async (event) => {
 
     // Buscar primeira inbox da empresa para validar WhatsApp
     console.log('API /api/contatos (POST): Buscando inbox para validação WhatsApp')
-    const { data: inbox, error: inboxError } = await client
-      .from('inboxes')
-      .select('id')
-      .eq('empresa_id', userData.empresa_id)
+    const inbox = await db
+      .select({ id: inboxes.id })
+      .from(inboxes)
+      .where(eq(inboxes.empresa_id, userData.empresa_id))
       .limit(1)
-      .single()
+      .then(r => r[0])
 
-    if (inboxError || !inbox) {
-      console.error('API /api/contatos (POST): Nenhuma inbox encontrada:', inboxError)
+    if (!inbox) {
+      console.error('API /api/contatos (POST): Nenhuma inbox encontrada')
       throw createError({
         statusCode: 400,
         statusMessage: 'Nenhuma caixa de entrada configurada. Configure uma caixa de entrada antes de criar contatos.'
@@ -117,12 +117,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.log('API /api/contatos (POST): ✅ Número validado com WhatsApp, criando contato')
+    console.log('API /api/contatos (POST): Número validado com WhatsApp, criando contato')
 
-    // Iniciar transação
-    const { data: novoContato, error: contatoError } = await client
-      .from('contatos')
-      .insert({
+    // Inserir contato
+    const novoContato = await db
+      .insert(contatos)
+      .values({
         nome: nome.trim(),
         sobrenome: body.sobrenome?.trim() || null,
         email: email?.trim().toLowerCase() || null,
@@ -134,12 +134,11 @@ export default defineEventHandler(async (event) => {
         endereco: body.endereco?.trim() || null,
         empresa_id: userData.empresa_id
       })
-      .select()
-      .single()
+      .returning()
+      .then(r => r[0])
 
-    if (contatoError) {
-      console.error('API /api/contatos (POST): Erro ao criar contato:', contatoError)
-
+    if (!novoContato) {
+      console.error('API /api/contatos (POST): Erro ao criar contato')
       throw createError({
         statusCode: 500,
         statusMessage: 'Erro ao criar contato'
@@ -152,88 +151,41 @@ export default defineEventHandler(async (event) => {
     if (tags && tags.length > 0) {
       console.log('API /api/contatos (POST): Associando etiquetas:', tags)
 
-      // Buscar IDs das etiquetas pelo nome
-      const { data: etiquetasExistentes, error: etiquetasError } = await client
-        .from('etiquetas')
-        .select('id, nome')
-        .eq('empresa_id', userData.empresa_id)
-        .in('nome', tags)
+      try {
+        const etiquetasExistentes = await db
+          .select({ id: etiquetas.id, nome: etiquetas.nome })
+          .from(etiquetas)
+          .where(and(eq(etiquetas.empresa_id, userData.empresa_id), inArray(etiquetas.nome, tags)))
 
-      if (etiquetasError) {
-        console.error('API /api/contatos (POST): Erro ao buscar etiquetas:', etiquetasError)
-        // Não falhar a criação do contato se der erro nas etiquetas
-      } else if (etiquetasExistentes && etiquetasExistentes.length > 0) {
-        // Criar associações com as etiquetas encontradas
-        const associacoesEtiquetas = etiquetasExistentes.map(etiqueta => ({
-          contato_id: novoContato.id,
-          etiqueta_id: etiqueta.id
-        }))
+        if (etiquetasExistentes.length > 0) {
+          const associacoes = etiquetasExistentes.map(etiqueta => ({
+            contato_id: novoContato.id,
+            etiqueta_id: etiqueta.id
+          }))
 
-        const { error: associacaoError } = await client
-          .from('contato_etiquetas')
-          .insert(associacoesEtiquetas)
-
-        if (associacaoError) {
-          console.error('API /api/contatos (POST): Erro ao associar etiquetas:', associacaoError)
-          // Não falhar a criação do contato se der erro nas associações
-        } else {
+          await db.insert(contatoEtiquetas).values(associacoes)
           console.log('API /api/contatos (POST): Etiquetas associadas com sucesso')
         }
+      } catch (etiquetaErr) {
+        console.error('API /api/contatos (POST): Erro ao associar etiquetas:', etiquetaErr)
+        // Não falhar a criação do contato se der erro nas etiquetas
       }
     }
 
     // Buscar contato completo com etiquetas para retornar
-    const { data: contatoCompleto, error: buscaError } = await client
-      .from('contatos')
-      .select(`
-        id,
-        nome,
-        sobrenome,
-        email,
-        telefone,
-        cidade,
-        pais,
-        biografia,
-        empresa,
-        endereco,
-        empresa_id,
-        created_at,
-        updated_at,
-        contato_etiquetas (
-          etiqueta_id,
-          etiquetas (
-            id,
-            nome,
-            cor
-          )
-        )
-      `)
-      .eq('id', novoContato.id)
-      .single()
+    const tagsLinks = await db
+      .select({
+        etiqueta_id: contatoEtiquetas.etiqueta_id,
+        nome: etiquetas.nome,
+        cor: etiquetas.cor
+      })
+      .from(contatoEtiquetas)
+      .innerJoin(etiquetas, eq(contatoEtiquetas.etiqueta_id, etiquetas.id))
+      .where(eq(contatoEtiquetas.contato_id, novoContato.id))
 
-    if (buscaError) {
-      console.error('API /api/contatos (POST): Erro ao buscar contato completo:', buscaError)
-      // Retornar contato básico se der erro na busca completa
-    }
-
-    // Formatar dados para o frontend
-    const contatoFormatado = contatoCompleto ? {
-      ...contatoCompleto,
-      tags: contatoCompleto.contato_etiquetas
-        ?.filter(ce => ce.etiquetas)
-        ?.map(ce => ce.etiquetas.nome) || [],
-      name: contatoCompleto.nome,
-      lastName: contatoCompleto.sobrenome || '',
-      phone: contatoCompleto.telefone,
-      country: contatoCompleto.pais || '',
-      company: contatoCompleto.empresa || '',
-      address: contatoCompleto.endereco || '',
-      city: contatoCompleto.cidade || '',
-      biography: contatoCompleto.biografia || '',
-      lastContact: contatoCompleto.created_at
-    } : {
+    const contatoFormatado = {
       ...novoContato,
-      tags: [],
+      tags: tagsLinks.map(t => t.nome),
       name: novoContato.nome,
       lastName: novoContato.sobrenome || '',
       phone: novoContato.telefone,
@@ -252,15 +204,13 @@ export default defineEventHandler(async (event) => {
       data: contatoFormatado
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /api/contatos (POST): Erro no handler:', error)
 
-    // Se já for um erro criado, retornar como está
     if (error.statusCode) {
       throw error
     }
 
-    // Erro genérico
     throw createError({
       statusCode: 500,
       statusMessage: 'Erro interno do servidor'
