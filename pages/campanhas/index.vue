@@ -578,7 +578,6 @@ import { useAuth } from '~/composables/useAuth'
 const { fetchContatos, fetchEtiquetas } = useContatos()
 const { getInboxes } = useInboxes()
 const toast = useToast()
-const supabase = useSupabaseClient()
 const { user } = useAuth()
 
 // State

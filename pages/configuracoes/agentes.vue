@@ -381,8 +381,6 @@ definePageMeta({
   middleware: 'admin'
 })
 
-// Cliente Supabase
-const supabase = useSupabaseClient()
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
 const { showToast } = useToast()
@@ -427,66 +425,30 @@ const loadInboxesData = async () => {
   }
 }
 
-// Função para carregar agentes do Supabase
+// Função para carregar agentes via API
 const loadAgents = async () => {
   try {
     loading.value = true
     error.value = ''
 
-    // Validar se o usuário está autenticado
-    if (!userData.value?.id) {
-      throw new Error('Usuário não autenticado ou dados inválidos')
-    }
-
-    // Log para debug
-    console.log('Carregando agentes para o usuário:', userData.value.id)
-
-    // Usar o empresa_id do usuário já carregado no userData
-    if (!userData.value?.empresa_id) {
-      throw new Error('Usuário não está associado a nenhuma empresa')
-    }
-
     // Carregar inboxes primeiro
     await loadInboxesData()
-  
-    // Carregar apenas os usuários da mesma empresa
-    const { data, error: fetchError } = await supabase
-      .from('users')
-      .select(`
-        id,
-        email,
-        name,
-        role,
-        status,
-        created_at,
-        empresas (
-          id,
-          nome
-        ),
-        inbox_agents (
-          inbox_id
-        )
-      `)
-      .in('role', ['user', 'admin'])
-      .eq('empresa_id', userData.value.empresa_id)
-      .order('created_at', { ascending: false })
 
-    if (fetchError) {
-      throw fetchError
-    }
+    // Carregar agentes via API
+    const response = await $fetch('/api/agentes')
+    const data = response.data || []
 
-    // Formatar dados para compatibilidade com a interface existente
-    agents.value = (data || []).map(user => ({
+    agents.value = data.map(user => ({
       id: user.id,
       name: user.name || 'Sem nome',
       email: user.email,
       role: user.role,
-      empresa_id: user.empresas?.id,
-      empresa_nome: user.empresas?.nome || 'Sem empresa',
+      empresa_id: user.empresa_id,
+      empresa_nome: user.empresa_nome || 'Sem empresa',
       status: user.status || 'active',
       createdAt: user.created_at,
-      lastLogin: null, // Esta informação não está disponível na tabela users
-      inbox_ids: user.inbox_agents?.map(ia => ia.inbox_id) || []
+      lastLogin: null,
+      inbox_ids: user.inbox_ids || []
     }))
 
   } catch (err) {

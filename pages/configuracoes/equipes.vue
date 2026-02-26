@@ -618,8 +618,6 @@ definePageMeta({
   middleware: 'admin'
 })
 
-// Cliente Supabase
-const supabase = useSupabaseClient()
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
 const { showToast } = useToast()
@@ -668,110 +666,64 @@ const loadInboxesData = async () => {
   }
 }
 
-// Função para carregar dados do Supabase
+// Função para carregar dados via API
 const loadData = async () => {
   try {
     loading.value = true
     error.value = ''
 
-    // Validar se o usuário está autenticado
-    if (!userData.value?.id) {
-      throw new Error('Usuário não autenticado ou dados inválidos')
-    }
-
-    console.log('Carregando dados para o usuário:', userData.value.id)
-
     // Carregar inboxes primeiro
     await loadInboxesData()
 
-    // Usar dados do usuário já carregado
+    // Carregar empresa do usuário logado
     if (userData.value?.empresa_id) {
-      const { data: empresaData, error: empresaError } = await supabase
-        .from('empresas')
-        .select('id, nome')
-        .eq('id', userData.value.empresa_id)
-        .single()
-
-      if (empresaError) throw empresaError
-      currentUserEmpresa.value = empresaData
+      const empresaRes = await $fetch('/api/empresas/' + userData.value.empresa_id).catch(() => null)
+      currentUserEmpresa.value = empresaRes?.data || { id: userData.value.empresa_id, nome: '' }
     }
 
-    // Carregar equipes com informações da empresa e inboxes via API (para pegar o join)
-    // Usando $fetch para a API que criamos/atualizamos
-    const response = await $fetch('/api/equipes')
-    const teamsData = response.data || []
+    // Carregar equipes via API
+    const teamsRes = await $fetch('/api/equipes')
+    const teamsData = teamsRes.data || []
 
-    // Carregar agentes (users com role 'user' ou 'admin')
-    let agentsQuery = supabase
-      .from('users')
-      .select(`
-        id,
-        name,
-        email,
-        role,
-        empresa_id,
-        empresas (
-          id,
-          nome
-        )
-      `)
-      .in('role', ['user', 'admin'])
-      .order('name', { ascending: true })
+    // Carregar agentes via API
+    const agentsRes = await $fetch('/api/agentes')
+    const agentsData = agentsRes.data || []
 
-    // Se não for superadmin, filtrar apenas agentes da própria empresa
-    if (currentUserEmpresa.value && userData.value?.role !== 'superadmin') {
-      agentsQuery = agentsQuery.eq('empresa_id', currentUserEmpresa.value.id)
-    }
-
-    const { data: agentsData, error: agentsError } = await agentsQuery
-
-    if (agentsError) throw agentsError
-
-    // Carregar empresas (apenas para superadmin ou filtros)
-    let empresasQuery = supabase
-      .from('empresas')
-      .select('*')
-      .order('nome', { ascending: true })
-
-    // Se não for superadmin, carregar apenas a própria empresa
-    if (userData.value?.role !== 'superadmin' && currentUserEmpresa.value) {
-      empresasQuery = empresasQuery.eq('id', currentUserEmpresa.value.id)
-    }
-
-    const { data: empresasData, error: empresasError } = await empresasQuery
-
-    if (empresasError) throw empresasError
-
-    // Carregar relacionamentos equipes-agentes
-    const { data: teamAgentsData, error: teamAgentsError } = await supabase
-      .from('equipes_agentes')
-      .select('*')
-
-    if (teamAgentsError) throw teamAgentsError
+    // Carregar relacionamentos equipes-agentes via API
+    const teamAgentsRes = await $fetch('/api/equipes/agentes').catch(() => ({ data: [] }))
+    const teamAgentsData = teamAgentsRes.data || []
 
     // Formatar dados
     teams.value = teamsData.map(team => ({
       id: team.id,
       name: team.nome,
       description: team.descricao,
-      empresa_id: team.empresas?.id,
+      empresa_id: team.empresa_id,
       empresa_nome: team.empresas?.nome || 'Sem empresa',
       created_at: team.created_at,
       updated_at: team.updated_at,
-      inbox_ids: team.inbox_teams?.map(it => it.inbox_id) || []
+      inbox_ids: (team.inbox_teams || []).map(it => it.inbox_id)
     }))
 
-    agents.value = (agentsData || []).map(agent => ({
+    agents.value = agentsData.map(agent => ({
       id: agent.id,
       name: agent.name || 'Sem nome',
       email: agent.email,
       role: agent.role,
-      empresa_id: agent.empresas?.id,
-      empresa_nome: agent.empresas?.nome || 'Sem empresa'
+      empresa_id: agent.empresa_id,
+      empresa_nome: agent.empresa_nome || 'Sem empresa'
     }))
 
-    empresas.value = empresasData || []
-    teamAgents.value = teamAgentsData || []
+    empresas.value = []
+    // Build teamAgents from agents data (each agent includes equipes_agentes)
+    teamAgents.value = agentsData.flatMap(agent =>
+      (agent.equipes_agentes || []).map(ea => ({
+        id: crypto.randomUUID(),
+        equipe_id: ea.equipe_id,
+        agente_id: agent.id,
+        created_at: ''
+      }))
+    )
 
   } catch (err) {
     console.error('Erro ao carregar dados:', err)
@@ -916,43 +868,22 @@ const toggleAgentInTeam = async (agentId) => {
   if (!selectedTeam.value) return
 
   try {
-    // Validar se o usuário está autenticado
-    if (!userData.value?.id) {
-      throw new Error('Usuário não autenticado ou dados inválidos')
-    }
-
-    console.log('Alterando agentes da equipe com usuário:', userData.value.id)
-
     const exists = isAgentInTeam(agentId)
 
     if (exists) {
-      // Remover agente da equipe no Supabase
-      const { error } = await supabase
-        .from('equipes_agentes')
-        .delete()
-        .eq('equipe_id', selectedTeam.value.id)
-        .eq('agente_id', agentId)
-
-      if (error) throw error
-
+      // Remover agente da equipe via API
+      await $fetch(`/api/equipes/${selectedTeam.value.id}/agentes/${agentId}`, { method: 'DELETE' })
       // Atualizar dados locais
       const index = teamAgents.value.findIndex(ta =>
         ta.equipe_id === selectedTeam.value.id && ta.agente_id === agentId
       )
-      if (index !== -1) {
-        teamAgents.value.splice(index, 1)
-      }
+      if (index !== -1) teamAgents.value.splice(index, 1)
     } else {
-      // Adicionar agente à equipe no Supabase
-      const { error } = await supabase
-        .from('equipes_agentes')
-        .insert({
-          equipe_id: selectedTeam.value.id,
-          agente_id: agentId
-        })
-
-      if (error) throw error
-
+      // Adicionar agente à equipe via API
+      await $fetch(`/api/equipes/${selectedTeam.value.id}/agentes`, {
+        method: 'POST',
+        body: { agente_id: agentId }
+      })
       // Atualizar dados locais
       teamAgents.value.push({
         id: crypto.randomUUID(),
@@ -961,8 +892,8 @@ const toggleAgentInTeam = async (agentId) => {
         created_at: new Date().toISOString()
       })
     }
-  } catch (error) {
-    console.error('Erro ao gerenciar agente na equipe:', error)
+  } catch (err) {
+    console.error('Erro ao gerenciar agente na equipe:', err)
     showToast('Erro ao gerenciar agente na equipe. Tente novamente.', 'error')
   }
 }
