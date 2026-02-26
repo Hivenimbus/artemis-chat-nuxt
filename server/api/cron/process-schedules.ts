@@ -1,4 +1,4 @@
-import { processScheduledMessages, processScheduledCampaigns } from '~/server/lib/scheduler'
+import { processScheduledMessages } from '~/server/lib/scheduler'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,20 +12,14 @@ export default defineEventHandler(async (event) => {
     }
 
     const messagesResult = await processScheduledMessages()
-    const campaignsResult = await processScheduledCampaigns()
 
     if (!messagesResult.success) {
       console.error('Error processing messages:', messagesResult.error)
     }
 
-    if (!campaignsResult.success) {
-      console.error('Error processing campaigns:', campaignsResult.error)
-    }
-
     return {
       success: true,
-      messages: messagesResult,
-      campaigns: campaignsResult
+      messages: messagesResult
     }
 
   } catch (error) {
