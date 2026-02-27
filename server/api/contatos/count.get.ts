@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, and } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 
 export default defineEventHandler(async (event) => {
@@ -18,21 +18,21 @@ export default defineEventHandler(async (event) => {
       ? (Array.isArray(tagsParam) ? tagsParam : [tagsParam]) as string[]
       : []
 
-    let total = 0
+    let count = 0
 
     if (type === 'all') {
       const rows = await db.select({ id: schema.contatos.id }).from(schema.contatos)
         .where(eq(schema.contatos.empresa_id, userData.empresa_id))
       count = rows.length
     } else if (type === 'tags' && tags.length > 0) {
-      const tagged = await db.select({ contato_id: schema.contatoEtiquetas.contato_id })
-        .from(schema.contatoEtiquetas).where(inArray(schema.contatoEtiquetas.etiqueta_id, tags as string[]))
-      const ids = [...new Set(tagged.map(t => t.contato_id).filter(Boolean))] as string[]
-      if (ids.length > 0) {
-        const rows = await db.select({ id: schema.contatos.id }).from(schema.contatos)
-          .where(inArray(schema.contatos.id, ids))
-        count = rows.length
-      }
+      const rows = await db.select({ id: schema.contatos.id }).from(schema.contatos)
+        .where(
+          and(
+            eq(schema.contatos.empresa_id, userData.empresa_id),
+            inArray(schema.contatos.etiqueta_id, tags as string[])
+          )
+        )
+      count = rows.length
     }
 
     return { success: true, count }

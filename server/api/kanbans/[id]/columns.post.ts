@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Não autenticado' })
 
     const kanbanId = getRouterParam(event, 'id')
-    if (!kanbanId) throw createError({ statusCode: 400, statusMessage: 'ID do kanban inválido' })
+    if (!kanbanId || kanbanId === 'null') throw createError({ statusCode: 400, statusMessage: 'ID do kanban inválido' })
 
     const body = await readBody(event)
     if (!body.name?.trim()) throw createError({ statusCode: 400, statusMessage: 'Nome da coluna é obrigatório' })
@@ -21,8 +21,6 @@ export default defineEventHandler(async (event) => {
     const [col] = await db.insert(schema.kanbanColunas).values({
         kanban_id: kanbanId,
         nome: body.name.trim(),
-        cor: body.color || 'blue',
-        icone: body.icon || 'clipboard',
         ordem: maxOrdem,
     }).returning()
 

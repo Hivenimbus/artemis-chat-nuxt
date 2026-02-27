@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     if (userData.role !== 'admin' && userData.role !== 'superadmin') {
       const [directAssignments, userTeams] = await Promise.all([
         db.select({ inbox_id: schema.inboxAgents.inbox_id }).from(schema.inboxAgents).where(eq(schema.inboxAgents.user_id, user.id)),
-        db.select({ equipe_id: schema.equipesAgentes.equipe_id }).from(schema.equipesAgentes).where(eq(schema.equipesAgentes.agente_id, user.id))
+        db.select({ equipe_id: schema.equipesAgentes.equipe_id }).from(schema.equipesAgentes).where(eq(schema.equipesAgentes.user_id, user.id))
       ])
 
       const teamIds = userTeams.map(t => t.equipe_id).filter(Boolean) as string[]
@@ -64,14 +64,14 @@ export default defineEventHandler(async (event) => {
       const isMinhas = statusFilter === 'ativo' && forCount
       if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhas) {
         if (isMinhas) {
-          conditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+          conditions.push(eq(schema.atendimentos.assignee_id, user.id))
         } else if (allowedInboxIds.length > 0) {
           conditions.push(or(
             inArray(schema.atendimentos.inbox_id, allowedInboxIds),
-            eq(schema.atendimentos.usuario_responsavel_id, user.id)
+            eq(schema.atendimentos.assignee_id, user.id)
           ))
         } else {
-          conditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+          conditions.push(eq(schema.atendimentos.assignee_id, user.id))
         }
       }
 
@@ -96,26 +96,25 @@ export default defineEventHandler(async (event) => {
 
     if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasQuery) {
       if (isMinhasQuery) {
-        mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+        mainConditions.push(eq(schema.atendimentos.assignee_id, user.id))
       } else if (allowedInboxIds.length > 0) {
         mainConditions.push(or(
           inArray(schema.atendimentos.inbox_id, allowedInboxIds),
-          eq(schema.atendimentos.usuario_responsavel_id, user.id)
+          eq(schema.atendimentos.assignee_id, user.id)
         ))
       } else {
-        mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, user.id))
+        mainConditions.push(eq(schema.atendimentos.assignee_id, user.id))
       }
     }
 
     if (inboxId) mainConditions.push(eq(schema.atendimentos.inbox_id, inboxId))
     if (status && status !== 'todos') mainConditions.push(eq(schema.atendimentos.status, status))
     else if (!status) mainConditions.push(ne(schema.atendimentos.status, 'concluido'))
-    if (responsavelId) mainConditions.push(eq(schema.atendimentos.usuario_responsavel_id, responsavelId))
+    if (responsavelId) mainConditions.push(eq(schema.atendimentos.assignee_id, responsavelId))
 
-    // Buscar atendimentos com joins
     const atendimentos = await db.query.atendimentos.findMany({
       where: and(...mainConditions),
-      orderBy: [desc(schema.atendimentos.ultimo_mensagem_time)],
+      orderBy: [desc(schema.atendimentos.last_message_at)],
       limit,
       offset,
       with: {
@@ -136,17 +135,17 @@ export default defineEventHandler(async (event) => {
       email: (a.contato as any)?.email || '',
       company: (a.contato as any)?.empresa || '',
       city: (a.contato as any)?.cidade || '',
-      profilePictureUrl: a.contato?.profile_picture_url || '',
-      lastMessage: a.ultimo_mensagem || '',
-      lastMessageTime: a.ultimo_mensagem_time ? new Date(a.ultimo_mensagem_time) : new Date(a.created_at!),
+      profilePictureUrl: a.contato?.avatar_url || '',
+      lastMessage: '',
+      lastMessageTime: a.last_message_at ? new Date(a.last_message_at) : new Date(a.created_at!),
       unreadCount: a.unread_count || 0,
       status: a.status,
       caixa_entrada: a.inbox_id,
       inbox_name: a.inbox?.name || 'Sem caixa',
-      usuario_responsavel_id: a.usuario_responsavel_id,
+      usuario_responsavel_id: a.assignee_id,
       responsavel_name: a.assignee?.name || null,
-      data_atribuicao: a.data_atribuicao,
-      data_conclusao: a.data_conclusao,
+      data_atribuicao: null,
+      data_conclusao: null,
       created_at: a.created_at,
       updated_at: a.updated_at,
       tags: a.contato?.etiqueta ? [{ id: a.contato.etiqueta.id, nome: a.contato.etiqueta.nome, cor: a.contato.etiqueta.cor }] : [],
