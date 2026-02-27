@@ -233,6 +233,8 @@ export const kanbanColunas = pgTable('kanban_colunas', {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     kanban_id: uuid('kanban_id').notNull().references(() => kanbans.id, { onDelete: 'cascade' }),
     nome: varchar('nome', { length: 255 }).notNull(),
+    cor: varchar('cor', { length: 50 }).default('blue'),
+    icone: varchar('icone', { length: 50 }).default('clipboard'),
     ordem: integer('ordem').default(0).notNull(),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

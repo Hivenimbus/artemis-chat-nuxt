@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
     const [col] = await db.insert(schema.kanbanColunas).values({
         kanban_id: kanbanId,
         nome: columnName,
+        cor: body.color || 'blue',
+        icone: body.icon || 'clipboard',
         ordem: maxOrdem,
     }).returning()
 

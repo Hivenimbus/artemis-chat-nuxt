@@ -13,5 +13,5 @@ export default defineEventHandler(async (event) => {
         .where(eq(schema.kanbanColunas.kanban_id, kanbanId))
         .orderBy(asc(schema.kanbanColunas.ordem))
 
-    return { success: true, data: colunas.map(c => ({ ...c, title: c.nome, position: c.ordem })) }
+    return { success: true, data: colunas.map(c => ({ ...c, title: c.nome, position: c.ordem, icon: c.icone, color: c.cor })) }
 })
