@@ -12,14 +12,15 @@
 
       <!-- Column Options Menu -->
       <div class="kan-col__options">
-        <button class="kan-col__options-btn" @click="showOptions = !showOptions" :aria-expanded="showOptions ? 'true' : 'false'">
+        <button ref="optionsBtnRef" class="kan-col__options-btn" @click="toggleOptions" :aria-expanded="showOptions ? 'true' : 'false'">
           <svg class="kan-col__options-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
           </svg>
         </button>
 
         <!-- Options Dropdown -->
-        <div v-if="showOptions" class="kan-col__options-dropdown">
+        <Teleport to="body">
+          <div v-if="showOptions" ref="dropdownRef" class="kan-col__options-dropdown" :style="dropdownStyle">
           <button class="kan-col__option" @click="startRename">
             <svg class="kan-col__option-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -106,6 +107,7 @@
             Excluir coluna
           </button>
         </div>
+        </Teleport>
       </div>
     </div>
 
@@ -239,6 +241,28 @@ const showRenameModal = ref(false)
 const editingTitle = ref('')
 const renameInputRef = ref(null)
 const columnRef = ref(null)
+const optionsBtnRef = ref(null)
+const dropdownRef = ref(null)
+const dropdownStyle = ref({ top: '0px', left: '0px', position: 'absolute' })
+
+const toggleOptions = async () => {
+  showOptions.value = !showOptions.value
+  if (showOptions.value) {
+    await nextTick()
+    if (optionsBtnRef.value) {
+      const rect = optionsBtnRef.value.getBoundingClientRect()
+      dropdownStyle.value = {
+        position: 'absolute',
+        top: `${rect.bottom + window.scrollY + 8}px`,
+        // Anchor to the right of the button
+        left: `${rect.right + window.scrollX - 180}px`, 
+      }
+    }
+  } else {
+    showIconPicker.value = false
+    showColorPicker.value = false
+  }
+}
 
 // Cards computados com atualização otimista
 const columnCards = computed({
@@ -348,7 +372,10 @@ const handleDeleteCard = (cardId) => {
 
 // Click outside handler
 const handleClickOutside = (event) => {
-  if (columnRef.value && !columnRef.value.contains(event.target)) {
+  const clickedInColumn = columnRef.value && columnRef.value.contains(event.target)
+  const clickedInDropdown = dropdownRef.value && dropdownRef.value.contains(event.target)
+  
+  if (!clickedInColumn && !clickedInDropdown) {
     closeAllDropdowns()
   }
 }
