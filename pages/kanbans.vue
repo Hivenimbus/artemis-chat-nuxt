@@ -951,6 +951,21 @@ const loadKanbans = async () => {
   try {
     const response = await $fetch('/api/kanbans')
     kanbans.value = response.data || []
+    // Se não houver nenhum kanban, cria o Kanban Principal com colunas padrão
+    if (kanbans.value.length === 0) {
+      const defaultKanban = await $fetch('/api/kanbans', {
+        method: 'POST',
+        body: {
+          title: 'Kanban Principal',
+          columns: [
+            { name: 'Para Fazer', icon: 'clipboard', color: 'blue' },
+            { name: 'Fazendo', icon: 'clock', color: 'yellow' },
+            { name: 'Concluído', icon: 'check', color: 'green' }
+          ]
+        }
+      })
+      kanbans.value = [defaultKanban.data]
+    }
 
     // Selecionar primeiro kanban se não houver nenhum selecionado
     if (!currentKanbanId.value && kanbans.value.length > 0) {
