@@ -112,7 +112,7 @@
     </div>
 
     <!-- Add New Column Button (Floating) -->
-    <div class="add-column-floating">
+    <div v-if="currentKanbanId" class="add-column-floating">
       <button class="add-column-btn" @click="addNewColumn" :disabled="columns.length >= 6" title="Adicionar nova coluna" aria-label="Adicionar coluna">
         <svg class="add-column-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

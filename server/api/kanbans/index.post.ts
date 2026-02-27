@@ -23,8 +23,6 @@ export default defineEventHandler(async (event) => {
         const cols = body.columns.filter((c: any) => c.name?.trim()).map((c: any, i: number) => ({
             kanban_id: kanban.id,
             nome: c.name.trim(),
-            cor: c.color || 'blue',
-            icone: c.icon || 'clipboard',
             ordem: i,
         }))
         if (cols.length > 0) {

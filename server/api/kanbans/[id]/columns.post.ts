@@ -10,7 +10,8 @@ export default defineEventHandler(async (event) => {
     if (!kanbanId || kanbanId === 'null') throw createError({ statusCode: 400, statusMessage: 'ID do kanban inválido' })
 
     const body = await readBody(event)
-    if (!body.name?.trim()) throw createError({ statusCode: 400, statusMessage: 'Nome da coluna é obrigatório' })
+    const columnName = body.name?.trim() || body.title?.trim()
+    if (!columnName) throw createError({ statusCode: 400, statusMessage: 'Nome da coluna é obrigatório' })
 
     // Get current max order
     const existing = await db.select({ ordem: schema.kanbanColunas.ordem })
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
     const [col] = await db.insert(schema.kanbanColunas).values({
         kanban_id: kanbanId,
-        nome: body.name.trim(),
+        nome: columnName,
         ordem: maxOrdem,
     }).returning()
 
