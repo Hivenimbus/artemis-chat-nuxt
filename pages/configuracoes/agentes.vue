@@ -381,10 +381,7 @@ definePageMeta({
   middleware: 'admin'
 })
 
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
 const { showToast } = useToast()
@@ -437,40 +434,23 @@ const loadAgents = async () => {
 
     // Carregar inboxes primeiro
     await loadInboxesData()
-<<<<<<< Updated upstream
-
-=======
   
->>>>>>> Stashed changes
     // Carregar agentes via API
     const response = await $fetch('/api/agentes')
     const data = response.data || []
 
-<<<<<<< Updated upstream
-    agents.value = data.map(user => ({
-=======
     // Formatar dados para compatibilidade com a interface existente
     agents.value = data.map((user) => ({
->>>>>>> Stashed changes
       id: user.id,
       name: user.name || 'Sem nome',
       email: user.email,
       role: user.role,
-<<<<<<< Updated upstream
-      empresa_id: user.empresa_id,
-      empresa_nome: user.empresa_nome || 'Sem empresa',
-      status: user.status || 'active',
-      createdAt: user.created_at,
-      lastLogin: null,
-      inbox_ids: user.inbox_ids || []
-=======
       empresa_id: user.empresa?.id,
       empresa_nome: user.empresa?.nome || 'Sem empresa',
       status: user.status || 'active',
       createdAt: user.created_at,
       lastLogin: null,
       inbox_ids: user.inboxAgents?.map((ia) => ia.inbox_id) || []
->>>>>>> Stashed changes
     }))
 
   } catch (err) {

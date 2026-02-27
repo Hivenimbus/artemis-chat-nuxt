@@ -618,10 +618,7 @@ definePageMeta({
   middleware: 'admin'
 })
 
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 const { userData } = useUser()
 const { getInboxes } = useInboxes()
 const { showToast } = useToast()
@@ -681,55 +678,6 @@ const loadData = async () => {
 
     // Carregar empresa do usuário logado
     if (userData.value?.empresa_id) {
-<<<<<<< Updated upstream
-      const empresaRes = await $fetch('/api/empresas/' + userData.value.empresa_id).catch(() => null)
-      currentUserEmpresa.value = empresaRes?.data || { id: userData.value.empresa_id, nome: '' }
-    }
-
-    // Carregar equipes via API
-    const teamsRes = await $fetch('/api/equipes')
-    const teamsData = teamsRes.data || []
-
-    // Carregar agentes via API
-    const agentsRes = await $fetch('/api/agentes')
-    const agentsData = agentsRes.data || []
-
-    // Carregar relacionamentos equipes-agentes via API
-    const teamAgentsRes = await $fetch('/api/equipes/agentes').catch(() => ({ data: [] }))
-    const teamAgentsData = teamAgentsRes.data || []
-
-    // Formatar dados
-    teams.value = teamsData.map(team => ({
-      id: team.id,
-      name: team.nome,
-      description: team.descricao,
-      empresa_id: team.empresa_id,
-      empresa_nome: team.empresas?.nome || 'Sem empresa',
-      created_at: team.created_at,
-      updated_at: team.updated_at,
-      inbox_ids: (team.inbox_teams || []).map(it => it.inbox_id)
-    }))
-
-    agents.value = agentsData.map(agent => ({
-      id: agent.id,
-      name: agent.name || 'Sem nome',
-      email: agent.email,
-      role: agent.role,
-      empresa_id: agent.empresa_id,
-      empresa_nome: agent.empresa_nome || 'Sem empresa'
-    }))
-
-    empresas.value = []
-    // Build teamAgents from agents data (each agent includes equipes_agentes)
-    teamAgents.value = agentsData.flatMap(agent =>
-      (agent.equipes_agentes || []).map(ea => ({
-        id: crypto.randomUUID(),
-        equipe_id: ea.equipe_id,
-        agente_id: agent.id,
-        created_at: ''
-      }))
-    )
-=======
       currentUserEmpresa.value = { id: userData.value.empresa_id, nome: userData.value.empresa_nome || '' }
     }
 
@@ -764,7 +712,6 @@ const loadData = async () => {
     }))
 
     empresas.value = currentUserEmpresa.value ? [currentUserEmpresa.value] : []
->>>>>>> Stashed changes
 
   } catch (err) {
     console.error('Erro ao carregar dados:', err)
@@ -913,15 +860,11 @@ const toggleAgentInTeam = async (agentId) => {
 
     if (exists) {
       // Remover agente da equipe via API
-<<<<<<< Updated upstream
-      await $fetch(`/api/equipes/${selectedTeam.value.id}/agentes/${agentId}`, { method: 'DELETE' })
-=======
       await $fetch(`/api/equipes/${selectedTeam.value.id}`, {
         method: 'PUT',
         body: { removeAgente: agentId }
       })
 
->>>>>>> Stashed changes
       // Atualizar dados locais
       const index = teamAgents.value.findIndex((ta) =>
         ta.equipe_id === selectedTeam.value.id && ta.agente_id === agentId
@@ -929,18 +872,11 @@ const toggleAgentInTeam = async (agentId) => {
       if (index !== -1) teamAgents.value.splice(index, 1)
     } else {
       // Adicionar agente à equipe via API
-<<<<<<< Updated upstream
-      await $fetch(`/api/equipes/${selectedTeam.value.id}/agentes`, {
-        method: 'POST',
-        body: { agente_id: agentId }
-      })
-=======
       await $fetch(`/api/equipes/${selectedTeam.value.id}`, {
         method: 'PUT',
         body: { addAgente: agentId }
       })
 
->>>>>>> Stashed changes
       // Atualizar dados locais
       teamAgents.value.push({
         id: crypto.randomUUID(),

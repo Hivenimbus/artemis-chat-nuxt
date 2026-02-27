@@ -1,24 +1,9 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import {
-  inboxes, contatos, atendimentos, mensagens
-} from '~/server/db/schema'
-import { eq, and, inArray, sql } from 'drizzle-orm'
-import { uploadFile, getPublicUrl, deleteFile, urlToKey } from './storage'
-import { webhookLogger, contatoLogger, atendimentoLogger, messageLogger } from './logger'
-
-// ─────────────────────────────────────────────
-// Interfaces de Webhook
-// ─────────────────────────────────────────────
-
-=======
 import { eq, and, inArray, sql as drizzleSql } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 import { getStorageClient, MINIO_BUCKET, getPublicUrl } from '~/server/lib/storage'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { webhookLogger, contatoLogger, atendimentoLogger, messageLogger } from './logger'
 
->>>>>>> Stashed changes
 // Formato antigo do webhook (messages.upsert)
 export interface EvolutionWebhookDataLegacy {
   event: string
@@ -138,13 +123,6 @@ function isNewWebhookFormat(webhookData: any): webhookData is EvolutionWebhookDa
 }
 
 function extractMessageTextFromNewFormat(message: any): string {
-<<<<<<< Updated upstream
-  if (message?.extendedTextMessage?.text) return message.extendedTextMessage.text
-  if (message?.conversation) return message.conversation
-  if (message?.imageMessage?.caption) return message.imageMessage.caption
-  if (message?.videoMessage?.caption) return message.videoMessage.caption
-  if (message?.documentMessage?.caption) return message.documentMessage.caption
-=======
   // Primeiro tenta extendedTextMessage (mensagens com contexto/resposta)
   if (message?.extendedTextMessage?.text) {
     return message.extendedTextMessage.text
@@ -166,7 +144,6 @@ function extractMessageTextFromNewFormat(message: any): string {
     return message.documentMessage.caption
   }
 
->>>>>>> Stashed changes
   return ''
 }
 
@@ -174,15 +151,6 @@ function detectMessageTypeFromNewFormat(data: any): string {
   const infoType = data.Info?.Type?.toLowerCase()
   const message = data.Message
 
-<<<<<<< Updated upstream
-  if (infoType === 'text') return 'conversation'
-  if (infoType === 'image') return 'imageMessage'
-  if (infoType === 'sticker') return 'stickerMessage'
-  if (infoType === 'video') return 'videoMessage'
-  if (infoType === 'audio' || infoType === 'ptt') return 'audioMessage'
-  if (infoType === 'document') return 'documentMessage'
-
-=======
   // Primeiro verifica pelo Info.Type
   if (infoType === 'text') {
     return 'conversation'
@@ -204,7 +172,6 @@ function detectMessageTypeFromNewFormat(data: any): string {
   }
 
   // Fallback: verifica pelos campos do Message
->>>>>>> Stashed changes
   if (message?.imageMessage) return 'imageMessage'
   if (message?.stickerMessage) return 'stickerMessage'
   if (message?.videoMessage) return 'videoMessage'
@@ -212,30 +179,20 @@ function detectMessageTypeFromNewFormat(data: any): string {
   if (message?.documentMessage) return 'documentMessage'
   if (message?.extendedTextMessage) return 'conversation'
   if (message?.conversation) return 'conversation'
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
   return 'conversation'
 }
 
 function parseTimestamp(timestamp: string | number | undefined): number {
-<<<<<<< Updated upstream
-  if (!timestamp) return Math.floor(Date.now() / 1000)
-=======
   if (!timestamp) {
     return Math.floor(Date.now() / 1000)
   }
 
->>>>>>> Stashed changes
   if (typeof timestamp === 'number') {
     return timestamp > 10000000000 ? Math.floor(timestamp / 1000) : timestamp
   }
-<<<<<<< Updated upstream
-=======
 
   // Parse ISO string
->>>>>>> Stashed changes
   const parsed = new Date(timestamp).getTime()
   return isNaN(parsed) ? Math.floor(Date.now() / 1000) : Math.floor(parsed / 1000)
 }
@@ -245,10 +202,7 @@ export function normalizeWebhookData(webhookData: any): NormalizedWebhookData | 
     if (isNewWebhookFormat(webhookData)) {
       const { data } = webhookData
       const info = data.Info
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
       return {
         instance: webhookData.instanceName || webhookData.instanceId,
         remoteJid: info.Chat || info.Sender,
@@ -262,10 +216,7 @@ export function normalizeWebhookData(webhookData: any): NormalizedWebhookData | 
       }
     } else {
       const { data, instance } = webhookData
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
       return {
         instance: instance,
         remoteJid: data.key?.remoteJid || '',
@@ -284,12 +235,6 @@ export function normalizeWebhookData(webhookData: any): NormalizedWebhookData | 
   }
 }
 
-<<<<<<< Updated upstream
-// ─────────────────────────────────────────────
-// Funções de banco de dados (agora sem parâmetro supabase)
-// ─────────────────────────────────────────────
-
-=======
 /**
  * Encontra o ID interno da instância na Evolution API buscando pelo nome (que usamos como ID da inbox)
  */
@@ -339,7 +284,6 @@ export async function findEvolutionInstanceId(
 /**
  * Encontra a inbox correspondente pelo instanceId da Evolution API
  */
->>>>>>> Stashed changes
 export async function findInboxByInstance(instanceId: string): Promise<{ id: string, empresa_id: string } | null> {
   try {
     webhookLogger.debug('inbox.searching', `Buscando inbox por instance: ${instanceId}`)
@@ -349,15 +293,6 @@ export async function findInboxByInstance(instanceId: string): Promise<{ id: str
       .where(eq(inboxes.id, instanceId))
       .limit(1)
 
-<<<<<<< Updated upstream
-    const inbox = rows[0]
-    if (!inbox) {
-      webhookLogger.logInboxNotFound(instanceId)
-      return null
-    }
-    webhookLogger.debug('inbox.found', `Inbox encontrada: ${inbox.id}`, { inboxId: inbox.id, empresaId: inbox.empresa_id })
-    return inbox as { id: string, empresa_id: string }
-=======
     const [data] = await db.select({ id: schema.inboxes.id, empresa_id: schema.inboxes.empresa_id })
       .from(schema.inboxes)
       .where(eq(schema.inboxes.id, instanceId))
@@ -370,20 +305,16 @@ export async function findInboxByInstance(instanceId: string): Promise<{ id: str
 
     webhookLogger.debug('inbox.found', `Inbox encontrada: ${data.id}`, { inboxId: data.id, empresaId: data.empresa_id })
     return { id: data.id, empresa_id: data.empresa_id! }
->>>>>>> Stashed changes
   } catch (error) {
     webhookLogger.error('inbox.search_error', `Erro ao buscar inbox por instance: ${instanceId}`, error)
     return null
   }
 }
 
-<<<<<<< Updated upstream
-=======
 
 /**
  * Extrai o número de telefone do remoteJid
  */
->>>>>>> Stashed changes
 export function extractPhoneFromRemoteJid(remoteJid: string): string {
   return remoteJid
     .replace('@s.whatsapp.net', '')
@@ -395,11 +326,7 @@ export async function findOrCreateContact(
   phone: string,
   name: string,
   empresaId: string
-<<<<<<< Updated upstream
-): Promise<{ id: string, isNew: boolean, profile_picture_url: string | null } | null> {
-=======
 ): Promise<{ id: string, isNew: boolean, profile_picture_url?: string | null } | null> {
->>>>>>> Stashed changes
   try {
     contatoLogger.logContactProcessing(phone, name, empresaId)
 
@@ -408,19 +335,6 @@ export async function findOrCreateContact(
       normalizedPhone = '55' + normalizedPhone
     }
 
-<<<<<<< Updated upstream
-    // Buscar contato existente
-    const existing = await db
-      .select({ id: contatos.id, profile_picture_url: contatos.profile_picture_url })
-      .from(contatos)
-      .where(and(eq(contatos.telefone, normalizedPhone), eq(contatos.empresa_id, empresaId)))
-      .limit(1)
-      .then(r => r[0])
-
-    if (existing) {
-      contatoLogger.debug('contact.found', `Contato existente encontrado: ${existing.id}`, { contatoId: existing.id })
-      return { id: existing.id, isNew: false, profile_picture_url: existing.profile_picture_url }
-=======
     // Primeiro, tenta buscar contato existente
     const [contato] = await db.select({ id: schema.contatos.id, profile_picture_url: schema.contatos.avatar_url })
       .from(schema.contatos)
@@ -430,45 +344,12 @@ export async function findOrCreateContact(
     if (contato) {
       contatoLogger.debug('contact.found', `Contato existente encontrado: ${contato.id}`, { contatoId: contato.id })
       return { id: contato.id, isNew: false, profile_picture_url: contato.profile_picture_url }
->>>>>>> Stashed changes
     }
 
     // Criar novo contato
     contatoLogger.info('contact.creating', `Criando novo contato: ${name}`, { phone: normalizedPhone, empresaId })
 
     try {
-<<<<<<< Updated upstream
-      const newContato = await db
-        .insert(contatos)
-        .values({
-          nome: name,
-          telefone: normalizedPhone,
-          empresa_id: empresaId,
-          total_mensagens: 0,
-          data_ultimo_contato: new Date()
-        })
-        .returning({ id: contatos.id })
-        .then(r => r[0])
-
-      contatoLogger.logContactCreated(newContato.id, normalizedPhone, name, empresaId)
-      return { id: newContato.id, isNew: true, profile_picture_url: null }
-    } catch (createError: any) {
-      // Race condition: unique constraint violation
-      if (createError?.code === '23505') {
-        contatoLogger.debug('contact.race_condition', `Race condition detectada, buscando contato existente: ${normalizedPhone}`)
-        const retryContato = await db
-          .select({ id: contatos.id, profile_picture_url: contatos.profile_picture_url })
-          .from(contatos)
-          .where(and(eq(contatos.telefone, normalizedPhone), eq(contatos.empresa_id, empresaId)))
-          .limit(1)
-          .then(r => r[0])
-
-        if (retryContato) {
-          return { id: retryContato.id, isNew: false, profile_picture_url: retryContato.profile_picture_url }
-        }
-      }
-      contatoLogger.error('contact.create_error', `Erro ao criar contato: ${name}`, createError)
-=======
       const [newContato] = await db.insert(schema.contatos).values({
         nome: name,
         telefone: normalizedPhone,
@@ -493,7 +374,6 @@ export async function findOrCreateContact(
         }
       }
       contatoLogger.error('contact.create_error', `Erro ao criar contato: ${name}`, insertErr, { phone: normalizedPhone, empresaId })
->>>>>>> Stashed changes
       return null
     }
   } catch (error) {
@@ -502,37 +382,18 @@ export async function findOrCreateContact(
   }
 }
 
-<<<<<<< Updated upstream
-=======
 
 
 /**
  * Busca ou cria um atendimento para o contato
  * Usa índice único parcial para prevenir duplicatas em race conditions
  */
->>>>>>> Stashed changes
 export async function findOrCreateAtendimento(
   contatoId: string,
   inboxId: string
 ): Promise<{ id: string, isNew: boolean } | null> {
   try {
     // Buscar atendimento em aberto
-<<<<<<< Updated upstream
-    const existing = await db
-      .select({ id: atendimentos.id })
-      .from(atendimentos)
-      .where(and(
-        eq(atendimentos.contato_id, contatoId),
-        eq(atendimentos.inbox_id, inboxId),
-        inArray(atendimentos.status, ['aguardando', 'ativo'])
-      ))
-      .limit(1)
-      .then(r => r[0])
-
-    if (existing) {
-      console.log('✅ Atendimento encontrado:', existing.id)
-      return { id: existing.id, isNew: false }
-=======
     const [atendimento] = await db.select({ id: schema.atendimentos.id })
       .from(schema.atendimentos)
       .where(and(
@@ -545,49 +406,11 @@ export async function findOrCreateAtendimento(
     if (atendimento) {
       console.log('✅ Atendimento encontrado:', atendimento.id)
       return { id: atendimento.id, isNew: false }
->>>>>>> Stashed changes
     }
 
     // Criar novo atendimento
     console.log('🆘 Criando novo atendimento...')
     try {
-<<<<<<< Updated upstream
-      const newAtendimento = await db
-        .insert(atendimentos)
-        .values({
-          contato_id: contatoId,
-          inbox_id: inboxId,
-          status: 'aguardando',
-          ultimo_mensagem: '',
-          ultimo_mensagem_time: new Date(),
-          unread_count: 0
-        })
-        .returning({ id: atendimentos.id })
-        .then(r => r[0])
-
-      console.log('✅ Atendimento criado:', newAtendimento.id)
-      return { id: newAtendimento.id, isNew: true }
-    } catch (createError: any) {
-      if (createError?.code === '23505') {
-        console.log('⚠️ Race condition detectada em atendimento, buscando existente...')
-        const retryAtendimento = await db
-          .select({ id: atendimentos.id })
-          .from(atendimentos)
-          .where(and(
-            eq(atendimentos.contato_id, contatoId),
-            eq(atendimentos.inbox_id, inboxId),
-            inArray(atendimentos.status, ['aguardando', 'ativo'])
-          ))
-          .limit(1)
-          .then(r => r[0])
-
-        if (retryAtendimento) {
-          console.log('✅ Atendimento encontrado após race condition:', retryAtendimento.id)
-          return { id: retryAtendimento.id, isNew: false }
-        }
-      }
-      console.error('❌ Erro ao criar atendimento:', createError)
-=======
       const [newAtendimento] = await db.insert(schema.atendimentos).values({
         contato_id: contatoId,
         inbox_id: inboxId,
@@ -613,7 +436,6 @@ export async function findOrCreateAtendimento(
         if (existingAtendimento) return { id: existingAtendimento.id, isNew: false }
       }
       console.error('❌ Erro ao criar atendimento:', insertErr)
->>>>>>> Stashed changes
       return null
     }
   } catch (error) {
@@ -622,15 +444,12 @@ export async function findOrCreateAtendimento(
   }
 }
 
-<<<<<<< Updated upstream
-=======
 
 
 
 /**
  * Cria uma nova mensagem no banco de dados
  */
->>>>>>> Stashed changes
 export async function createMessage(
   atendimentoId: string,
   texto: string,
@@ -641,33 +460,6 @@ export async function createMessage(
   mediaData?: { url: string; type: string; name: string }
 ): Promise<string | null> {
   try {
-<<<<<<< Updated upstream
-    const msgTimestamp = messageTimestamp
-      ? new Date(messageTimestamp * 1000)
-      : new Date()
-
-    const newMensagem = await db
-      .insert(mensagens)
-      .values({
-        atendimento_id: atendimentoId,
-        texto: texto,
-        remetente: remetente,
-        lida: remetente === 'user',
-        timestamp: msgTimestamp,
-        message_type: messageType === 'conversation' ? 'text' : messageType,
-        evolution_status: 'delivered',
-        evolution_message_id: evolutionMessageId || null,
-        media_url: mediaData?.url || null,
-        media_type: mediaData?.type || null,
-        media_name: mediaData?.name || null
-      })
-      .returning({ id: mensagens.id })
-      .then(r => r[0])
-
-    const mediaInfo = mediaData ? ` (mídia: ${mediaData.name})` : ''
-    console.log(`✅ Mensagem criada: ${newMensagem.id}${mediaInfo}`)
-    return newMensagem.id
-=======
     const msgData: any = {
       atendimento_id: atendimentoId,
       content: texto,
@@ -689,22 +481,18 @@ export async function createMessage(
     const mediaInfo = mediaData ? ` (mídia: ${mediaData.name})` : ''
     console.log(`✅ Mensagem criada: ${mensagem.id}${mediaInfo}`)
     return mensagem.id
->>>>>>> Stashed changes
   } catch (error) {
     console.error('❌ Erro em createMessage:', error)
     return null
   }
 }
 
-<<<<<<< Updated upstream
-=======
 
 
 
 /**
  * Atualiza o atendimento com a nova mensagem
  */
->>>>>>> Stashed changes
 export async function updateAtendimentoWithMessage(
   atendimentoId: string,
   messageText: string,
@@ -712,32 +500,6 @@ export async function updateAtendimentoWithMessage(
   incrementUnread: boolean = true
 ): Promise<boolean> {
   try {
-<<<<<<< Updated upstream
-    const msgTime = messageTimestamp
-      ? new Date(messageTimestamp * 1000)
-      : new Date()
-
-    if (incrementUnread) {
-      await db
-        .update(atendimentos)
-        .set({
-          ultimo_mensagem: messageText,
-          ultimo_mensagem_time: msgTime,
-          updated_at: new Date(),
-          unread_count: sql`${atendimentos.unread_count} + 1`
-        })
-        .where(eq(atendimentos.id, atendimentoId))
-    } else {
-      await db
-        .update(atendimentos)
-        .set({
-          ultimo_mensagem: messageText,
-          ultimo_mensagem_time: msgTime,
-          updated_at: new Date()
-        })
-        .where(eq(atendimentos.id, atendimentoId))
-    }
-=======
     const updateData: any = {
       last_message_at: messageTimestamp ? new Date(messageTimestamp * 1000) : new Date(),
       updated_at: new Date()
@@ -750,7 +512,6 @@ export async function updateAtendimentoWithMessage(
     }
 
     await db.update(schema.atendimentos).set(updateData).where(eq(schema.atendimentos.id, atendimentoId))
->>>>>>> Stashed changes
     return true
   } catch (error) {
     console.error('❌ Erro em updateAtendimentoWithMessage:', error)
@@ -758,43 +519,24 @@ export async function updateAtendimentoWithMessage(
   }
 }
 
-<<<<<<< Updated upstream
-=======
 
 
 
 /**
  * Atualiza os dados do contato
  */
->>>>>>> Stashed changes
 export async function updateContactData(
   contatoId: string,
   atendimentoId: string,
   messageTimestamp?: number
 ): Promise<boolean> {
   try {
-<<<<<<< Updated upstream
-    const contactTime = messageTimestamp
-      ? new Date(messageTimestamp * 1000)
-      : new Date()
-
-    await db
-      .update(contatos)
-      .set({
-        data_ultimo_contato: contactTime,
-        total_mensagens: sql`${contatos.total_mensagens} + 1`,
-        ultimo_atendimento_id: atendimentoId,
-        updated_at: new Date()
-      })
-      .where(eq(contatos.id, contatoId))
-=======
     const [current] = await db.select({ total_mensagens: drizzleSql<number>`0` })
       .from(schema.contatos).where(eq(schema.contatos.id, contatoId)).limit(1)
 
     await db.update(schema.contatos).set({
       updated_at: new Date()
     }).where(eq(schema.contatos.id, contatoId))
->>>>>>> Stashed changes
 
     return true
   } catch (error) {
@@ -803,19 +545,12 @@ export async function updateContactData(
   }
 }
 
-<<<<<<< Updated upstream
-// ─────────────────────────────────────────────
-// Funções de perfil e storage (MinIO)
-// ─────────────────────────────────────────────
-
-=======
 
 
 
 /**
  * Busca perfil do contato na Evolution API (Nome e Foto)
  */
->>>>>>> Stashed changes
 export async function fetchContactProfile(
   instanceId: string,
   phoneNumber: string
@@ -823,22 +558,13 @@ export async function fetchContactProfile(
   try {
     const config = useRuntimeConfig()
     const evolutionApiUrl = config.evolutionApiUrl
-<<<<<<< Updated upstream
-=======
 
     // Remover caracteres não numéricos
->>>>>>> Stashed changes
     const cleanPhone = phoneNumber.replace(/\D/g, '')
 
     console.log(`🔍 Buscando perfil do contato: ${cleanPhone} na instância ${instanceId}`)
 
     const url = `${evolutionApiUrl}/user/check`
-<<<<<<< Updated upstream
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': instanceId },
-      body: JSON.stringify({ number: [cleanPhone] })
-=======
 
     const response = await fetch(url, {
       method: 'POST',
@@ -849,7 +575,6 @@ export async function fetchContactProfile(
       body: JSON.stringify({
         number: [cleanPhone]
       })
->>>>>>> Stashed changes
     })
 
     if (!response.ok) {
@@ -858,12 +583,6 @@ export async function fetchContactProfile(
     }
 
     const data = await response.json()
-<<<<<<< Updated upstream
-    if (data?.data?.Users?.length > 0) {
-      const user = data.data.Users[0]
-      let profileUrl = user.ProfilePictureUrl || ''
-      if (profileUrl.includes('.enc')) profileUrl = profileUrl.replace('.enc', '.jpg')
-=======
 
     if (data?.data?.Users && Array.isArray(data.data.Users) && data.data.Users.length > 0) {
       const user = data.data.Users[0]
@@ -874,7 +593,6 @@ export async function fetchContactProfile(
         profileUrl = profileUrl.replace('.enc', '.jpg')
       }
 
->>>>>>> Stashed changes
       return {
         pushName: user.PushName || '',
         fullName: user.FullName || '',
@@ -888,22 +606,16 @@ export async function fetchContactProfile(
   }
 }
 
-<<<<<<< Updated upstream
-=======
 /**
  * Faz download e upload da foto de perfil para o Minio Storage
  */
->>>>>>> Stashed changes
 export async function downloadAndUploadProfilePicture(
   empresaId: string,
   externalUrl: string
 ): Promise<string | null> {
   try {
     if (!externalUrl) return null
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
     console.log(`📥 Baixando foto de perfil: ${externalUrl}`)
 
     const response = await fetch(externalUrl)
@@ -917,13 +629,6 @@ export async function downloadAndUploadProfilePicture(
 
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 8)
-<<<<<<< Updated upstream
-    const key = `${empresaId}/profile_${timestamp}_${random}.jpg`
-
-    console.log(`💾 Armazenando perfil em: ${key}`)
-    const publicUrl = await uploadFile(key, buffer, 'image/jpeg')
-    return publicUrl
-=======
     const fileName = `profile_${timestamp}_${random}.jpg`
     const objectKey = `${empresaId}/${fileName}`
 
@@ -938,22 +643,12 @@ export async function downloadAndUploadProfilePicture(
     }))
 
     return getPublicUrl(objectKey)
->>>>>>> Stashed changes
   } catch (error) {
     console.error('❌ Erro em downloadAndUploadProfilePicture:', error)
     return null
   }
 }
 
-<<<<<<< Updated upstream
-export async function deleteOldProfilePicture(oldUrl: string): Promise<void> {
-  try {
-    if (!oldUrl) return
-    const key = urlToKey(oldUrl)
-    if (!key) return
-    console.log(`🗑️ Removendo foto de perfil antiga: ${key}`)
-    await deleteFile(key)
-=======
 
 
 
@@ -980,159 +675,12 @@ export async function deleteOldProfilePicture(oldUrl: string): Promise<void> {
 
     const s3 = getStorageClient()
     await s3.send(new DeleteObjectCommand({ Bucket: MINIO_BUCKET, Key: path }))
->>>>>>> Stashed changes
     console.log('✅ Foto antiga removida com sucesso')
   } catch (error) {
     console.error('❌ Erro em deleteOldProfilePicture:', error)
   }
 }
 
-<<<<<<< Updated upstream
-// ─────────────────────────────────────────────
-// Upload de mídia de mensagens
-// ─────────────────────────────────────────────
-
-export async function uploadMediaToStorage(
-  empresaId: string,
-  base64Data: string,
-  mimeType: string,
-  fileName: string
-): Promise<{ url: string, path: string } | null> {
-  try {
-    console.log(`📤 Fazendo upload de mídia: ${fileName} (${mimeType})`)
-
-    const extension = fileName.split('.').pop() || getFileExtensionFromMimeType(mimeType)
-    const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(2, 8)
-    const uniqueFileName = `msg_${timestamp}_${random}.${extension}`
-    const key = `${empresaId}/${uniqueFileName}`
-
-    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '')
-    const buffer = Buffer.from(cleanBase64, 'base64')
-
-    console.log(`💾 Armazenando em: ${key}`)
-    const publicUrl = await uploadFile(key, buffer, mimeType)
-
-    console.log(`✅ Upload realizado com sucesso: ${publicUrl}`)
-    return { url: publicUrl, path: key }
-  } catch (error) {
-    console.error('❌ Erro em uploadMediaToStorage:', error)
-    return null
-  }
-}
-
-// Alias mantido para compatibilidade com código existente
-export const uploadMediaToSupabase = uploadMediaToStorage
-
-function getFileExtensionFromMimeType(mimeType: string): string {
-  const mimeToExt: { [key: string]: string } = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-    'video/mp4': 'mp4',
-    'video/3gpp': '3gp',
-    'video/quicktime': 'mov',
-    'audio/mpeg': 'mp3',
-    'audio/mp4': 'm4a',
-    'audio/ogg': 'ogg',
-    'audio/wav': 'wav',
-    'audio/amr': 'amr',
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx'
-  }
-  return mimeToExt[mimeType.toLowerCase()] || 'bin'
-}
-
-function extractMediaInfo(message: any, messageType: string): {
-  base64: string | null
-  mimeType: string
-  fileName: string
-  caption?: string
-  fileLength?: number
-  duration?: number
-  width?: number
-  height?: number
-} | null {
-  try {
-    console.log(`🔍 Extraindo mídia do tipo: ${messageType}`)
-    const base64 = message?.base64
-    if (!base64) {
-      console.log(`❌ Base64 não encontrado em message.base64`)
-      return null
-    }
-
-    let mediaData: any = null
-    let mimeType = ''
-    let fileName = ''
-    let caption: string | undefined
-    let fileLength = 0
-    let duration: number | undefined
-    let width: number | undefined
-    let height: number | undefined
-
-    switch (messageType) {
-      case 'imageMessage':
-        mediaData = message.imageMessage
-        mimeType = mediaData?.mimetype || 'image/jpeg'
-        fileName = `image_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
-        caption = mediaData?.caption
-        width = mediaData?.width
-        height = mediaData?.height
-        fileLength = mediaData?.fileLength
-        break
-      case 'stickerMessage':
-        mediaData = message.stickerMessage
-        mimeType = mediaData?.mimetype || 'image/webp'
-        fileName = `sticker_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
-        width = mediaData?.width
-        height = mediaData?.height
-        fileLength = mediaData?.fileLength
-        break
-      case 'videoMessage':
-        mediaData = message.videoMessage
-        mimeType = mediaData?.mimetype || 'video/mp4'
-        fileName = `video_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
-        caption = mediaData?.caption
-        width = mediaData?.width
-        height = mediaData?.height
-        duration = mediaData?.seconds
-        fileLength = mediaData?.fileLength
-        break
-      case 'audioMessage':
-        mediaData = message.audioMessage
-        mimeType = mediaData?.mimetype || 'audio/ogg'
-        fileName = `audio_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
-        duration = mediaData?.seconds
-        fileLength = mediaData?.fileLength
-        break
-      case 'documentMessage':
-        mediaData = message.documentMessage
-        mimeType = mediaData?.mimetype || 'application/pdf'
-        fileName = mediaData?.fileName || `document_${Date.now()}.${getFileExtensionFromMimeType(mimeType)}`
-        caption = mediaData?.caption
-        fileLength = mediaData?.fileLength
-        break
-      default:
-        console.log(`⚠️ Tipo de mídia não suportado: ${messageType}`)
-        return null
-    }
-
-    return { base64, mimeType, fileName, caption, fileLength, duration, width, height }
-  } catch (error) {
-    console.error('❌ Erro ao extrair informações de mídia:', error)
-    return null
-  }
-}
-
-// ─────────────────────────────────────────────
-// Processamento principal do webhook
-// ─────────────────────────────────────────────
-
-export async function processEvolutionMessage(webhookData: any): Promise<ProcessedMessage | null> {
-=======
 
 
 
@@ -1142,7 +690,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
  */
 export async function processEvolutionMessage(webhookData: any): Promise<ProcessedMessage | null> {
   // Normalizar dados do webhook para formato comum
->>>>>>> Stashed changes
   const normalized = normalizeWebhookData(webhookData)
 
   if (!normalized) {
@@ -1194,30 +741,19 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
       const mediaInfo = extractMediaInfo(message, messageType)
 
       if (mediaInfo && mediaInfo.base64) {
-<<<<<<< Updated upstream
-        // Buscar inbox primeiro para obter empresa_id
-        const inboxForMedia = await findInboxByInstance(instance)
-        if (!inboxForMedia) {
-=======
         console.log(`📸 Processando mídia: ${mediaInfo.fileName}`)
 
         // Prosseguir com as outras etapas primeiro para obter empresa_id
         // 1. Encontrar inbox
         const inbox = await findInboxByInstance(instance)
         if (!inbox) {
->>>>>>> Stashed changes
           webhookLogger.logInboxNotFound(instance)
           return null
         }
 
-<<<<<<< Updated upstream
-        const uploadResult = await uploadMediaToStorage(
-          inboxForMedia.empresa_id,
-=======
         // Fazer upload da mídia para Minio
         const uploadResult = await uploadMediaToMinio(
           inbox.empresa_id,
->>>>>>> Stashed changes
           mediaInfo.base64,
           mediaInfo.mimeType,
           mediaInfo.fileName
@@ -1226,13 +762,10 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
         if (uploadResult) {
           mediaData = { url: uploadResult.url, type: mediaInfo.mimeType, name: mediaInfo.fileName }
 
-<<<<<<< Updated upstream
-=======
           // Configurar textos
           // messageText: corpo da mensagem (vazio se não tiver caption, para não aparecer texto na bolha)
           // previewText: texto da lista de conversas (fallback para tipo de mídia se vazio)
 
->>>>>>> Stashed changes
           if (messageType === 'imageMessage') {
             messageText = mediaInfo.caption || ''
             previewText = mediaInfo.caption || '📷 Imagem'
@@ -1267,9 +800,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
       return null
     }
 
-<<<<<<< Updated upstream
-    // 1. Encontrar inbox
-=======
     webhookLogger.info('message.processing', `Processando mensagem de ${pushName}`, {
       remoteJid,
       messageText: messageText.substring(0, 50),
@@ -1280,7 +810,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
     })
 
     // 1. Encontrar inbox (se já não foi encontrado acima)
->>>>>>> Stashed changes
     const inbox = await findInboxByInstance(instance)
     if (!inbox) {
       webhookLogger.logInboxNotFound(instance)
@@ -1307,11 +836,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
     if (atendimento.isNew) {
       try {
         const profile = await fetchContactProfile(instance, phone)
-<<<<<<< Updated upstream
-        if (profile) {
-          const updateData: any = {}
-
-=======
 
         if (profile) {
           const updateData: any = {}
@@ -1323,20 +847,12 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
           // 4. Número (fallback)
 
           // Se o contato foi criado agora (isNew=true), definimos o nome seguindo a prioridade
->>>>>>> Stashed changes
           if (contato.isNew) {
             const bestName = profile.fullName || profile.pushName || phone
             if (bestName) updateData.nome = bestName
           }
 
           if (profile.profilePictureUrl) {
-<<<<<<< Updated upstream
-            const newInternalUrl = await downloadAndUploadProfilePicture(inbox.empresa_id, profile.profilePictureUrl)
-            if (newInternalUrl) {
-              if (contato.profile_picture_url) {
-                await deleteOldProfilePicture(contato.profile_picture_url)
-              }
-=======
             // Verificar se a URL mudou ou se é necessário atualizar
             // Se já temos uma URL interna e a nova URL externa é a mesma que usamos para gerar (improvável, pois não guardamos a externa),
             // ou se simplesmente queremos garantir a atualização.
@@ -1350,22 +866,16 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
                 await deleteOldProfilePicture(contato.profile_picture_url)
               }
 
->>>>>>> Stashed changes
               updateData.profile_picture_url = newInternalUrl
             }
           }
 
-<<<<<<< Updated upstream
-          if (Object.keys(updateData).length > 0) {
-            await db.update(contatos).set(updateData).where(eq(contatos.id, contato.id))
-=======
           // Apply profile update if there are changes
           if (Object.keys(updateData).length > 0) {
             await db.update(schema.contatos)
               .set({ avatar_url: updateData.profile_picture_url, nome: updateData.nome, updated_at: new Date() })
               .where(eq(schema.contatos.id, contato.id))
 
->>>>>>> Stashed changes
             console.log(`👤 Perfil do contato atualizado:`, updateData)
           }
         }
@@ -1390,13 +900,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
       return null
     }
 
-<<<<<<< Updated upstream
-    // 6. Atualizar atendimento
-    await updateAtendimentoWithMessage(atendimento.id, previewText, messageTimestamp, !fromMe)
-
-    // 7. Atualizar contato
-    await updateContactData(contato.id, atendimento.id, messageTimestamp)
-=======
     // 5. Atualizar atendimento
     await updateAtendimentoWithMessage(
       atendimento.id,
@@ -1411,7 +914,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
       atendimento.id,
       messageTimestamp
     )
->>>>>>> Stashed changes
 
     const result = {
       contatoId: contato.id,
@@ -1431,33 +933,6 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
   }
 }
 
-<<<<<<< Updated upstream
-// ─────────────────────────────────────────────
-// Funções auxiliares de Evolution API
-// ─────────────────────────────────────────────
-
-export async function findEvolutionInstanceId(
-  _config: any,
-  instanceName: string
-): Promise<string | null> {
-  try {
-    const config = useRuntimeConfig()
-    const evolutionApiUrl = config.evolutionApiUrl
-    const evolutionApiKey = config.evolutionApiKey
-
-    if (!evolutionApiUrl || !evolutionApiKey) return null
-
-    const response = await $fetch(`${evolutionApiUrl}/instance/all`, {
-      method: 'GET',
-      headers: { 'apikey': evolutionApiKey as string }
-    })
-
-    const instances = (response as any)?.data || []
-    const instance = instances.find((inst: any) => inst.name === instanceName)
-    return instance?.id || null
-  } catch (error) {
-    console.error('❌ Erro ao buscar instâncias na Evolution API:', error)
-=======
 /**
  * Faz upload de mídia para o Minio Storage (s3-compatible)
  */
@@ -1613,7 +1088,6 @@ function extractMediaInfo(message: any, messageType: string): {
     return { base64, mimeType, fileName, caption, fileLength, duration, width, height }
   } catch (error) {
     console.error('❌ Erro ao extrair informações de mídia:', error)
->>>>>>> Stashed changes
     return null
   }
 }
@@ -1630,12 +1104,6 @@ export async function checkWhatsAppNumber(
     const config = useRuntimeConfig()
     const evolutionApiUrl = config.evolutionApiUrl
 
-<<<<<<< Updated upstream
-    if (!evolutionApiUrl) return { exists: false, error: 'Configuração da Evolution API não encontrada' }
-
-    const cleanPhone = phoneNumber.replace(/\D/g, '')
-    const response = await fetch(`${evolutionApiUrl}/user/check`, {
-=======
     if (!evolutionApiUrl || !evolutionApiKey) {
       return { exists: false, error: 'Configuração da Evolution API não encontrada' }
     }
@@ -1643,33 +1111,21 @@ export async function checkWhatsAppNumber(
     const cleanPhone = phoneNumber.replace(/\D/g, '')
     const url = `${evolutionApiUrl}/user/check`
     const response = await fetch(url, {
->>>>>>> Stashed changes
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': instanceId },
       body: JSON.stringify({ number: [cleanPhone], formatJid: false })
     })
 
     if (!response.ok) {
-<<<<<<< Updated upstream
-=======
       const errorText = await response.text()
->>>>>>> Stashed changes
       return { exists: false, error: `Erro na Evolution API: ${response.status}` }
     }
 
     const data = await response.json()
-<<<<<<< Updated upstream
-    if (data?.data?.Users?.length > 0) {
-      const result = data.data.Users[0]
-      return { exists: result.IsInWhatsapp === true, jid: result.JID }
-    }
-
-=======
     if (data?.data?.Users && Array.isArray(data.data.Users) && data.data.Users.length > 0) {
       const result = data.data.Users[0]
       return { exists: result.IsInWhatsapp === true, jid: result.JID }
     }
->>>>>>> Stashed changes
     return { exists: false, error: 'Resposta inválida da API' }
   } catch (error) {
     return { exists: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
@@ -1685,12 +1141,6 @@ export async function sendTextMessageToWhatsApp(
     const config = useRuntimeConfig()
     const evolutionApiUrl = config.evolutionApiUrl
 
-<<<<<<< Updated upstream
-    if (!evolutionApiUrl) return { success: false, error: 'Configuração da Evolution API não encontrada' }
-
-    const cleanPhone = phoneNumber.replace(/\D/g, '')
-    const response = await fetch(`${evolutionApiUrl}/send/text`, {
-=======
     if (!evolutionApiUrl || !evolutionApiKey) {
       return { success: false, error: 'Configuração da Evolution API não encontrada' }
     }
@@ -1698,7 +1148,6 @@ export async function sendTextMessageToWhatsApp(
     const cleanPhone = phoneNumber.replace(/\D/g, '')
     const url = `${evolutionApiUrl}/send/text`
     const response = await fetch(url, {
->>>>>>> Stashed changes
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': instanceId },
       body: JSON.stringify({ number: cleanPhone, text: messageText })
@@ -1729,28 +1178,18 @@ export async function sendMediaToWhatsApp(
     const config = useRuntimeConfig()
     const evolutionApiUrl = config.evolutionApiUrl
 
-<<<<<<< Updated upstream
-    if (!evolutionApiUrl) return { success: false, error: 'Configuração da Evolution API não encontrada' }
-
-    const cleanPhone = phoneNumber.replace(/\D/g, '')
-=======
     if (!evolutionApiUrl || !evolutionApiKey) {
       return { success: false, error: 'Configuração da Evolution API não encontrada' }
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '')
     const url = `${evolutionApiUrl}/send/media`
->>>>>>> Stashed changes
     const body: any = { number: cleanPhone, type: mediaType, url: mediaUrl }
     if (caption && (mediaType === 'image' || mediaType === 'video')) body.caption = caption
     if (mimeType) body.mimetype = mimeType
     if (fileName && mediaType === 'document') body.fileName = fileName
 
-<<<<<<< Updated upstream
-    const response = await fetch(`${evolutionApiUrl}/send/media`, {
-=======
     const response = await fetch(url, {
->>>>>>> Stashed changes
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': instanceId },
       body: JSON.stringify(body)

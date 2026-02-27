@@ -1,11 +1,5 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import { users, inboxAgents } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-=======
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
->>>>>>> Stashed changes
 import { signInviteToken } from '~/server/utils/jwt'
 import { sendEmail } from '~/server/utils/email'
 
@@ -19,27 +13,6 @@ export default defineEventHandler(async (event) => {
 
     if (!name || !email || !role) throw createError({ statusCode: 400, statusMessage: 'Dados incompletos' })
 
-<<<<<<< Updated upstream
-    // Buscar empresa do usuário criador
-    const creatorData = await db
-      .select({ empresa_id: users.empresa_id })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-      .then(r => r[0])
-
-    if (!creatorData?.empresa_id) {
-      throw createError({ statusCode: 403, statusMessage: 'Usuário sem empresa' })
-    }
-
-    // Verificar se email já existe
-    const existingUser = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1)
-      .then(r => r[0])
-=======
     const [creatorData] = await db.select({ empresa_id: schema.users.empresa_id })
       .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
 
@@ -48,31 +21,10 @@ export default defineEventHandler(async (event) => {
     // Verificar se email já existe
     const [existingUser] = await db.select({ id: schema.users.id })
       .from(schema.users).where(eq(schema.users.email, email)).limit(1)
->>>>>>> Stashed changes
 
     if (existingUser) throw createError({ statusCode: 400, statusMessage: 'Email já cadastrado' })
 
     // Criar usuário com status pending
-<<<<<<< Updated upstream
-    const newUser = await db
-      .insert(users)
-      .values({
-        name,
-        email,
-        role,
-        empresa_id: creatorData.empresa_id,
-        status: 'pending',
-        invited_by: user.id,
-        invited_at: new Date().toISOString()
-      })
-      .returning()
-      .then(r => r[0])
-
-    if (!newUser) {
-      console.error('Erro ao criar agente')
-      throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agente' })
-    }
-=======
     const [newUser] = await db.insert(schema.users).values({
       name,
       email,
@@ -84,27 +36,12 @@ export default defineEventHandler(async (event) => {
     }).returning()
 
     if (!newUser) throw createError({ statusCode: 500, statusMessage: 'Erro ao criar agente' })
->>>>>>> Stashed changes
 
     // Associar caixas de entrada
     if (inbox_ids && Array.isArray(inbox_ids) && inbox_ids.length > 0) {
-<<<<<<< Updated upstream
-      const inboxAgentsValues = inbox_ids.map((inboxId: string) => ({
-        user_id: newUser.id,
-        inbox_id: inboxId
-      }))
-
-      try {
-        await db.insert(inboxAgents).values(inboxAgentsValues)
-      } catch (inboxError) {
-        console.error('Erro ao associar inboxes:', inboxError)
-        // Não falhar a criação do usuário, mas logar erro
-      }
-=======
       await db.insert(schema.inboxAgents).values(
         inbox_ids.map((inboxId: string) => ({ user_id: newUser.id, inbox_id: inboxId }))
       ).onConflictDoNothing()
->>>>>>> Stashed changes
     }
 
     // Gerar token de convite

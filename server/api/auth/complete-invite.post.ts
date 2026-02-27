@@ -1,11 +1,5 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import { users } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-=======
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
->>>>>>> Stashed changes
 import { verifyInviteToken, signUserToken } from '~/server/utils/jwt'
 import { hashPassword } from '~/server/utils/password'
 
@@ -22,12 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Convite inválido ou expirado' })
   }
 
-<<<<<<< Updated upstream
-  // Buscar usuário pelo email para garantir que existe e está pendente
-  const user = await db.select().from(users).where(eq(users.email, payload.email)).limit(1).then(r => r[0])
-=======
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, payload.email)).limit(1)
->>>>>>> Stashed changes
 
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'Usuário não encontrado' })
@@ -39,20 +28,6 @@ export default defineEventHandler(async (event) => {
 
   const hashedPassword = await hashPassword(password)
 
-<<<<<<< Updated upstream
-  // Atualizar usuário
-  try {
-    await db.update(users).set({
-      password: hashedPassword,
-      status: 'active',
-      updated_at: new Date()
-    }).where(eq(users.id, user.id))
-  } catch (e: any) {
-    throw createError({ statusCode: 500, statusMessage: 'Erro ao ativar conta' })
-  }
-
-  // Gerar token de autenticação
-=======
   await db.update(schema.users)
     .set({
       password: hashedPassword,
@@ -61,7 +36,6 @@ export default defineEventHandler(async (event) => {
     })
     .where(eq(schema.users.id, user.id))
 
->>>>>>> Stashed changes
   const authToken = signUserToken({
     id: user.id,
     email: user.email!,

@@ -1,11 +1,5 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import { users, notifications } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-=======
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
->>>>>>> Stashed changes
 
 export type NotificationType = 'reminder' | 'campaign' | 'system'
 
@@ -23,20 +17,6 @@ export async function createNotification(params: CreateNotificationParams) {
   let empresaId = params.empresaId
 
   if (!empresaId) {
-<<<<<<< Updated upstream
-    const user = await db
-      .select({ empresa_id: users.empresa_id })
-      .from(users)
-      .where(eq(users.id, params.userId))
-      .limit(1)
-      .then(r => r[0])
-
-    if (!user) {
-      console.error('Error fetching user for notification')
-      return { success: false, error: 'User not found' }
-    }
-    empresaId = user.empresa_id || undefined
-=======
     const [user] = await db.select({ empresa_id: schema.users.empresa_id })
       .from(schema.users).where(eq(schema.users.id, params.userId)).limit(1)
 
@@ -46,7 +26,6 @@ export async function createNotification(params: CreateNotificationParams) {
     }
 
     empresaId = user.empresa_id ?? undefined
->>>>>>> Stashed changes
   }
 
   if (!empresaId) {
@@ -55,22 +34,6 @@ export async function createNotification(params: CreateNotificationParams) {
   }
 
   try {
-<<<<<<< Updated upstream
-    const data = await db
-      .insert(notifications)
-      .values({
-        user_id: params.userId,
-        empresa_id: empresaId,
-        title: params.title,
-        message: params.message,
-        type: params.type,
-        link: params.link || null,
-        metadata: params.metadata || {},
-        read: false
-      })
-      .returning()
-      .then(r => r[0])
-=======
     const [data] = await db.insert(schema.notifications).values({
       user_id: params.userId,
       empresa_id: empresaId,
@@ -81,7 +44,6 @@ export async function createNotification(params: CreateNotificationParams) {
       metadata: params.metadata || {},
       read: false
     }).returning()
->>>>>>> Stashed changes
 
     return { success: true, data }
   } catch (error) {

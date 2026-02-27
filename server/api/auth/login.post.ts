@@ -1,11 +1,5 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import { users } from '~/server/db/schema'
-import { eq } from 'drizzle-orm'
-=======
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
->>>>>>> Stashed changes
 import { verifyPassword } from '~/server/utils/password'
 import { signUserToken } from '~/server/utils/jwt'
 
@@ -20,13 +14,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-<<<<<<< Updated upstream
-  // Buscar usuário
-  const user = await db.select().from(users).where(eq(users.email, email)).limit(1).then(r => r[0])
-=======
   // Find user by email
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1)
->>>>>>> Stashed changes
 
   if (!user) {
     throw createError({

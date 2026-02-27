@@ -1,9 +1,4 @@
-<<<<<<< Updated upstream
-import { db } from '~/server/db'
-import { empresas } from '~/server/db/schema'
-=======
 import { db, schema } from '~/server/database'
->>>>>>> Stashed changes
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,10 +11,6 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 403, statusMessage: 'Acesso negado. Apenas superadmins podem acessar este recurso.' })
     }
 
-<<<<<<< Updated upstream
-    // Obter dados do corpo da requisição
-=======
->>>>>>> Stashed changes
     const body = await readBody(event)
     const { nome, vencimento, max_usuarios } = body
 
@@ -44,25 +35,6 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Data de vencimento não pode ser anterior a hoje' })
     }
 
-<<<<<<< Updated upstream
-    // Criar nova empresa
-    const empresa = await db
-      .insert(empresas)
-      .values({
-        nome: nome.trim(),
-        vencimento: dataVenc.toISOString().split('T')[0],
-        max_usuarios: maxUsers
-      })
-      .returning()
-      .then(r => r[0])
-
-    if (!empresa) {
-      console.error('Erro ao criar empresa: nenhum registro retornado')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Erro ao criar empresa'
-      })
-=======
     const [empresa] = await db.insert(schema.empresas).values({
       nome: nome.trim(),
       vencimento: dataVenc.toISOString().split('T')[0],
@@ -71,7 +43,6 @@ export default defineEventHandler(async (event) => {
 
     if (!empresa) {
       throw createError({ statusCode: 500, statusMessage: 'Erro ao criar empresa' })
->>>>>>> Stashed changes
     }
 
     const diffDias = Math.ceil((dataVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
@@ -98,22 +69,7 @@ export default defineEventHandler(async (event) => {
     }
 
   } catch (error: any) {
-<<<<<<< Updated upstream
-    console.error('Erro no handler de criação de empresa:', error)
-
-    // Se já for um erro criado, retornar como está
-    if (error.statusCode) {
-      throw error
-    }
-
-    // Erro genérico
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Erro interno do servidor'
-    })
-=======
     if (error.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Erro interno do servidor' })
->>>>>>> Stashed changes
   }
 })

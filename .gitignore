@@ -1,19 +1,7 @@
 /.nuxt
-<<<<<<< HEAD
 /.output
 /node_modules
-=======
-package-lock.json 
-package.json
-.claude/settings.local.json
->>>>>>> parent of 954e403 (Update .gitignore)
 /3000
 .env
-package-lock.json
-.env
-package-lock.json
 .secret_key
-package-lock.json
-package-lock.json
-.env
-.env
+.claude/settings.local.json
