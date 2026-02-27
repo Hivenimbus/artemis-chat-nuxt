@@ -256,6 +256,11 @@ const toggleOptions = async () => {
         top: `${rect.bottom + window.scrollY + 8}px`,
         // Anchor to the right of the button
         left: `${rect.right + window.scrollX - 180}px`, 
+        '--col-500': columnColor.value['500'],
+        '--col-400': columnColor.value['400'],
+        '--bg-1': '255, 255, 255',
+        '--txt-1': '17, 24, 39',
+        '--txt-3': '156, 163, 175'
       }
     }
   } else {
@@ -705,126 +710,7 @@ const updateColor = (colorValue) => {
   height: 1.125rem;
 }
 
-.kan-col__options-dropdown {
-  position: absolute;
-  right: 0;
-  top: 2.5rem;
-  min-width: 180px;
-  background: rgb(var(--bg-1));
-  border: 1px solid rgba(var(--txt-3), 0.2);
-  border-radius: 10px;
-  box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
-  padding: 0.375rem;
-  z-index: 31;
-}
 
-.kan-col__option {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgb(var(--txt-1));
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 120ms ease-out;
-  text-align: left;
-}
-
-.kan-col__option:hover:not(:disabled) {
-  background: rgba(var(--col-500), 0.06);
-  color: rgb(var(--col-500));
-}
-
-.kan-col__option:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.kan-col__option--danger {
-  color: rgb(239, 68, 68);
-}
-
-.kan-col__option--danger:hover {
-  background: rgba(239, 68, 68, 0.06);
-  color: rgb(220, 38, 38);
-}
-
-.kan-col__option-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-}
-
-.kan-col__option-chevron {
-  width: 0.875rem;
-  height: 0.875rem;
-  margin-left: auto;
-  opacity: 0.5;
-}
-
-.kan-col__option-wrapper {
-  position: relative;
-}
-
-.kan-col__sub-dropdown {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 0.5rem;
-  min-width: 160px;
-  background: rgb(var(--bg-1));
-  border: 1px solid rgba(var(--txt-3), 0.2);
-  border-radius: 8px;
-  box-shadow: 0 8px 16px rgba(30, 41, 59, 0.12);
-  padding: 0.25rem;
-  z-index: 32;
-}
-
-.kan-col__sub-option {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: rgb(var(--txt-1));
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 120ms ease-out;
-  text-align: left;
-}
-
-.kan-col__sub-option:hover {
-  background: rgba(var(--col-500), 0.08);
-}
-
-.kan-col__sub-option--active {
-  background: rgba(var(--col-500), 0.12);
-  font-weight: 600;
-}
-
-.kan-col__sub-option-icon {
-  width: 1.125rem;
-  height: 1.125rem;
-  flex-shrink: 0;
-  overflow: visible;
-}
-
-.kan-col__color-preview {
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 4px;
-  border: 2px solid white;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
 
 /* Cards Container */
 .kan-col__cards {
@@ -929,6 +815,129 @@ const updateColor = (colorValue) => {
 }
 
 /* Modal Transitions */
+</style>
+
+<style>
+/* Global styles for teleported kanban menus */
+.kan-col__options-dropdown {
+  position: absolute;
+  min-width: 180px;
+  background: rgb(var(--bg-1));
+  border: 1px solid rgba(var(--txt-3), 0.2);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(30, 41, 59, 0.15);
+  padding: 0.375rem;
+  z-index: 9999;
+}
+
+.kan-col__option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--txt-1));
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 120ms ease-out;
+  text-align: left;
+}
+
+.kan-col__option:hover:not(:disabled) {
+  background: rgba(var(--col-500), 0.06);
+  color: rgb(var(--col-500));
+}
+
+.kan-col__option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.kan-col__option--danger {
+  color: rgb(239, 68, 68);
+}
+
+.kan-col__option--danger:hover {
+  background: rgba(239, 68, 68, 0.06);
+  color: rgb(220, 38, 38);
+}
+
+.kan-col__option-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.kan-col__option-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.kan-col__option-wrapper {
+  position: relative;
+}
+
+.kan-col__sub-dropdown {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 0.5rem;
+  min-width: 160px;
+  background: rgb(var(--bg-1));
+  border: 1px solid rgba(var(--txt-3), 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(30, 41, 59, 0.12);
+  padding: 0.25rem;
+  z-index: 10000;
+}
+
+.kan-col__sub-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--txt-1));
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 120ms ease-out;
+  text-align: left;
+}
+
+.kan-col__sub-option:hover {
+  background: rgba(var(--col-500), 0.08);
+}
+
+.kan-col__sub-option--active {
+  background: rgba(var(--col-500), 0.12);
+  font-weight: 600;
+}
+
+.kan-col__sub-option-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.kan-col__color-preview {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
