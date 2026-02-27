@@ -39,7 +39,7 @@ ENV NUXT_SMTP_PASS=$NUXT_SMTP_PASS
 ENV NUXT_SMTP_FROM=$NUXT_SMTP_FROM
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 COPY . .
 # Usar npx nuxt build para ignorar o script de build do package.json que tenta rodar Go
 RUN npx nuxt build
