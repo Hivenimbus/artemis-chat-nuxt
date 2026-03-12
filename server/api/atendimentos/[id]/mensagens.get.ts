@@ -1,4 +1,4 @@
-import { eq, and, asc } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 
 export default defineEventHandler(async (event) => {
@@ -62,15 +62,8 @@ export default defineEventHandler(async (event) => {
       evolution_status: m.status
     }))
 
-    // Se usuário é responsável, marcar mensagens como lidas
-    if (atendimento.usuario_responsavel_id === user.id && mensagens.length > 0) {
-      await db.update(schema.mensagens)
-        .set({ lida: true })
-        .where(and(
-          eq(schema.mensagens.atendimento_id, atendimentoId),
-          eq(schema.mensagens.lida, false),
-          eq(schema.mensagens.direction, 'inbound')
-        ))
+    // Zerar unread_count ao carregar mensagens
+    if (mensagens.length > 0) {
       await db.update(schema.atendimentos)
         .set({ unread_count: 0 })
         .where(eq(schema.atendimentos.id, atendimentoId))

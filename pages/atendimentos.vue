@@ -91,6 +91,9 @@ const atendimentos = ref([])
 const loading = ref(true)
 const error = ref(null)
 
+const route = useRoute()
+const router = useRouter()
+
 const selectedContact = ref(null)
 const serverCounts = ref(null)
 const showResolveModal = ref(false)
@@ -178,6 +181,7 @@ const selectContact = async (contact) => {
   selectedContact.value = contact
   // Resetar contador de mensagens não lidas
   contact.unreadCount = 0
+  router.replace({ query: { atendimento: contact.id } })
 
   // Chamar API para marcar como lido no backend
   if (contact.id) {
@@ -664,6 +668,13 @@ onMounted(async () => {
   // Carregar inboxes e depois atendimentos (dependência)
   await loadInboxes()
   await loadAtendimentos()
+
+  // Restaurar atendimento selecionado da URL
+  const atendimentoId = route.query.atendimento
+  if (atendimentoId) {
+    const found = atendimentos.value.find(a => a.id === atendimentoId)
+    if (found) selectContact(found)
+  }
 
   // Iniciar polling
   startPolling()

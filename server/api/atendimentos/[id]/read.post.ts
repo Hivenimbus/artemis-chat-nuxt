@@ -24,15 +24,6 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Atendimento não encontrado ou não pertence à sua empresa' })
     }
 
-    // Marcar mensagens como lidas (apenas recebidas)
-    await db.update(schema.mensagens)
-      .set({ lida: true })
-      .where(and(
-        eq(schema.mensagens.atendimento_id, atendimentoId),
-        eq(schema.mensagens.lida, false),
-        eq(schema.mensagens.remetente, 'contact')
-      ))
-
     // Zerar unread_count no atendimento
     await db.update(schema.atendimentos)
       .set({ unread_count: 0 })
