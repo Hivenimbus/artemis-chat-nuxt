@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 
-const config = useRuntimeConfig()
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+
   try {
     const id = getRouterParam(event, 'id')
     if (!id) throw createError({ statusCode: 400, statusMessage: 'ID da caixa de entrada é obrigatório' })
@@ -21,19 +21,24 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Caixa de entrada não encontrada ou sem permissão' })
     }
 
-    // Buscar status na Evolution API
+    // Buscar status na API-MEOW
     try {
-      const response: any = await $fetch(`${config.evolutionApiUrl}/instance/status`, {
-        method: 'GET', headers: { 'apikey': id }
+      const response: any = await $fetch(`${config.meowApiUrl}/api/instances/${id}/wa-status`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
       })
 
-      const instanceData = response.data || {}
-      const connected = instanceData.Connected === true || instanceData.connected === true
-      const loggedIn = instanceData.LoggedIn === true || instanceData.loggedIn === true
-      const name = instanceData.Name || instanceData.name
+      const meowStatus = response?.status || 'disconnected' // "connected"|"connecting"|"disconnected"
+      const phone = response?.phone || null
 
-      const isConnected = connected && loggedIn
-      const state = isConnected ? 'open' : (connected ? 'connecting' : 'closed')
+      // Mapear status da API-MEOW para o formato do sistema
+      const stateMap: Record<string, string> = {
+        'connected': 'open',
+        'connecting': 'connecting',
+        'disconnected': 'closed'
+      }
+      const state = stateMap[meowStatus] || 'closed'
+      const isConnected = meowStatus === 'connected'
 
       // Atualizar status no DB
       const newStatus = isConnected ? 'connected' : 'disconnected'
@@ -43,16 +48,16 @@ export default defineEventHandler(async (event) => {
           .where(eq(schema.inboxes.id, id))
       }
 
-      return { success: true, data: { state, connected: isConnected, instanceName: name } }
+      return { success: true, data: { state, connected: isConnected, phone } }
 
-    } catch (evolutionError: any) {
-      console.error('Erro ao buscar status na Evolution API:', evolutionError)
+    } catch (meowError: any) {
+      console.error('Erro ao buscar status na API-MEOW:', meowError)
 
-      if (evolutionError.response?.status === 404 || evolutionError.response?.status === 403) {
+      if (meowError.response?.status === 404) {
         if (inbox.status === 'connected') {
           await db.update(schema.inboxes).set({ status: 'disconnected', updated_at: new Date() }).where(eq(schema.inboxes.id, id))
         }
-        return { success: true, data: { state: 'not_found', connected: false, instanceName: null } }
+        return { success: true, data: { state: 'not_found', connected: false, phone: null } }
       }
 
       throw createError({ statusCode: 500, statusMessage: 'Erro ao verificar status da conexão' })

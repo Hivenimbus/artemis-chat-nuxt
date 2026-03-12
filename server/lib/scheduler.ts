@@ -1,6 +1,6 @@
 import { eq, and, lte, inArray } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { sendTextMessageToWhatsApp, findOrCreateAtendimento, createMessage, updateAtendimentoWithMessage } from '~/server/lib/evolution'
+import { sendTextMessageToWhatsApp, findOrCreateAtendimento, createMessage, updateAtendimentoWithMessage } from '~/server/lib/meow'
 import { createNotification } from './notifications'
 import { db } from '~/server/db'
 import { agendamentos, agendamentoContatos, contatos } from '~/server/db/schema'

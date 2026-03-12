@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: true },
   devServer: {
-    port: 3000
+    port: parseInt(process.env.PORT || '3000')
   },
   nitro: {
     externals: {
@@ -25,8 +25,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Private keys (only available on server-side)
     databaseUrl: process.env.DATABASE_URL,
-    evolutionApiUrl: process.env.NUXT_EVOLUTION_API_URL || process.env.EVOLUTION_API_URL,
-    evolutionApiKey: process.env.NUXT_EVOLUTION_API_KEY || process.env.EVOLUTION_API_KEY,
+    meowApiUrl: process.env.NUXT_MEOW_API_URL || process.env.MEOW_API_URL,
+    meowApiKey: process.env.NUXT_MEOW_API_KEY || process.env.MEOW_API_KEY,
     openrouterApiKey: process.env.OPENROUTER_APIKEY,
     jwtSecret: process.env.JWT_SECRET,
     smtpHost: process.env.NUXT_SMTP_HOST || process.env.SMTP_HOST,

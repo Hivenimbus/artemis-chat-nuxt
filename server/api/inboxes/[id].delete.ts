@@ -1,6 +1,5 @@
 import { eq, and, inArray } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { findEvolutionInstanceId } from '../../lib/evolution'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -22,20 +21,17 @@ export default defineEventHandler(async (event) => {
 
     if (!inbox) throw createError({ statusCode: 404, statusMessage: 'Caixa de entrada não encontrada ou sem permissão' })
 
-    // Delete Evolution instance
+    // Deletar instância na API-MEOW
     try {
-      const evolutionInstanceId = await findEvolutionInstanceId(config, id)
-      if (evolutionInstanceId) {
-        await $fetch(`${config.evolutionApiUrl}/instance/delete/${evolutionInstanceId}`, {
-          method: 'DELETE',
-          headers: { 'apikey': config.evolutionApiKey }
-        })
-      }
-    } catch (evolutionError) {
-      console.error('Erro ao deletar instância na Evolution API:', evolutionError)
+      await $fetch(`${config.meowApiUrl}/api/instances/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
+      })
+    } catch (meowError) {
+      console.error('Erro ao deletar instância na API-MEOW:', meowError)
     }
 
-    // Cleanup related data - get atendimento ids
+    // Limpar dados relacionados
     const atendimentosList = await db.select({ id: schema.atendimentos.id })
       .from(schema.atendimentos).where(eq(schema.atendimentos.inbox_id, id))
 
@@ -49,10 +45,10 @@ export default defineEventHandler(async (event) => {
     await db.delete(schema.inboxAgents).where(eq(schema.inboxAgents.inbox_id, id))
     await db.delete(schema.inboxTeams).where(eq(schema.inboxTeams.inbox_id, id))
 
-    // Unlink campanhas (keep history)
+    // Desvincular campanhas (mantém histórico)
     await db.update(schema.campanhas).set({ inbox_id: null }).where(eq(schema.campanhas.inbox_id, id))
 
-    // Delete inbox
+    // Deletar inbox
     await db.delete(schema.inboxes)
       .where(and(eq(schema.inboxes.id, id), eq(schema.inboxes.empresa_id, userData.empresa_id)))
 

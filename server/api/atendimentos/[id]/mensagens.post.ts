@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/evolution'
+import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/meow'
 import { getStorageClient, getPublicUrl } from '~/server/lib/storage'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 

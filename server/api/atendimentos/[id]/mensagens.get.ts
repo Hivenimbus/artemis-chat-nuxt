@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     // Buscar mensagens
     const mensagens = await db.query.mensagens.findMany({
       where: eq(schema.mensagens.atendimento_id, atendimentoId),
-      orderBy: [asc(schema.mensagens.timestamp)],
+      orderBy: [asc(schema.mensagens.created_at)],
       limit,
       offset,
       with: { sender: { columns: { id: true, name: true, email: true } } }
@@ -46,20 +46,20 @@ export default defineEventHandler(async (event) => {
     const mensagensFormatadas = mensagens.map(m => ({
       id: m.id,
       atendimento_id: m.atendimento_id,
-      text: m.texto,
-      texto: m.texto,
-      sender: m.remetente,
-      timestamp: m.timestamp ? new Date(m.timestamp) : new Date(m.created_at!),
-      lida: m.lida,
+      text: m.content,
+      texto: m.content,
+      sender: m.direction === 'inbound' ? 'contact' : 'user',
+      timestamp: m.created_at,
+      lida: false,
       usuario_id: m.sender_id,
       usuario_name: m.sender?.name || null,
       created_at: m.created_at,
-      message_type: m.message_type,
-      media_url: m.media_url,
-      media_type: m.media_type,
-      media_name: m.media_name,
-      evolution_message_id: m.evolution_message_id,
-      evolution_status: m.evolution_status
+      message_type: m.type,
+      media_url: (m.metadata as any)?.media_url || null,
+      media_type: (m.metadata as any)?.media_type || null,
+      media_name: (m.metadata as any)?.media_name || null,
+      evolution_message_id: m.external_id,
+      evolution_status: m.status
     }))
 
     // Se usuário é responsável, marcar mensagens como lidas
@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
         .where(and(
           eq(schema.mensagens.atendimento_id, atendimentoId),
           eq(schema.mensagens.lida, false),
-          eq(schema.mensagens.remetente, 'contact')
+          eq(schema.mensagens.direction, 'inbound')
         ))
       await db.update(schema.atendimentos)
         .set({ unread_count: 0 })

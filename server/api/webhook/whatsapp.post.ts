@@ -1,24 +1,16 @@
-import { processEvolutionMessage, validateWebhookOrigin } from '~/server/lib/evolution'
+import { processMeowMessage } from '~/server/lib/meow'
 
 export default defineEventHandler(async (event) => {
   const startTime = Date.now()
 
   try {
     const body = await readBody(event)
-    const headers = getHeaders(event)
+    const instanceName = body.instance
 
-    // Extrair instance do formato antigo ou novo
-    const instanceName = body.instance || body.instanceName || body.instanceId
     console.log(`[${startTime}] Webhook recebido: ${body.event} (${instanceName})`)
 
-    // Validar origem do webhook (básico por enquanto)
-    if (!validateWebhookOrigin(headers, body.apikey)) {
-      console.log('Webhook sem validação de origem')
-    }
-
-    // Verificar se é um evento de mensagem (suporta formato antigo e novo)
-    if (body.event === 'messages.upsert' || body.event === 'Message') {
-      const result = await processEvolutionMessage(body)
+    if (body.event === 'message.received') {
+      const result = await processMeowMessage(body)
 
       const processingTime = Date.now() - startTime
       console.log(`[${processingTime}ms] Webhook processado com sucesso`)
@@ -29,19 +21,19 @@ export default defineEventHandler(async (event) => {
         processingTime: `${processingTime}ms`
       }
     }
-    else if (body.event === 'messages.edit') {
-      console.log('Processando edição de mensagem:', body.instance)
-      // TODO: Implementar lógica de edição de mensagens
+    else if (body.event === 'connection.connected') {
+      console.log(`✅ Instância conectada: ${instanceName} (telefone: ${body.data?.phoneNumber})`)
     }
-    else if (body.event === 'status.instance') {
-      console.log('Processando status da instância:', body.instance)
-      // TODO: Implementar atualização de status da instância
+    else if (body.event === 'connection.disconnected') {
+      console.log(`⚠️ Instância desconectada: ${instanceName}`)
+    }
+    else if (body.event === 'connection.logged_out') {
+      console.log(`🚪 Instância deslogada: ${instanceName}`)
     }
     else {
       console.log('Evento não processado:', body.event)
     }
 
-    // Retornar sucesso rapidamente para a Evolution API
     const processingTime = Date.now() - startTime
     return {
       success: true,
@@ -54,7 +46,7 @@ export default defineEventHandler(async (event) => {
     const processingTime = Date.now() - startTime
     console.error(`[${processingTime}ms] Erro ao processar webhook:`, error)
 
-    // Mesmo com erro, retornar sucesso para não bloquear a Evolution API
+    // Retornar sucesso para não bloquear a API-MEOW
     return {
       success: false,
       message: 'Erro ao processar webhook',

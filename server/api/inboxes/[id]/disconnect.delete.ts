@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 
-const config = useRuntimeConfig()
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+
   try {
     const id = getRouterParam(event, 'id')
 
@@ -23,7 +23,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Buscar dados do usuário para verificar permissões
     const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
       .from(schema.users)
       .where(eq(schema.users.id, user.id))
@@ -36,7 +35,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Verificar se o inbox existe e pertence à empresa do usuário
     const [inbox] = await db.select().from(schema.inboxes)
       .where(eq(schema.inboxes.id, id))
       .limit(1)
@@ -48,19 +46,19 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Fazer logout na Evolution API
+    // Desconectar na API-MEOW
     try {
-      await $fetch(`${config.evolutionApiUrl}/instance/disconnect`, {
+      await $fetch(`${config.meowApiUrl}/api/instances/${id}/disconnect`, {
         method: 'POST',
         headers: {
-          'apikey': id
-        },
-        body: {}
+          'Authorization': `Bearer ${config.meowApiKey}`,
+          'Content-Type': 'application/json'
+        }
       })
-    } catch (evolutionError: any) {
-      console.error('Erro ao fazer logout na Evolution API:', evolutionError)
+    } catch (meowError: any) {
+      console.error('Erro ao desconectar na API-MEOW:', meowError)
 
-      if (evolutionError.response?.status !== 404 && evolutionError.response?.status !== 403) {
+      if (meowError.response?.status !== 404 && meowError.response?.status !== 403) {
         throw createError({
           statusCode: 500,
           statusMessage: 'Erro ao desconectar WhatsApp. Tente novamente.'
