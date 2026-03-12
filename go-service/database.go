@@ -1,65 +1,70 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	"github.com/nedpals/supabase-go"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var client *supabase.Client
+var pool *pgxpool.Pool
 
 func InitDB() {
-	supabaseURL := os.Getenv("SUPABASE_URL")
-	supabaseKey := os.Getenv("SUPABASE_SECRET_KEY")
-
-	if supabaseURL == "" {
-		log.Println("⚠️ SUPABASE_URL is missing")
-	} else {
-		log.Printf("🔹 SUPABASE_URL: %s", supabaseURL)
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		log.Fatal("❌ DATABASE_URL must be set in .env")
 	}
 
-	if supabaseKey == "" {
-		log.Println("⚠️ SUPABASE_SECRET_KEY is missing")
-	} else {
-		log.Println("🔹 SUPABASE_SECRET_KEY: [PRESENT]")
+	var err error
+	pool, err = pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
 
-	if supabaseURL == "" || supabaseKey == "" {
-		log.Fatal("❌ SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
+	if err := pool.Ping(context.Background()); err != nil {
+		log.Fatalf("❌ Failed to ping database: %v", err)
 	}
 
-	client = supabase.CreateClient(supabaseURL, supabaseKey)
-	log.Println("✅ Successfully initialized Supabase client")
+	log.Println("✅ Successfully initialized PostgreSQL connection pool")
 }
 
 func GetPendingCampaigns() ([]Campaign, error) {
+	ctx := context.Background()
+
+	rows, err := pool.Query(ctx, `
+		SELECT id, empresa_id, user_id, message_text, attachment_url, attachment_type,
+		       recipient_type, target_tags, scheduled_at, status, inbox_id, attachments, stats,
+		       created_at, updated_at
+		FROM campanhas
+		WHERE status = 'processing'
+		   OR (status = 'scheduled' AND scheduled_at <= NOW())
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("error querying pending campaigns: %w", err)
+	}
+	defer rows.Close()
+
 	var campaigns []Campaign
-	var processingCampaigns []Campaign
-	var scheduledCampaigns []Campaign
-
-	// Query 1: Status = 'processing'
-	err := client.DB.From("campanhas").Select("*").Eq("status", "processing").Execute(&processingCampaigns)
-	if err != nil {
-		return nil, fmt.Errorf("error querying processing campaigns: %w", err)
+	for rows.Next() {
+		var c Campaign
+		var targetTagsBytes, attachmentsBytes, statsBytes []byte
+		err := rows.Scan(
+			&c.ID, &c.EmpresaID, &c.UserID, &c.MessageText, &c.AttachmentURL, &c.AttachmentType,
+			&c.RecipientType, &targetTagsBytes, &c.ScheduledAt, &c.Status, &c.InboxID,
+			&attachmentsBytes, &statsBytes, &c.CreatedAt, &c.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning campaign: %w", err)
+		}
+		c.TargetTags = json.RawMessage(targetTagsBytes)
+		c.Attachments = json.RawMessage(attachmentsBytes)
+		c.Stats = json.RawMessage(statsBytes)
+		campaigns = append(campaigns, c)
 	}
-	campaigns = append(campaigns, processingCampaigns...)
-
-	// Query 2: Status = 'scheduled' AND scheduled_at <= NOW()
-	now := time.Now().Format(time.RFC3339)
-	err = client.DB.From("campanhas").
-		Select("*").
-		Eq("status", "scheduled").
-		Lte("scheduled_at", now).
-		Execute(&scheduledCampaigns)
-		
-	if err != nil {
-		return nil, fmt.Errorf("error querying scheduled campaigns: %w", err)
-	}
-	campaigns = append(campaigns, scheduledCampaigns...)
 
 	if len(campaigns) > 0 {
 		log.Printf("📥 GetPendingCampaigns found %d campaigns", len(campaigns))
@@ -70,64 +75,80 @@ func GetPendingCampaigns() ([]Campaign, error) {
 
 func GetCampaignContacts(c Campaign) ([]Contact, error) {
 	log.Printf("🔎 Fetching contacts for campaign %s (Type: %s)", c.ID, c.RecipientType)
+	ctx := context.Background()
 
 	var contacts []Contact
 
 	if c.RecipientType == "all" {
-		err := client.DB.From("contatos").Select("*").Eq("empresa_id", c.EmpresaID).Execute(&contacts)
+		rows, err := pool.Query(ctx, `
+			SELECT id, nome, sobrenome, telefone, empresa_id, COALESCE(total_mensagens, 0)
+			FROM contatos
+			WHERE empresa_id = $1
+		`, c.EmpresaID)
 		if err != nil {
 			return nil, fmt.Errorf("error querying contacts (all): %w", err)
 		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var ct Contact
+			if err := rows.Scan(&ct.ID, &ct.Nome, &ct.Sobrenome, &ct.Telefone, &ct.EmpresaID, &ct.TotalMensagens); err != nil {
+				return nil, fmt.Errorf("error scanning contact: %w", err)
+			}
+			contacts = append(contacts, ct)
+		}
+
 	} else if c.RecipientType == "tags" {
-		// Parse target tags from JSON
 		var tagIDs []string
 		if err := json.Unmarshal(c.TargetTags, &tagIDs); err != nil {
 			return nil, fmt.Errorf("error parsing target tags: %w", err)
 		}
-		
+
 		if len(tagIDs) == 0 {
 			return []Contact{}, nil
 		}
 
-		// Step 1: Get contact IDs that have these tags
-		type ContatoEtiqueta struct {
-			ContatoID string `json:"contato_id"`
-		}
-		
-		var contactTags []ContatoEtiqueta
-		
-		err := client.DB.From("contato_etiquetas").
-			Select("contato_id").
-			In("etiqueta_id", tagIDs).
-			Execute(&contactTags)
-			
+		// Step 1: Get unique contact IDs with these tags
+		tagRows, err := pool.Query(ctx, `
+			SELECT DISTINCT contato_id
+			FROM contato_etiquetas
+			WHERE etiqueta_id = ANY($1)
+		`, tagIDs)
 		if err != nil {
 			return nil, fmt.Errorf("error querying contact tags: %w", err)
 		}
-		
-		if len(contactTags) == 0 {
+		defer tagRows.Close()
+
+		var contactIDs []string
+		for tagRows.Next() {
+			var id string
+			if err := tagRows.Scan(&id); err != nil {
+				return nil, fmt.Errorf("error scanning contact tag: %w", err)
+			}
+			contactIDs = append(contactIDs, id)
+		}
+
+		if len(contactIDs) == 0 {
 			return []Contact{}, nil
 		}
-		
-		// Collect unique IDs
-		uniqueIDs := make(map[string]bool)
-		var ids []string
-		for _, ct := range contactTags {
-			if !uniqueIDs[ct.ContatoID] {
-				uniqueIDs[ct.ContatoID] = true
-				ids = append(ids, ct.ContatoID)
-			}
-		}
-		
+
 		// Step 2: Fetch contacts
-		err = client.DB.From("contatos").
-			Select("*").
-			Eq("empresa_id", c.EmpresaID).
-			In("id", ids).
-			Execute(&contacts)
-			
+		rows, err := pool.Query(ctx, `
+			SELECT id, nome, sobrenome, telefone, empresa_id, COALESCE(total_mensagens, 0)
+			FROM contatos
+			WHERE empresa_id = $1 AND id = ANY($2)
+		`, c.EmpresaID, contactIDs)
 		if err != nil {
 			return nil, fmt.Errorf("error querying contacts (tags): %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var ct Contact
+			if err := rows.Scan(&ct.ID, &ct.Nome, &ct.Sobrenome, &ct.Telefone, &ct.EmpresaID, &ct.TotalMensagens); err != nil {
+				return nil, fmt.Errorf("error scanning contact: %w", err)
+			}
+			contacts = append(contacts, ct)
 		}
 
 	} else {
@@ -140,15 +161,17 @@ func GetCampaignContacts(c Campaign) ([]Contact, error) {
 
 func UpdateCampaignStatus(id string, status string, stats CampaignStats) error {
 	log.Printf("💾 Updating campaign %s status to '%s' (Sent: %d, Failed: %d)", id, status, stats.Sent, stats.Failed)
-	
-	updateData := map[string]interface{}{
-		"status":     status,
-		"stats":      stats,
-		"updated_at": time.Now(),
+
+	statsJSON, err := json.Marshal(stats)
+	if err != nil {
+		return fmt.Errorf("error marshaling stats: %w", err)
 	}
 
-	var results []Campaign
-	err := client.DB.From("campanhas").Update(updateData).Eq("id", id).Execute(&results)
+	_, err = pool.Exec(context.Background(), `
+		UPDATE campanhas
+		SET status = $1, stats = $2, updated_at = $3
+		WHERE id = $4
+	`, status, statsJSON, time.Now(), id)
 	if err != nil {
 		log.Printf("❌ Error updating campaign status in DB: %v", err)
 		return err
@@ -157,20 +180,13 @@ func UpdateCampaignStatus(id string, status string, stats CampaignStats) error {
 }
 
 func MarkCampaignAsSending(id string) error {
-	// Use 'processing' instead of 'sending' to respect DB constraints if needed, 
-	// or stick to 'sending' if your updated schema allows it.
-	// Based on previous code context, we assume 'sending' is what we want, 
-	// but if the constraint fails, we might need to change to 'processing'.
-	// Keeping 'sending' as per user plan request.
 	log.Printf("🔄 Marking campaign %s as 'sending'", id)
-	
-	updateData := map[string]interface{}{
-		"status":     "sending",
-		"updated_at": time.Now(),
-	}
 
-	var results []Campaign
-	err := client.DB.From("campanhas").Update(updateData).Eq("id", id).Execute(&results)
+	_, err := pool.Exec(context.Background(), `
+		UPDATE campanhas
+		SET status = 'sending', updated_at = $1
+		WHERE id = $2
+	`, time.Now(), id)
 	if err != nil {
 		log.Printf("❌ Error marking campaign as sending in DB: %v", err)
 		return err
@@ -178,21 +194,13 @@ func MarkCampaignAsSending(id string) error {
 	return nil
 }
 
-// GetCampaignStatus fetches the current status of a campaign
 func GetCampaignStatus(id string) (string, error) {
-	type StatusResult struct {
-		Status string `json:"status"`
-	}
-	
-	var results []StatusResult
-	err := client.DB.From("campanhas").Select("status").Eq("id", id).Execute(&results)
+	var status string
+	err := pool.QueryRow(context.Background(), `
+		SELECT status FROM campanhas WHERE id = $1
+	`, id).Scan(&status)
 	if err != nil {
 		return "", fmt.Errorf("error fetching campaign status: %w", err)
 	}
-	
-	if len(results) == 0 {
-		return "", fmt.Errorf("campaign not found")
-	}
-	
-	return results[0].Status, nil
+	return status, nil
 }

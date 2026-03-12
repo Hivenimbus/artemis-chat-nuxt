@@ -47,7 +47,7 @@ func main() {
 		}
 	}
 
-	// Initialize Database (Supabase Client)
+	// Initialize Database connection
 	// This will log fatal if vars are missing
 	log.Println("🔌 Initializing DB connection...")
 	InitDB()

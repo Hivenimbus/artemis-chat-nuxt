@@ -98,7 +98,7 @@ const selectedCaixaEntrada = ref(null)
 const currentStatus = ref('todos')
 const chatAreaRef = ref(null)
 
-// Carregar caixas de entrada do Supabase
+// Carregar caixas de entrada
 const { getInboxes, loading: inboxesLoading } = useInboxes()
 const inboxesData = ref([])
 const caixasEntradaOptions = computed(() => {
@@ -523,7 +523,7 @@ const handleDeleteChat = async () => {
   }
 }
 
-// Carregar inboxes do Supabase
+// Carregar inboxes
 const loadInboxes = async () => {
   try {
     const response = await getInboxes()
@@ -540,7 +540,7 @@ const loadInboxes = async () => {
   }
 }
 
-// Carregar atendimentos do Supabase
+// Carregar atendimentos
 const loadAtendimentos = async (inboxId = null, showLoading = true) => {
   try {
     if (showLoading) loading.value = true

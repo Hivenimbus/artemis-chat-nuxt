@@ -13,7 +13,10 @@ This is a Nuxt 3 application that provides a multi-tenant customer service platf
 ## Key Technologies
 
 - **Nuxt 4.1.2** - Vue 3 framework with file-based routing
-- **Supabase** - Backend (PostgreSQL database, authentication, storage, real-time)
+- **PostgreSQL** - Database (via Drizzle ORM + `postgres` driver)
+- **Drizzle ORM** - Type-safe query builder, schema in `server/db/schema.ts`
+- **Minio / S3-compatible** - Object storage for media files
+- **JWT + bcrypt** - Custom authentication (tokens stored in cookies)
 - **TailwindCSS** - Styling with @tailwindcss/forms and @tailwindcss/typography
 - **Evolution API** - WhatsApp integration for sending/receiving messages
 - **VueUse** - Composable utilities
@@ -42,7 +45,7 @@ npm run postinstall
 
 ### Database Structure
 
-The application uses Supabase PostgreSQL with the following core tables:
+The application uses PostgreSQL with Drizzle ORM. Schema is defined in `server/db/schema.ts`. Core tables:
 
 - **empresas** - Multi-tenant companies
 - **users** - Users with role-based access (superadmin, admin, agent)
@@ -62,8 +65,9 @@ The application uses Supabase PostgreSQL with the following core tables:
 
 ### Authentication & Authorization
 
-- Uses Supabase Auth with PKCE flow
-- Session persists for 8 hours (configurable in nuxt.config.ts)
+- Custom JWT-based auth with bcrypt password hashing
+- Tokens stored in HTTP-only cookies, validated on each request via `server/utils/auth.ts`
+- Session persists for 8 hours
 - Middleware:
   - `auth.ts` - Ensures user is authenticated
   - `admin.ts` - Requires admin or superadmin role
@@ -81,12 +85,11 @@ The application integrates with Evolution API for WhatsApp messaging:
   - Finding/creating contacts from phone numbers
   - Finding/creating atendimentos (service sessions)
   - Storing messages with media support (images, videos, audio, documents)
-  - Uploading media to Supabase Storage (`midias` bucket)
+  - Uploading media to Minio storage
 - **Instance management**: Each inbox has an Evolution API instance ID
 - **Environment variables**:
   - `EVOLUTION_API_URL` - Evolution API server URL
   - `EVOLUTION_API_KEY` - API key for Evolution API
-  - `SUPABASE_SERVICE_ROLE_KEY` - Required for webhook processing (bypasses RLS)
 
 ### Server API Routes
 
@@ -106,13 +109,14 @@ Server routes follow Nuxt conventions in `server/api/`:
 - `empresas.{get,post}.ts` - Manage companies (superadmin only)
 - `user.get.ts` - Get current user data
 
-All API routes use `serverSupabaseClient(event)` to access the database with user context.
+All API routes use `db` from `~/server/database` (Drizzle ORM) and validate the user via JWT.
 
 ### Composables
 
 - `useInboxes.ts` - Manages inbox state and operations
 - `useEmpresas.ts` - Manages company state (superadmin)
 - `useUser.ts` - User profile and authentication helpers
+- `useAuth.ts` - Login/logout, JWT token management
 
 ### Pages & Routing
 
@@ -146,8 +150,8 @@ Key components for understanding the UI:
 
 Media files (images, videos, documents, audio) are:
 1. Received from Evolution API webhook as base64
-2. Uploaded to Supabase Storage bucket `midias` in `{empresa_id}/{filename}` structure
-3. Public URLs stored in `mensagens.media_url`
+2. Uploaded to Minio (S3-compatible) bucket in `{empresa_id}/{filename}` structure via `server/lib/storage.ts`
+3. Public URLs stored in `mensagens.metadata`
 4. Types: image, video, audio, document
 5. Previewed in ChatArea via MediaPreview component
 
@@ -175,23 +179,26 @@ Custom logging system in `server/lib/logger.ts`:
 - Status values: 'aguardando', 'ativo', 'resolvido'
 - Only one open atendimento per contact+inbox combination
 - Always filter by empresa_id for multi-tenancy
-- Real-time updates should use Supabase real-time subscriptions
+- Real-time updates are done via polling or page refresh (no WebSocket subscription)
 
-### When Working with Supabase
+### When Working with the Database
 
-- Server routes use `serverSupabaseClient(event)` for RLS context
-- Webhooks use `createServiceSupabaseClient()` with service role key (bypasses RLS)
+- All server routes import `db` and `schema` from `~/server/database`
 - Always check user's empresa_id for data isolation
-- Storage bucket `midias` is public for media access
+- Drizzle ORM provides type-safe queries via `db.query.*`, `db.select()`, `db.insert()`, `db.update()`
+- Schema definitions live in `server/db/schema.ts`
 
 ### Environment Variables
 
 Required variables (see `.env`):
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_ANON_KEY` - Public anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (server-side only)
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret for signing JWT tokens
 - `EVOLUTION_API_URL` - Evolution API endpoint
 - `EVOLUTION_API_KEY` - Evolution API authentication
+- `MINIO_ENDPOINT` - Minio/S3 endpoint URL
+- `MINIO_ACCESS_KEY` - Minio access key
+- `MINIO_SECRET_KEY` - Minio secret key
+- `MINIO_BUCKET_NAME` - Minio bucket name
 - `SITE_URL` - Application URL (for callbacks)
 
 ## Common Development Patterns
@@ -200,8 +207,8 @@ Required variables (see `.env`):
 
 1. Create file in `server/api/` following Nuxt conventions
 2. Use `defineEventHandler(async (event) => { ... })`
-3. Get authenticated user: `const client = await serverSupabaseClient(event)`
-4. Validate user and empresa_id
+3. Validate user via auth utils, get empresa_id from token
+4. Use `db` from `~/server/database` for queries
 5. Return structured responses with error handling
 
 ### Adding a New Page
@@ -211,20 +218,9 @@ Required variables (see `.env`):
 3. Layout is automatically applied (default.vue for authenticated pages)
 4. Use composables for data fetching
 
-### Working with Real-time
-
-Supabase real-time subscriptions for live updates:
-```javascript
-const channel = supabase
-  .channel('atendimentos')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens' }, callback)
-  .subscribe()
-```
-
 ### Media Upload Pattern
 
 1. Receive base64 from Evolution API webhook
 2. Extract MIME type and generate unique filename
-3. Upload to Supabase Storage: `supabase.storage.from('midias').upload(path, buffer)`
-4. Get public URL: `supabase.storage.from('midias').getPublicUrl(path)`
-5. Store URL in `mensagens.media_url`
+3. Upload to Minio via `uploadMediaToMinio()` in `server/lib/evolution.ts`
+4. Store the public URL in the message record

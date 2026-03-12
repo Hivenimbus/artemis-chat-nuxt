@@ -471,7 +471,7 @@ const props = defineProps({
 
 const route = useRoute()
 
-// Dados do usuário (removido useSupabaseUser)
+// Dados do usuário
 const { isSuperAdmin, isAdmin, userData: user } = useUser()
 
 // Computados para dados do usuário

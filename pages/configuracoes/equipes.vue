@@ -649,7 +649,7 @@ const errors = ref({
   empresa_id: ''
 })
 
-// Dados carregados do Supabase
+// Dados
 const teams = ref([])
 const agents = ref([])
 const empresas = ref([])

@@ -249,7 +249,7 @@ console.log('\n✅ Testes de estrutura concluídos!')
 console.log('\n📋 Próximos passos:')
 console.log('1. Enviar mensagens reais para o webhook')
 console.log('2. Verificar logs do servidor')
-console.log('3. Confirmar upload das mídias no Supabase Storage')
+console.log('3. Confirmar upload das mídias no Minio Storage')
 console.log('4. Validar registros na tabela mensagens')
 
 console.log('\n🌐 Webhook endpoint: http://localhost:3000/api/webhook/whatsapp')

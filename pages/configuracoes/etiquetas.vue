@@ -321,7 +321,7 @@ definePageMeta({
   middleware: 'admin'
 })
 
-// Cliente Supabase
+// Dados
 const { userData } = useUser()
 const { showToast } = useToast()
 

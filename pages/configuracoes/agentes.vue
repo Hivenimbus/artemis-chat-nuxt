@@ -411,7 +411,7 @@ const errors = ref({
   role: ''
 })
 
-// Dados dos agentes (carregados do Supabase)
+// Dados dos agentes
 const agents = ref([])
 // Todas as inboxes disponíveis para seleção
 const allInboxes = ref([])

@@ -974,8 +974,6 @@ export async function uploadMediaToMinio(
   }
 }
 
-// Keep old name as alias for any callers
-export const uploadMediaToSupabase = uploadMediaToMinio
 
 /**
  * Obtém extensão de arquivo a partir do MIME type
