@@ -48,6 +48,30 @@ export default defineEventHandler(async (event) => {
           .where(eq(schema.inboxes.id, id))
       }
 
+      // Sempre sincronizar webhook URL no cliente em memória da API-Meow
+      if (isConnected) {
+        const correctWebhookUrl = `${config.public.siteUrl}/api/webhook/whatsapp`
+        try {
+          const instanceData: any = await $fetch(`${config.meowApiUrl}/api/instances/${id}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
+          })
+          await $fetch(`${config.meowApiUrl}/api/instances/${id}/settings`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${config.meowApiKey}`, 'Content-Type': 'application/json' },
+            body: {
+              webhookUrl: correctWebhookUrl,
+              ignoreGroups: instanceData?.ignoreGroups ?? true,
+              receiveMessages: instanceData?.receiveMessages ?? true,
+              proxyEnabled: instanceData?.proxyEnabled ?? false,
+              proxyUrl: instanceData?.proxyUrl ?? null,
+            }
+          })
+        } catch (e) {
+          console.error('Erro ao sincronizar webhook URL:', e)
+        }
+      }
+
       return { success: true, data: { state, connected: isConnected, phone } }
 
     } catch (meowError: any) {

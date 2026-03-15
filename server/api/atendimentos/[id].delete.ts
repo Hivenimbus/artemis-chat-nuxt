@@ -1,6 +1,6 @@
-import { eq, isNotNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { getStorageClient } from '~/server/lib/storage'
+import { getStorageClient, MINIO_BUCKET } from '~/server/lib/storage'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 export default defineEventHandler(async (event) => {
@@ -26,21 +26,21 @@ export default defineEventHandler(async (event) => {
     }
 
     // Buscar mensagens com mídia para exclusão do storage
-    const mensagensComMidia = await db.select({ media_url: schema.mensagens.media_url })
+    const mensagensComMidia = await db.select({ metadata: schema.mensagens.metadata })
       .from(schema.mensagens)
       .where(eq(schema.mensagens.atendimento_id, atendimentoId))
 
-    const mediaUrls = mensagensComMidia.map(m => m.media_url).filter(Boolean) as string[]
+    const mediaUrls = mensagensComMidia
+      .map(m => (m.metadata as any)?.media_url)
+      .filter(Boolean) as string[]
 
     if (mediaUrls.length > 0) {
-      const config = useRuntimeConfig()
       const s3 = getStorageClient()
       for (const url of mediaUrls) {
         try {
-          // Extract key from URL
           const urlObj = new URL(url)
-          const key = urlObj.pathname.replace(/^\/[^/]+\//, '') // Remove bucket prefix
-          await s3.send(new DeleteObjectCommand({ Bucket: config.minioBucket as string, Key: key }))
+          const key = urlObj.pathname.replace(/^\/[^/]+\//, '')
+          await s3.send(new DeleteObjectCommand({ Bucket: MINIO_BUCKET, Key: key }))
         } catch (e) {
           console.error('Erro ao excluir arquivo do Minio:', e)
         }

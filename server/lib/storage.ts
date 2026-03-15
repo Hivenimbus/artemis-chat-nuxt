@@ -1,7 +1,13 @@
 import { S3Client } from '@aws-sdk/client-s3'
 
+function normalizeEndpoint(endpoint: string): string {
+    if (!endpoint) return endpoint
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint
+    return 'https://' + endpoint
+}
+
 function createStorageClient(): S3Client {
-    const endpoint = process.env.MINIO_ENDPOINT
+    const endpoint = normalizeEndpoint(process.env.MINIO_ENDPOINT || '')
     const accessKeyId = process.env.MINIO_ACCESS_KEY
     const secretAccessKey = process.env.MINIO_SECRET_KEY
     const region = process.env.MINIO_REGION || 'us-east-1'
@@ -31,9 +37,8 @@ export function getStorageClient(): S3Client {
  * Get the public URL for a stored file object key
  */
 export function getPublicUrl(objectKey: string): string {
-    const endpoint = process.env.MINIO_ENDPOINT || ''
+    const endpoint = normalizeEndpoint(process.env.MINIO_ENDPOINT || '')
     const bucket = MINIO_BUCKET
-    // Remove trailing slash from endpoint
     const base = endpoint.replace(/\/$/, '')
     return `${base}/${bucket}/${objectKey}`
 }

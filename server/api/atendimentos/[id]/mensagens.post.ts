@@ -1,7 +1,7 @@
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/meow'
-import { getStorageClient, getPublicUrl } from '~/server/lib/storage'
+import { getStorageClient, getPublicUrl, MINIO_BUCKET } from '~/server/lib/storage'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 
 export default defineEventHandler(async (event) => {
@@ -84,29 +84,26 @@ export default defineEventHandler(async (event) => {
       mediaName = arquivo.filename || uniqueFileName
       const objectKey = `${userData.empresa_id}/${uniqueFileName}`
 
-      const config = useRuntimeConfig()
-      const s3 = getStorageClient(config)
+      const s3 = getStorageClient()
       await s3.send(new PutObjectCommand({
-        Bucket: config.minioBucket as string,
+        Bucket: MINIO_BUCKET,
         Key: objectKey,
         Body: arquivo.data,
         ContentType: mimeType,
       }))
-      mediaUrl = getPublicUrl(config, objectKey)
+      mediaUrl = getPublicUrl(objectKey)
     }
 
     // Criar mensagem no banco
     const [novaMensagem] = await db.insert(schema.mensagens).values({
       atendimento_id: atendimentoId,
       sender_id: user.id,
-      texto: texto?.trim() || '',
-      remetente: 'user',
-      lida: true,
-      timestamp: now,
-      message_type: messageType,
-      media_url: mediaUrl || undefined,
-      media_type: mediaType || undefined,
-      media_name: mediaName || undefined,
+      content: texto?.trim() || '',
+      direction: 'outbound',
+      status: 'sent',
+      type: messageType,
+      created_at: now,
+      metadata: mediaUrl ? { media_url: mediaUrl, media_type: mediaType, media_name: mediaName } : {},
     }).returning()
 
     // Enviar via Evolution API
@@ -127,7 +124,7 @@ export default defineEventHandler(async (event) => {
     // Atualizar mensagem com dados da Evolution se sucesso
     if (evolutionResult.success && evolutionResult.messageId) {
       await db.update(schema.mensagens)
-        .set({ evolution_message_id: evolutionResult.messageId, evolution_status: evolutionResult.status || 'sent' })
+        .set({ external_id: evolutionResult.messageId, status: evolutionResult.status || 'sent' })
         .where(eq(schema.mensagens.id, novaMensagem.id))
     }
 
@@ -140,13 +137,17 @@ export default defineEventHandler(async (event) => {
     return {
       success: true,
       data: {
-        id: novaMensagem.id, atendimento_id: novaMensagem.atendimento_id,
-        text: novaMensagem.texto, sender: novaMensagem.remetente,
-        timestamp: novaMensagem.timestamp ? new Date(novaMensagem.timestamp) : new Date(novaMensagem.created_at!),
-        lida: novaMensagem.lida, usuario_id: novaMensagem.sender_id,
-        created_at: novaMensagem.created_at, message_type: novaMensagem.message_type,
-        media_url: novaMensagem.media_url || null, media_type: novaMensagem.media_type || null,
-        media_name: novaMensagem.media_name || null
+        id: novaMensagem.id,
+        atendimento_id: novaMensagem.atendimento_id,
+        text: novaMensagem.content,
+        texto: novaMensagem.content,
+        sender: 'user',
+        timestamp: novaMensagem.created_at,
+        created_at: novaMensagem.created_at,
+        message_type: novaMensagem.type,
+        media_url: (novaMensagem.metadata as any)?.media_url || null,
+        media_type: (novaMensagem.metadata as any)?.media_type || null,
+        media_name: (novaMensagem.metadata as any)?.media_name || null,
       },
       message: arquivo ? 'Arquivo enviado com sucesso' : 'Mensagem enviada com sucesso'
     }

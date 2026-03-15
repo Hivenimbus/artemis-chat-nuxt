@@ -1,4 +1,6 @@
 import { processMeowMessage } from '~/server/lib/meow'
+import { eq } from 'drizzle-orm'
+import { db, schema } from '~/server/database'
 
 export default defineEventHandler(async (event) => {
   const startTime = Date.now()
@@ -23,12 +25,27 @@ export default defineEventHandler(async (event) => {
     }
     else if (body.event === 'connection.connected') {
       console.log(`✅ Instância conectada: ${instanceName} (telefone: ${body.data?.phoneNumber})`)
+      try {
+        await db.update(schema.inboxes)
+          .set({ status: 'connected', updated_at: new Date() })
+          .where(eq(schema.inboxes.id, instanceName))
+      } catch (e) { console.error('Erro ao atualizar status connected:', e) }
     }
     else if (body.event === 'connection.disconnected') {
       console.log(`⚠️ Instância desconectada: ${instanceName}`)
+      try {
+        await db.update(schema.inboxes)
+          .set({ status: 'disconnected', updated_at: new Date() })
+          .where(eq(schema.inboxes.id, instanceName))
+      } catch (e) { console.error('Erro ao atualizar status disconnected:', e) }
     }
     else if (body.event === 'connection.logged_out') {
       console.log(`🚪 Instância deslogada: ${instanceName}`)
+      try {
+        await db.update(schema.inboxes)
+          .set({ status: 'disconnected', updated_at: new Date() })
+          .where(eq(schema.inboxes.id, instanceName))
+      } catch (e) { console.error('Erro ao atualizar status logged_out:', e) }
     }
     else {
       console.log('Evento não processado:', body.event)

@@ -278,10 +278,6 @@
             @error="onModalImageError"
           />
 
-          <!-- Informações da imagem -->
-          <div v-if="message.media_name" class="absolute bottom-4 left-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded-lg">
-            <p class="text-sm truncate">{{ message.media_name }}</p>
-          </div>
         </div>
       </div>
     </teleport>
