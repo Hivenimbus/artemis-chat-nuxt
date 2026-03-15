@@ -24,6 +24,7 @@ export interface MeowWebhookData {
     mimeType?: string
     fileName?: string
     isGroup: boolean
+    isFromMe?: boolean
     groupId?: string
     groupName?: string
     timestamp: number
@@ -577,7 +578,8 @@ export async function sendMediaToWhatsApp(
 export async function sendAudioToWhatsApp(
   instanceName: string,
   phoneNumber: string,
-  audioUrl: string
+  audioUrl: string,
+  mimeType?: string
 ): Promise<{ success: boolean; messageId?: string; status?: string; error?: string }> {
   try {
     const config = useRuntimeConfig()
@@ -588,10 +590,14 @@ export async function sendAudioToWhatsApp(
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '')
+    // PTT só funciona com audio/ogg;codecs=opus — para outros formatos desabilita ptt
+    const isPtt = !mimeType || mimeType.includes('ogg')
+    const body: any = { to: cleanPhone, mediaType: 'audio', url: audioUrl, ptt: isPtt }
+    if (mimeType) body.mimeType = mimeType
     const response = await fetch(`${meowApiUrl}/api/instances/${instanceName}/send-media`, {
       method: 'POST',
       headers: getMeowHeaders(config),
-      body: JSON.stringify({ to: cleanPhone, mediaType: 'audio', url: audioUrl, ptt: true })
+      body: JSON.stringify(body)
     })
 
     if (!response.ok) {
@@ -745,11 +751,13 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       }
     }
 
+    const remetente: 'contact' | 'user' = data.isFromMe ? 'user' : 'contact'
+
     // 5. Criar mensagem
     const mensagemId = await createMessage(
       atendimento.id,
       messageText,
-      'contact',
+      remetente,
       processedMessageType,
       data.messageId,
       messageTimestamp,
@@ -761,12 +769,12 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       return null
     }
 
-    // 6. Atualizar atendimento
+    // 6. Atualizar atendimento (fromMe não incrementa unread)
     await updateAtendimentoWithMessage(
       atendimento.id,
       previewText,
       messageTimestamp,
-      true
+      !data.isFromMe
     )
 
     // 7. Atualizar contato

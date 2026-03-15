@@ -1,8 +1,45 @@
 import { eq } from 'drizzle-orm'
+import { execSync } from 'child_process'
+import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { db, schema } from '~/server/database'
 import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/meow'
 import { getStorageClient, getPublicUrl, MINIO_BUCKET } from '~/server/lib/storage'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
+
+/**
+ * Converte áudio para ogg/opus usando ffmpeg (exigido pelo WhatsApp).
+ * Retorna { data, mimeType, ext } do áudio convertido, ou os dados originais se falhar.
+ */
+function convertToOggOpus(inputData: Buffer, inputMime: string): { data: Buffer, mimeType: string, ext: string } {
+  // Se já é ogg, não precisa converter
+  if (inputMime.includes('ogg')) {
+    return { data: inputData, mimeType: 'audio/ogg; codecs=opus', ext: 'ogg' }
+  }
+
+  try {
+    const tmpIn = join(tmpdir(), `audio_in_${Date.now()}.webm`)
+    const tmpOut = join(tmpdir(), `audio_out_${Date.now()}.ogg`)
+
+    writeFileSync(tmpIn, inputData)
+    execSync(`ffmpeg -y -i "${tmpIn}" -c:a libopus -b:a 32k "${tmpOut}"`, {
+      timeout: 15000,
+      stdio: 'pipe'
+    })
+
+    const converted = readFileSync(tmpOut)
+
+    // Limpeza
+    try { unlinkSync(tmpIn) } catch {}
+    try { unlinkSync(tmpOut) } catch {}
+
+    return { data: converted, mimeType: 'audio/ogg; codecs=opus', ext: 'ogg' }
+  } catch (err) {
+    console.warn('⚠️ ffmpeg não disponível ou falhou, usando áudio original:', err)
+    return { data: inputData, mimeType: inputMime, ext: 'webm' }
+  }
+}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -70,26 +107,37 @@ export default defineEventHandler(async (event) => {
       if (arquivo.data.length > maxSize) throw createError({ statusCode: 400, statusMessage: 'Arquivo muito grande. Máximo: 16MB' })
 
       const mimeType = arquivo.type || 'application/octet-stream'
-      mediaType = mimeType
 
       if (mimeType.startsWith('image/')) { messageType = 'image'; evolutionMediaType = 'image' }
       else if (mimeType.startsWith('video/')) { messageType = 'video'; evolutionMediaType = 'video' }
       else if (mimeType.startsWith('audio/')) { messageType = 'audio'; evolutionMediaType = 'audio' }
       else { messageType = 'document'; evolutionMediaType = 'document' }
 
+      // Para áudio, converter para ogg/opus (formato exigido pelo WhatsApp)
+      let uploadData: Buffer = arquivo.data
+      let uploadMime: string = mimeType
+      let uploadExt: string = arquivo.filename?.split('.').pop() || 'bin'
+
+      if (evolutionMediaType === 'audio') {
+        const converted = convertToOggOpus(Buffer.from(arquivo.data), mimeType)
+        uploadData = converted.data
+        uploadMime = converted.mimeType
+        uploadExt = converted.ext
+      }
+
       const timestamp = Date.now()
       const random = Math.random().toString(36).substring(2, 8)
-      const ext = arquivo.filename?.split('.').pop() || 'bin'
-      const uniqueFileName = `${messageType}_${timestamp}_${random}.${ext}`
+      const uniqueFileName = `${messageType}_${timestamp}_${random}.${uploadExt}`
       mediaName = arquivo.filename || uniqueFileName
+      mediaType = uploadMime
       const objectKey = `${userData.empresa_id}/${uniqueFileName}`
 
       const s3 = getStorageClient()
       await s3.send(new PutObjectCommand({
         Bucket: MINIO_BUCKET,
         Key: objectKey,
-        Body: arquivo.data,
-        ContentType: mimeType,
+        Body: uploadData,
+        ContentType: uploadMime,
       }))
       mediaUrl = getPublicUrl(objectKey)
     }
@@ -113,7 +161,7 @@ export default defineEventHandler(async (event) => {
 
     if (arquivo && mediaUrl && evolutionMediaType) {
       if (evolutionMediaType === 'audio') {
-        evolutionResult = await sendAudioToWhatsApp(inboxId, phoneNumber, mediaUrl)
+        evolutionResult = await sendAudioToWhatsApp(inboxId, phoneNumber, mediaUrl, mediaType || undefined)
       } else {
         evolutionResult = await sendMediaToWhatsApp(inboxId, phoneNumber, mediaUrl, evolutionMediaType, texto?.trim(), mediaType || undefined, mediaName || undefined)
       }

@@ -1059,8 +1059,14 @@ const startAudioRecording = async () => {
     // Solicitar permissão de microfone
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
-    // Configurar MediaRecorder
-    const recorder = new MediaRecorder(stream)
+    // Detectar MIME type suportado pelo navegador
+    // Chrome/Edge: audio/webm;codecs=opus | Firefox: audio/ogg;codecs=opus
+    const preferredTypes = ['audio/ogg;codecs=opus', 'audio/ogg', 'audio/webm;codecs=opus', 'audio/webm']
+    const supportedMime = preferredTypes.find(t => MediaRecorder.isTypeSupported(t)) || ''
+
+    // Configurar MediaRecorder com o tipo suportado
+    const recorderOptions = supportedMime ? { mimeType: supportedMime } : {}
+    const recorder = new MediaRecorder(stream, recorderOptions)
     mediaRecorder.value = recorder
 
     const audioChunks = []
@@ -1070,8 +1076,9 @@ const startAudioRecording = async () => {
     }
 
     recorder.onstop = async () => {
-      // Criar blob do áudio gravado
-      const blob = new Blob(audioChunks, { type: 'audio/ogg; codecs=opus' })
+      // Usar o MIME type real do recorder, não um tipo inventado
+      const actualMime = recorder.mimeType || supportedMime || 'audio/webm'
+      const blob = new Blob(audioChunks, { type: actualMime })
       audioBlob.value = blob
 
       // Parar todas as tracks do stream
@@ -1175,9 +1182,11 @@ const sendAudioRecording = async () => {
   try {
     uploadingFile.value = true
 
-    // Criar arquivo do blob
-    const audioFile = new File([audioBlob.value], `audio_${Date.now()}.ogg`, {
-      type: 'audio/ogg; codecs=opus'
+    // Criar arquivo do blob com o MIME type real do gravador
+    const actualMime = audioBlob.value.type || 'audio/webm'
+    const audioExt = actualMime.includes('ogg') ? 'ogg' : 'webm'
+    const audioFile = new File([audioBlob.value], `audio_${Date.now()}.${audioExt}`, {
+      type: actualMime
     })
 
     // Criar FormData

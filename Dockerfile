@@ -43,7 +43,7 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 # Instalar dependências de runtime necessárias
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat ffmpeg
 
 # Copiar build do Nuxt
 COPY --from=node-builder /app/.output ./.output
