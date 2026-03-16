@@ -209,7 +209,7 @@
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-y"
-              rows="5"
+              rows="2"
             ></textarea>
 
             <!-- Interface de gravação -->
