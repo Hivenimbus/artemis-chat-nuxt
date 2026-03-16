@@ -239,14 +239,14 @@
             </div>
 
             <!-- Interface de envio de áudio -->
-            <div v-if="isRecording === 'sending' || (uploadingFile && !selectedFile)" class="flex-1 flex items-center justify-center space-x-3 px-4 py-4 border border-green-300 rounded-lg bg-green-50">
+            <div v-if="isRecording === 'sending' || isSendingAudio" class="flex-1 flex items-center justify-center space-x-3 px-4 py-4 border border-green-300 rounded-lg bg-green-50">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
               <span class="text-sm font-medium text-gray-700">Enviando áudio...</span>
             </div>
 
             <!-- Botão de microfone (quando campo vazio e não está gravando) -->
             <button
-              v-if="!newMessage.trim() && !selectedFile && !isRecording"
+              v-if="!newMessage.trim() && !selectedFile && !isRecording && !isSendingAudio"
               @click="startAudioRecording"
               class="bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               title="Gravar áudio"
@@ -788,6 +788,7 @@ const newTag = ref('')
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const uploadingFile = ref(false)
+const isSendingAudio = ref(false)
 
 // Estados para gravação de áudio
 const isRecording = ref(false)
@@ -831,12 +832,15 @@ const loadMessages = async (contactId, silent = false) => {
       if (silent) {
         const newMessages = response.data.mensagens
         const currentMessages = messages.value
-        
+
+        // Não sobrescrever enquanto há mensagem otimista em andamento
+        if (currentMessages.some(m => m._optimistic)) return
+
         // Verifica se houve mudança na quantidade ou no último item
-        const hasChanges = newMessages.length !== currentMessages.length || 
-          (newMessages.length > 0 && currentMessages.length > 0 && 
+        const hasChanges = newMessages.length !== currentMessages.length ||
+          (newMessages.length > 0 && currentMessages.length > 0 &&
            newMessages[newMessages.length - 1].id !== currentMessages[currentMessages.length - 1].id)
-        
+
         // Se houver mudanças, atualiza
         if (hasChanges) {
           messages.value = newMessages
@@ -940,6 +944,9 @@ const sendMessage = async () => {
 
     messages.value.push(tempMessage)
 
+    // Limpar texto imediatamente; selectedFile só é limpo no finally
+    newMessage.value = ''
+
     // Preparar envio
     if (file) {
       // Enviar com FormData (arquivo)
@@ -970,10 +977,6 @@ const sendMessage = async () => {
       emit('send-message', messageText)
     }
 
-    // Limpar inputs
-    newMessage.value = ''
-    clearSelectedFile()
-
     // Rolar para ver a nova mensagem
     nextTick(() => {
       scrollToBottom()
@@ -985,6 +988,7 @@ const sendMessage = async () => {
     showToast('Erro ao enviar mensagem. Tente novamente.', 'error')
   } finally {
     uploadingFile.value = false
+    clearSelectedFile()
   }
 }
 
@@ -1180,55 +1184,65 @@ const sendAudioRecording = async () => {
   if (!audioBlob.value || !props.selectedContact) return
 
   try {
+    isSendingAudio.value = true
     uploadingFile.value = true
 
-    // Criar arquivo do blob com o MIME type real do gravador
-    const actualMime = audioBlob.value.type || 'audio/webm'
+    // Capturar blob antes de limpar o estado
+    const blobToSend = audioBlob.value
+    const actualMime = blobToSend.type || 'audio/webm'
     const audioExt = actualMime.includes('ogg') ? 'ogg' : 'webm'
-    const audioFile = new File([audioBlob.value], `audio_${Date.now()}.${audioExt}`, {
-      type: actualMime
+    const audioFile = new File([blobToSend], `audio_${Date.now()}.${audioExt}`, { type: actualMime })
+
+    // Mensagem otimista — aparece imediatamente no chat
+    const tempId = Date.now().toString()
+    messages.value.push({
+      id: tempId,
+      type: 'audio',
+      text: '',
+      sender: 'user',
+      timestamp: new Date(),
+      lida: true,
+      usuario_name: 'Você',
+      _optimistic: true,
     })
 
-    // Criar FormData
+    // Limpar estado de gravação ANTES do await
+    isRecording.value = false
+    audioBlob.value = null
+    recordingTime.value = 0
+
+    nextTick(() => scrollToBottom())
+
+    // Criar FormData e enviar
     const formData = new FormData()
     formData.append('file', audioFile)
     formData.append('texto', '')
 
-    // Enviar via API
     const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
       method: 'POST',
       body: formData
     })
 
     if (response?.success) {
-      console.log('🎵 Áudio enviado com sucesso:', response.data)
-
-      // Verificar se a mensagem já existe na lista (trazida pelo polling)
-      const messageExists = messages.value.some(m => m.id === response.data.id)
-
-      if (!messageExists) {
-        // Adicionar mensagem à lista
-        messages.value.push({
-          ...response.data,
-          sender: response.data.sender || 'user'
-        })
-
-        // Rolar para o fim
-        nextTick(() => {
-          scrollToBottom()
-        })
+      // Substituir mensagem otimista pelos dados reais (com media_url)
+      const index = messages.value.findIndex(m => m.id === tempId)
+      if (index > -1) {
+        messages.value[index] = { ...response.data, sender: response.data.sender || 'user' }
       }
+      nextTick(() => scrollToBottom())
+    } else {
+      messages.value = messages.value.filter(m => m.id !== tempId)
+      showToast('Erro ao enviar áudio.', 'error')
     }
-
-    // Limpar estado de gravação
-    audioBlob.value = null
-    recordingTime.value = 0
 
   } catch (error) {
     console.error('Erro ao enviar áudio:', error)
+    messages.value = messages.value.filter(m => !m._optimistic)
     showToast('Erro ao enviar áudio. Tente novamente.', 'error')
   } finally {
+    isSendingAudio.value = false
     uploadingFile.value = false
+    isRecording.value = false
   }
 }
 

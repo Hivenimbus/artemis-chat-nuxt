@@ -636,13 +636,27 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       return null
     }
 
+
     if (!data.from) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem remetente', { instance })
       return null
     }
 
-    const phone = data.from.replace(/\D/g, '')
-    const pushName = data.fromName || phone
+    // Para mensagens enviadas pela instância (fromMe), usar data.to como telefone do contato
+    const phone = (data.isFromMe ? data.to : data.from)?.replace(/\D/g, '') || data.from.replace(/\D/g, '')
+    const pushName = data.isFromMe ? phone : (data.fromName || phone)
+
+    // Deduplicar mensagens fromMe já salvas via mensagens.post.ts
+    if (data.isFromMe && data.messageId) {
+      const [existing] = await db.select({ id: schema.mensagens.id })
+        .from(schema.mensagens)
+        .where(eq(schema.mensagens.external_id, data.messageId))
+        .limit(1)
+      if (existing) {
+        webhookLogger.debug('message.ignored', 'Mensagem fromMe já registrada, ignorando...', { messageId: data.messageId })
+        return null
+      }
+    }
     const messageType = data.messageType // "text"|"image"|"video"|"audio"|"document"|"sticker"
     const messageTimestamp = data.timestamp
 
