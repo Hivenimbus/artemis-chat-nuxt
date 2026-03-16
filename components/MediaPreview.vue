@@ -94,7 +94,7 @@
     </div>
 
     <!-- Mensagem de Áudio -->
-    <div v-else-if="isAudio" class="audio-player-container">
+    <div v-else-if="isAudio" class="audio-player-container" :class="message.sender === 'user' ? 'audio-outbound' : 'audio-inbound'">
       <audio
         ref="audioElement"
         :src="message.media_url"
@@ -117,6 +117,7 @@
           @click="togglePlayPause"
           :disabled="!canPlay"
           class="audio-play-button"
+          :class="message.sender === 'user' ? 'audio-play-button-outbound' : 'audio-play-button-inbound'"
         >
           <svg v-if="!isPlaying" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -131,19 +132,19 @@
         <div
           @click="seekAudio"
           class="audio-progress-bar"
-          @mouseenter="$event.target.classList.add('hover')"
-          @mouseleave="$event.target.classList.remove('hover')"
+          :class="message.sender === 'user' ? 'audio-progress-bar-outbound' : ''"
         >
           <div
             class="audio-progress-fill"
+            :class="message.sender === 'user' ? 'audio-progress-fill-outbound' : ''"
             :style="{ width: Math.max(progressPercentage, 1) + '%' }"
           >
-            <div class="audio-progress-thumb"></div>
+            <div class="audio-progress-thumb" :class="message.sender === 'user' ? 'audio-progress-thumb-outbound' : ''"></div>
           </div>
         </div>
 
         <!-- Tempo exibido -->
-        <div class="audio-time-display">
+        <div class="audio-time-display" :class="message.sender === 'user' ? 'text-red-100' : 'text-gray-600'">
           {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
         </div>
       </div>
@@ -590,9 +591,19 @@ watch(() => audioElement.value, (newAudioElement) => {
   max-height: calc(100vh - 2rem);
 }
 
-/* Estilos melhorados para o player de áudio */
+/* Estilos para o player de áudio */
 .audio-player-container {
-  @apply bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl p-5 shadow-md border border-gray-100 max-w-lg hover:shadow-lg transition-all duration-300 overflow-hidden;
+  @apply rounded-xl px-3 py-2 max-w-xs w-full;
+}
+
+/* Inbound: fundo claro */
+.audio-inbound {
+  @apply bg-gray-100;
+}
+
+/* Outbound: transparente, fica dentro da bolha vermelha */
+.audio-outbound {
+  @apply bg-transparent;
 }
 
 .audio-controls {
@@ -600,40 +611,47 @@ watch(() => audioElement.value, (newAudioElement) => {
 }
 
 .audio-play-button {
-  @apply flex-shrink-0 h-10 w-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:cursor-not-allowed;
+  @apply flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.audio-play-button-inbound {
+  @apply bg-red-600 hover:bg-red-700 text-white;
+}
+
+.audio-play-button-outbound {
+  @apply bg-white bg-opacity-30 hover:bg-opacity-50 text-white;
 }
 
 .audio-progress-bar {
-  @apply flex-1 cursor-pointer relative;
-  height: 12px;
-  min-height: 12px;
+  flex: 1;
+  cursor: pointer;
+  height: 4px;
+  min-height: 4px;
   background-color: #d1d5db;
   border-radius: 9999px;
-  width: 100%;
-  min-width: 200px;
+  min-width: 100px;
   position: relative;
   z-index: 10;
   display: block;
-  visibility: visible;
-  opacity: 1;
-  flex: 1;
   transition: background-color 0.2s ease;
 }
 
-.audio-progress-bar.hover {
-  background-color: #9ca3af;
+.audio-progress-bar-outbound {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 .audio-progress-fill {
   height: 100%;
-  min-height: 12px;
-  background: linear-gradient(to right, rgb(99 102 241), rgb(168 85 247));
+  background: rgb(220 38 38);
   border-radius: 9999px;
   position: relative;
   width: 1%;
   min-width: 2px;
   transition: width 0.3s ease-out;
-  z-index: 11;
+}
+
+.audio-progress-fill-outbound {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .audio-progress-thumb {
@@ -641,21 +659,25 @@ watch(() => audioElement.value, (newAudioElement) => {
   right: 0;
   top: 50%;
   transform: translate(50%, -50%);
-  height: 16px;
-  width: 16px;
-  background-color: white;
+  height: 12px;
+  width: 12px;
+  background-color: rgb(220 38 38);
   border-radius: 50%;
-  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
-  border: 2px solid rgb(99 102 241);
+  border: 2px solid white;
   transition: transform 0.2s ease;
 }
 
+.audio-progress-thumb-outbound {
+  background-color: white;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .audio-progress-thumb:hover {
-  transform: translate(50%, -50%) scale(1.1);
+  transform: translate(50%, -50%) scale(1.2);
 }
 
 .audio-time-display {
-  @apply text-xs text-gray-600 font-mono min-w-[50px] text-right whitespace-nowrap;
+  @apply text-xs font-mono min-w-[55px] text-right whitespace-nowrap;
 }
 
 /* Estilos legados para compatibilidade */
