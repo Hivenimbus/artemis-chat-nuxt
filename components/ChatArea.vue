@@ -191,7 +191,15 @@
 
       <!-- Input de mensagem -->
       <div class="bg-white border-t border-gray-200 px-6 py-4 flex-shrink-0">
-        <div class="space-y-3">
+        <!-- Aviso de WhatsApp desconectado -->
+        <div v-if="isInboxDisconnected" class="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800">
+          <svg class="h-5 w-5 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          <span>WhatsApp desconectado. Contate o administrador para reconectar a caixa de entrada.</span>
+        </div>
+
+        <div v-if="!isInboxDisconnected" class="space-y-3">
           <!-- Campo de mensagem maior -->
           <div class="flex items-end space-x-3">
             <!-- Textarea (esconder durante gravação ou envio) -->
@@ -754,8 +762,14 @@ const props = defineProps({
   currentUserId: {
     type: String,
     default: null
+  },
+  inboxStatus: {
+    type: String,
+    default: 'connected'
   }
 })
+
+const isInboxDisconnected = computed(() => props.inboxStatus !== 'connected')
 
 const emit = defineEmits([
   'send-message',
@@ -944,8 +958,9 @@ const sendMessage = async () => {
 
     messages.value.push(tempMessage)
 
-    // Limpar texto imediatamente; selectedFile só é limpo no finally
+    // Limpar inputs imediatamente (o spinner de imagem não depende mais de selectedFile)
     newMessage.value = ''
+    clearSelectedFile()
 
     // Preparar envio
     if (file) {
@@ -988,7 +1003,6 @@ const sendMessage = async () => {
     showToast('Erro ao enviar mensagem. Tente novamente.', 'error')
   } finally {
     uploadingFile.value = false
-    clearSelectedFile()
   }
 }
 

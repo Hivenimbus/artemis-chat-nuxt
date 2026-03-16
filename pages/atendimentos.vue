@@ -26,6 +26,7 @@
         :system-tags="systemTags"
         :caixas-entrada-map="caixasEntradaMap"
         :current-user-id="user?.id"
+        :inbox-status="selectedInboxStatus"
         @send-message="sendMessage"
         @toggle-tag="toggleTag"
         @add-tag="addNewSystemTag"
@@ -97,7 +98,7 @@ const router = useRouter()
 const selectedContact = ref(null)
 const serverCounts = ref(null)
 const showResolveModal = ref(false)
-const selectedCaixaEntrada = ref(null)
+const selectedCaixaEntrada = ref('all')
 const currentStatus = ref('todos')
 const chatAreaRef = ref(null)
 
@@ -174,6 +175,12 @@ const caixasEntradaMap = computed(() => {
     map[inbox.id] = inbox.name
   })
   return map
+})
+
+const selectedInboxStatus = computed(() => {
+  if (!selectedContact.value?.caixa_entrada) return 'connected'
+  const inbox = inboxesData.value.find(i => i.id === selectedContact.value.caixa_entrada)
+  return inbox?.status || 'connected'
 })
 
 // Selecionar contato
