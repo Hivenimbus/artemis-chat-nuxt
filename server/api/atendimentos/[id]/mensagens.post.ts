@@ -1,45 +1,9 @@
 import { eq } from 'drizzle-orm'
-import { execSync } from 'child_process'
-import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs'
-import { tmpdir } from 'os'
-import { join } from 'path'
 import { db, schema } from '~/server/database'
 import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/meow'
 import { getStorageClient, getPublicUrl, MINIO_BUCKET } from '~/server/lib/storage'
+import { webmToOgg } from '~/server/lib/webm-to-ogg'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
-
-/**
- * Converte áudio para ogg/opus usando ffmpeg (exigido pelo WhatsApp).
- * Retorna { data, mimeType, ext } do áudio convertido, ou os dados originais se falhar.
- */
-function convertToOggOpus(inputData: Buffer, inputMime: string): { data: Buffer, mimeType: string, ext: string } {
-  // Se já é ogg, não precisa converter
-  if (inputMime.includes('ogg')) {
-    return { data: inputData, mimeType: 'audio/ogg; codecs=opus', ext: 'ogg' }
-  }
-
-  try {
-    const tmpIn = join(tmpdir(), `audio_in_${Date.now()}.webm`)
-    const tmpOut = join(tmpdir(), `audio_out_${Date.now()}.ogg`)
-
-    writeFileSync(tmpIn, inputData)
-    execSync(`ffmpeg -y -i "${tmpIn}" -c:a libopus -b:a 32k "${tmpOut}"`, {
-      timeout: 15000,
-      stdio: 'pipe'
-    })
-
-    const converted = readFileSync(tmpOut)
-
-    // Limpeza
-    try { unlinkSync(tmpIn) } catch {}
-    try { unlinkSync(tmpOut) } catch {}
-
-    return { data: converted, mimeType: 'audio/ogg; codecs=opus', ext: 'ogg' }
-  } catch (err) {
-    console.warn('⚠️ ffmpeg não disponível ou falhou, usando áudio original:', err)
-    return { data: inputData, mimeType: inputMime, ext: 'webm' }
-  }
-}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -118,11 +82,15 @@ export default defineEventHandler(async (event) => {
       let uploadMime: string = mimeType
       let uploadExt: string = arquivo.filename?.split('.').pop() || 'bin'
 
-      if (evolutionMediaType === 'audio') {
-        const converted = convertToOggOpus(Buffer.from(arquivo.data), mimeType)
-        uploadData = converted.data
-        uploadMime = converted.mimeType
-        uploadExt = converted.ext
+      if (evolutionMediaType === 'audio' && !mimeType.includes('ogg')) {
+        try {
+          uploadData = webmToOgg(Buffer.from(arquivo.data))
+          uploadMime = 'audio/ogg; codecs=opus'
+          uploadExt = 'ogg'
+          console.log(`[Audio] WebM→OGG: ${arquivo.data.length}→${uploadData.length} bytes`)
+        } catch (err) {
+          console.warn('[Audio] Conversão WebM→OGG falhou, usando original:', err)
+        }
       }
 
       const timestamp = Date.now()
