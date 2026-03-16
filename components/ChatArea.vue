@@ -204,12 +204,14 @@
           <div class="flex items-end space-x-3">
             <!-- Textarea (esconder durante gravação ou envio) -->
             <textarea
+              ref="messageTextarea"
               v-if="!isRecording && !uploadingFile"
               v-model="newMessage"
+              @input="autoResizeTextarea"
               @keydown.enter.prevent="handleEnterKey"
               placeholder="Digite sua mensagem..."
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-y"
-              rows="2"
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm resize-none overflow-y-auto"
+              style="min-height: 40px; max-height: 150px;"
             ></textarea>
 
             <!-- Interface de gravação -->
@@ -799,6 +801,7 @@ const loadingMessages = ref(false)
 const newTag = ref('')
 
 // Estados para upload de arquivo
+const messageTextarea = ref(null)
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const uploadingFile = ref(false)
@@ -861,6 +864,10 @@ const loadMessages = async (contactId, silent = false) => {
         }
       } else {
         messages.value = response.data.mensagens
+        nextTick(() => {
+          scrollToBottom()
+          setTimeout(() => scrollToBottom(), 300)
+        })
       }
     } else if (!silent) {
       messages.value = []
@@ -901,13 +908,6 @@ watch(() => props.selectedContact?.id, (newContactId) => {
   } else {
     messages.value = []
   }
-}, { immediate: true })
-
-// Watch para rolar quando as mensagens mudarem
-watch(messages, () => {
-  nextTick(() => {
-    scrollToBottom()
-  })
 }, { immediate: true })
 
 // Manipular tecla Enter
@@ -961,6 +961,7 @@ const sendMessage = async () => {
     // Limpar inputs imediatamente (o spinner de imagem não depende mais de selectedFile)
     newMessage.value = ''
     clearSelectedFile()
+    nextTick(() => { if (messageTextarea.value) messageTextarea.value.style.height = '40px' })
 
     // Preparar envio
     if (file) {
@@ -1007,6 +1008,13 @@ const sendMessage = async () => {
 }
 
 // Funções para gerenciamento de arquivo
+const autoResizeTextarea = () => {
+  const el = messageTextarea.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px'
+}
+
 const openFileSelector = () => {
   if (fileInput.value) {
     fileInput.value.click()
