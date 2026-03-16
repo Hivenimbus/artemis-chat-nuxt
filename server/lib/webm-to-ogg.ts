@@ -164,6 +164,51 @@ function extractOpusFromBlock(blockData: Buffer): Buffer | null {
   }
 }
 
+// ─── Opus TOC parsing ─────────────────────────────────────────────────────────
+
+/**
+ * Retorna o número de amostras @ 48kHz contidas em um pacote Opus.
+ * Lê o TOC byte (config + frame count code) para suportar todos os modos:
+ * pacotes de 1 frame (code 0), 2 frames (code 1/2) e multi-frame CBR/VBR (code 3).
+ */
+function opusPacketSamples(pkt: Buffer): number {
+  if (pkt.length === 0) return 960 // fallback 20ms
+
+  const toc = pkt[0]
+  const config = (toc >> 3) & 0x1F
+  const code   = toc & 0x03
+
+  // Amostras por frame @ 48kHz por configuração (RFC 6716, §3.1)
+  // Índices 0-3: SILK NB, 4-7: SILK MB, 8-11: SILK WB,
+  // 12-13: Hybrid SWB, 14-15: Hybrid FB,
+  // 16-19: CELT NB, 20-23: CELT WB, 24-27: CELT SWB, 28-31: CELT FB
+  const frameSizes = [
+    480, 960, 1920, 2880,  // SILK NB  (10/20/40/60ms)
+    480, 960, 1920, 2880,  // SILK MB
+    480, 960, 1920, 2880,  // SILK WB
+    480, 960,              // Hybrid SWB (10/20ms)
+    480, 960,              // Hybrid FB  (10/20ms)
+    120, 240, 480,  960,   // CELT NB   (2.5/5/10/20ms)
+    120, 240, 480,  960,   // CELT WB
+    120, 240, 480,  960,   // CELT SWB
+    120, 240, 480,  960,   // CELT FB
+  ]
+  const spf = frameSizes[config] ?? 960
+
+  switch (code) {
+    case 0: return spf          // 1 frame
+    case 1: return spf * 2      // 2 frames iguais
+    case 2: return spf * 2      // 2 frames (tamanhos diferentes, mas duração igual)
+    case 3: {
+      // Multi-frame: próximo byte tem contagem nos 6 bits inferiores
+      if (pkt.length < 2) return spf
+      const count = pkt[1] & 0x3F
+      return spf * (count || 1)
+    }
+    default: return spf
+  }
+}
+
 // ─── Exported converter ───────────────────────────────────────────────────────
 
 /**
@@ -227,11 +272,11 @@ export function webmToOgg(webmData: Buffer): Buffer {
   pages.push(buildOggPage(buildOpusTags(), serialNo, 1, 0n, 0x00))
 
   // Páginas de áudio: um pacote por página
-  // Granule: amostras acumuladas (Opus 20ms @ 48kHz = 960 amostras/frame)
-  const SAMPLES_PER_FRAME = 960n
+  // Granule: amostras acumuladas — lidas do TOC byte de cada pacote Opus
+  // para suportar todos os tamanhos de frame e pacotes multi-frame do Chrome.
   let granule = 0n
   for (let i = 0; i < packets.length; i++) {
-    granule += SAMPLES_PER_FRAME
+    granule += BigInt(opusPacketSamples(packets[i]))
     const isLast = i === packets.length - 1
     pages.push(buildOggPage(packets[i], serialNo, i + 2, granule, isLast ? 0x04 : 0x00))
   }
