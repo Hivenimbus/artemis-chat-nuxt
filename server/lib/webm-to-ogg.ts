@@ -263,6 +263,16 @@ export function webmToOgg(webmData: Buffer): Buffer {
   }
   if (packets.length === 0) throw new Error('WebM: nenhum pacote Opus encontrado')
 
+  // Ler pre_skip do OpusHead (bytes 10-11, uint16 LE).
+  // RFC 7845: o granule deve incluir o pre_skip como offset inicial —
+  // o decoder usa (granule_final - pre_skip) para calcular a duração real
+  // e descarta exatamente pre_skip amostras do início.
+  // Se pre_skip > granule da primeira página, o decoder descarta pacotes a mais
+  // e o início do áudio é cortado.
+  const preSkip = codecPrivate.length >= 12
+    ? (codecPrivate[10] | (codecPrivate[11] << 8))
+    : 0
+
   const serialNo = Math.floor(Math.random() * 0xFFFFFFFF)
   const pages: Buffer[] = []
 
@@ -272,9 +282,8 @@ export function webmToOgg(webmData: Buffer): Buffer {
   pages.push(buildOggPage(buildOpusTags(), serialNo, 1, 0n, 0x00))
 
   // Páginas de áudio: um pacote por página
-  // Granule: amostras acumuladas — lidas do TOC byte de cada pacote Opus
-  // para suportar todos os tamanhos de frame e pacotes multi-frame do Chrome.
-  let granule = 0n
+  // Granule: começa em preSkip e acumula amostras reais de cada pacote Opus.
+  let granule = BigInt(preSkip)
   for (let i = 0; i < packets.length; i++) {
     granule += BigInt(opusPacketSamples(packets[i]))
     const isLast = i === packets.length - 1
