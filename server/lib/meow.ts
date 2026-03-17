@@ -416,33 +416,38 @@ export async function fetchContactProfile(
     }
 
     const cleanPhone = phoneNumber.replace(/\D/g, '')
-    console.log(`🔍 Buscando perfil do contato: ${cleanPhone} na instância ${instanceName}`)
 
-    const response = await fetch(`${meowApiUrl}/api/instances/${instanceName}/contacts`, {
+    // Buscar nome via lista de contatos
+    const contactsRes = await fetch(`${meowApiUrl}/api/instances/${instanceName}/contacts`, {
       method: 'GET',
       headers: getMeowHeaders(config)
     })
 
-    if (!response.ok) {
-      console.warn(`⚠️ Falha ao buscar contatos: ${response.status}`)
-      return null
+    let pushName = ''
+    if (contactsRes.ok) {
+      const data = await contactsRes.json()
+      const contact = (data?.contacts || []).find((c: any) =>
+        c.phoneNumber?.replace(/\D/g, '') === cleanPhone
+      )
+      pushName = contact?.pushName || contact?.name || ''
     }
 
-    const data = await response.json()
-    const contacts = data?.contacts || []
-
-    const contact = contacts.find((c: any) =>
-      c.phoneNumber?.replace(/\D/g, '') === cleanPhone
-    )
-
-    if (contact) {
-      return {
-        pushName: contact.pushName || contact.name || '',
-        profilePictureUrl: ''
+    // Buscar URL da foto de perfil via endpoint dedicado
+    let profilePictureUrl = ''
+    try {
+      const picRes = await fetch(
+        `${meowApiUrl}/api/instances/${instanceName}/contacts/${cleanPhone}/profile-picture`,
+        { headers: getMeowHeaders(config) }
+      )
+      if (picRes.ok) {
+        const picData = await picRes.json()
+        profilePictureUrl = picData?.url || ''
       }
+    } catch {
+      // sem foto não é erro crítico
     }
 
-    return null
+    return { pushName, profilePictureUrl }
   } catch (error) {
     console.error('❌ Erro ao buscar perfil do contato:', error)
     return null
@@ -642,8 +647,18 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       return null
     }
 
-    // Para mensagens enviadas pela instância (fromMe), usar data.to como telefone do contato
-    const phone = (data.isFromMe ? data.to : data.from)?.replace(/\D/g, '') || data.from.replace(/\D/g, '')
+    // Para mensagens fromMe, o contato é quem recebeu (data.to)
+    // Se data.to estiver vazio ou for o próprio número da instância, ignorar
+    if (data.isFromMe) {
+      const toPhone = data.to?.replace(/\D/g, '')
+      const fromPhone = data.from?.replace(/\D/g, '')
+      if (!toPhone || toPhone === fromPhone) {
+        webhookLogger.debug('message.ignored', 'Mensagem fromMe sem destinatário válido, ignorando...', { instance, from: data.from, to: data.to })
+        return null
+      }
+    }
+
+    const phone = (data.isFromMe ? data.to : data.from)!.replace(/\D/g, '')
     const pushName = data.isFromMe ? phone : (data.fromName || phone)
 
     // Deduplicar mensagens fromMe já salvas via mensagens.post.ts
@@ -750,15 +765,28 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       return null
     }
 
-    // 4. Atualizar perfil do contato se é novo
-    if (atendimento.isNew && contato.isNew) {
+    // 4. Atualizar perfil do contato se é novo ou se ainda não tem foto
+    if (contato.isNew || !contato.profile_picture_url) {
       try {
         const profile = await fetchContactProfile(instance, phone)
+        const updates: Record<string, any> = { updated_at: new Date() }
+
         if (profile?.pushName) {
+          updates.nome = profile.pushName
+        }
+
+        if (profile?.profilePictureUrl) {
+          const avatarUrl = await downloadAndUploadProfilePicture(inbox.empresa_id, profile.profilePictureUrl)
+          if (avatarUrl) {
+            updates.avatar_url = avatarUrl
+          }
+        }
+
+        if (Object.keys(updates).length > 1) {
           await db.update(schema.contatos)
-            .set({ nome: profile.pushName, updated_at: new Date() })
+            .set(updates)
             .where(eq(schema.contatos.id, contato.id))
-          console.log(`👤 Nome do contato atualizado: ${profile.pushName}`)
+          console.log(`👤 Perfil do contato atualizado: nome=${updates.nome || ''} foto=${updates.avatar_url ? 'sim' : 'não'}`)
         }
       } catch (err) {
         console.error('❌ Erro ao atualizar perfil do contato:', err)

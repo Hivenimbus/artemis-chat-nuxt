@@ -139,7 +139,7 @@
       </div>
 
       <!-- Área de mensagens -->
-      <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto" id="chat-messages">
+      <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto relative" id="chat-messages" @scroll="handleChatScroll">
         <!-- Loading state -->
         <div v-if="loadingMessages" class="flex justify-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
@@ -187,6 +187,20 @@
             </p>
           </div>
         </div>
+
+        <!-- Botão scroll para o fim -->
+        <Transition name="fade">
+          <button
+            v-if="showScrollButton"
+            @click="scrollToBottom"
+            class="sticky bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white border border-gray-200 shadow-md rounded-full p-2 hover:bg-gray-50 transition-colors flex items-center justify-center"
+            title="Ir para o fim"
+          >
+            <svg class="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+        </Transition>
       </div>
 
       <!-- Input de mensagem -->
@@ -787,6 +801,7 @@ const emit = defineEmits([
 
 const newMessage = ref('')
 const showTagDropdown = ref(false)
+const showScrollButton = ref(false)
 const showKebabSidebar = ref(false)
 const showAddTagInput = ref(false)
 
@@ -888,6 +903,12 @@ const scrollToBottom = () => {
   }
 }
 
+const handleChatScroll = () => {
+  const el = document.getElementById('chat-messages')
+  if (!el) return
+  showScrollButton.value = el.scrollHeight - el.scrollTop - el.clientHeight > 150
+}
+
 // Atualizar mensagens (para ser chamado pelo componente pai)
 const refreshMessages = async () => {
   if (props.selectedContact?.id) {
@@ -903,6 +924,7 @@ defineExpose({
 
 // Watch para carregar mensagens quando o contato selecionado mudar
 watch(() => props.selectedContact?.id, (newContactId) => {
+  showScrollButton.value = false
   if (newContactId) {
     loadMessages(newContactId)
   } else {
@@ -1667,6 +1689,13 @@ const handleMediaError = (error) => {
 </script>
 
 <style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
 /* Chat messages scrollbar específica */
 #chat-messages {
   scrollbar-gutter: stable;

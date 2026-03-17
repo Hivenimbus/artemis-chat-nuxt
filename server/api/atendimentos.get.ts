@@ -82,7 +82,8 @@ export default defineEventHandler(async (event) => {
 
     // Counts em paralelo
     const [allRows, aguardRows, ativoRows, concluidoRows] = await Promise.all([
-      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions()),
+      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos)
+        .where(and(buildConditions(), ne(schema.atendimentos.status, 'concluido'))),
       db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('aguardando', true)),
       db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('ativo', true)),
       db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('concluido', true)),
