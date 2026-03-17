@@ -7,7 +7,7 @@
   >
     <!-- Logo e Título -->
     <div class="flex items-center px-4 py-4 border-b border-gray-200 h-16">
-      <img src="/logo.png" alt="MULTICONEX Logo" class="h-11 w-11 object-contain flex-shrink-0" />
+      <img src="/logo.png" alt="MULTICONEX Logo" class="h-11 w-11 object-contain flex-shrink-0" style="height:44px;width:44px;object-fit:contain;flex-shrink:0;" />
       <h1
         class="ml-2 text-2xl font-semibold text-gray-900 transition-opacity duration-300 delay-100"
         :class="[

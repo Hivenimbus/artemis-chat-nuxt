@@ -418,8 +418,8 @@ const selectedCaixaEntradaName = computed(() => {
     return noneOption.label
   }
 
-  // Se estiver carregando
-  if (props.loading || props.caixasEntradaOptions.some(c => c.value === 'loading')) {
+  // Se estiver carregando (mas já mostramos "Todas" como fallback)
+  if (props.caixasEntradaOptions.some(c => c.value === 'loading')) {
     return 'Carregando...'
   }
 

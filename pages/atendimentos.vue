@@ -106,14 +106,9 @@ const chatAreaRef = ref(null)
 const { getInboxes, loading: inboxesLoading } = useInboxes()
 const inboxesData = ref([])
 const caixasEntradaOptions = computed(() => {
-  // Se está carregando, retorna array vazio ou estado de loading
-  if (inboxesLoading.value) {
-    return [{ label: 'Carregando...', value: 'loading', count: 0, disabled: true }]
-  }
-
-  // Se não há inboxes carregadas, retorna array vazio ou mensagem
-  if (!inboxesData.value || !Array.isArray(inboxesData.value) || inboxesData.value.length === 0) {
-    return [{ label: 'Nenhuma caixa de entrada disponível', value: 'none', count: 0, disabled: true }]
+  // Enquanto carrega ou sem inboxes, retorna apenas "Todas"
+  if (inboxesLoading.value || !inboxesData.value || !Array.isArray(inboxesData.value) || inboxesData.value.length === 0) {
+    return [{ label: 'Todas', value: 'all', count: atendimentos.value.length, description: 'Todas as caixas de entrada', status: 'connected' }]
   }
 
   // Contar atendimentos por caixa de entrada usando os IDs das inboxes
