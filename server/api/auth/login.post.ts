@@ -43,7 +43,8 @@ export default defineEventHandler(async (event) => {
   const token = signUserToken({
     id: user.id,
     email: user.email!,
-    role: user.role
+    role: user.role,
+    name: user.name || undefined
   })
 
   setCookie(event, 'auth_token', token, {

@@ -109,11 +109,11 @@ const { userData: user } = useUser()
 
 // Computados para dados do usuário
 const userName = computed(() => {
-  return user.value?.name || user.value?.email?.split('@')[0] || 'Usuário'
+  return user.value?.name || user.value?.email?.split('@')[0] || ''
 })
 
 const userEmail = computed(() => {
-  return user.value?.email || 'usuario@multiconex.com'
+  return user.value?.email || ''
 })
 
 // Estados
@@ -125,7 +125,7 @@ const notificationContainerRef = ref(null)
 // Computados
 const userInitials = computed(() => {
   const name = userName.value
-  if (name === 'Usuário') return 'U'
+  if (!name) return ''
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)
 })
 
