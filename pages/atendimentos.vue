@@ -547,37 +547,27 @@ const loadInboxes = async () => {
 }
 
 // Carregar atendimentos
-const loadAtendimentos = async (inboxId = null, showLoading = true) => {
+const loadAtendimentos = async (inboxId = null, showLoading = true, includeCounts = true) => {
   try {
     if (showLoading) loading.value = true
     error.value = null
 
-    // Verificar se há caixas de entrada disponíveis
-    // Se a lista de inboxes estiver vazia e não estiver carregando, significa que o usuário não tem acesso a nenhuma
-    if (!inboxesLoading.value && (!inboxesData.value || inboxesData.value.length === 0)) {
-      atendimentos.value = []
-      // Opcional: Definir uma mensagem de erro ou aviso
-      // error.value = 'Você não tem acesso a nenhuma caixa de entrada.'
-      return
-    }
-
     const params = new URLSearchParams()
-    // Se inboxId for 'all', não enviamos o parâmetro para a API, 
-    // assim ela retorna tudo o que é permitido
     if (inboxId && inboxId !== 'all') {
       params.append('inbox_id', inboxId)
     }
 
-    // Adicionar filtro de status se não for 'todos'
     if (currentStatus.value !== 'todos') {
       params.append('status', currentStatus.value)
+    }
+
+    if (!includeCounts) {
+      params.append('include_counts', 'false')
     }
 
     const response = await $fetch(`/api/atendimentos?${params.toString()}`)
 
     if (response?.success && response?.data) {
-      // Se houver um contato selecionado, garantir que o unreadCount dele seja 0
-      // Isso evita "flicker" entre o polling e a atualização do backend
       let novosAtendimentos = response.data.atendimentos
       if (selectedContact.value) {
         novosAtendimentos = novosAtendimentos.map(a => {
@@ -587,12 +577,11 @@ const loadAtendimentos = async (inboxId = null, showLoading = true) => {
           return a
         })
       }
-      
+
       atendimentos.value = novosAtendimentos
-      if (response.data.counts) {
+      if (includeCounts && response.data.counts) {
         serverCounts.value = response.data.counts
       }
-      console.log('Atendimentos carregados:', response.data.atendimentos)
     } else {
       console.warn('Resposta inválida da API de atendimentos:', response)
       atendimentos.value = []
@@ -633,6 +622,7 @@ const loadTags = async () => {
 
 // Sistema de atualização automática para novas mensagens
 let pollingInterval = null
+const pollingCycle = ref(0)
 
 const startPolling = () => {
   // Limpar intervalo existente
@@ -642,16 +632,18 @@ const startPolling = () => {
 
   // Atualizar a cada 2 segundos
   pollingInterval = setInterval(async () => {
-    // Só atualizar se não estiver carregando
     if (!loading.value) {
-      await loadAtendimentos(selectedCaixaEntrada.value, false)
+      // Atendimentos sem counts (mais rápido no polling)
+      // A cada 10 ciclos (~20s) atualiza os counts também
+      pollingCycle.value = (pollingCycle.value + 1) % 10
+      const shouldRefreshCounts = pollingCycle.value === 0
+      await loadAtendimentos(selectedCaixaEntrada.value, false, shouldRefreshCounts)
 
-      // Se há um contato selecionado, atualizar também as mensagens
       if (selectedContact.value && chatAreaRef.value) {
         await chatAreaRef.value.refreshMessages()
       }
     }
-  }, 2000) // 2 segundos
+  }, 2000)
 }
 
 const stopPolling = () => {
@@ -664,12 +656,13 @@ const stopPolling = () => {
 // Carregar dados ao montar a página
 onMounted(async () => {
   await nextTick()
-  // Carregar tags
-  loadTags()
-  
-  // Carregar inboxes e depois atendimentos (dependência)
-  await loadInboxes()
-  await loadAtendimentos()
+
+  // Carregar tudo em paralelo
+  await Promise.all([
+    loadInboxes(),
+    loadAtendimentos(),
+    loadTags()
+  ])
 
   // Restaurar atendimento selecionado da URL
   const atendimentoId = route.query.atendimento

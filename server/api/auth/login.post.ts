@@ -44,7 +44,8 @@ export default defineEventHandler(async (event) => {
     id: user.id,
     email: user.email!,
     role: user.role,
-    name: user.name || undefined
+    name: user.name || undefined,
+    empresa_id: user.empresa_id || undefined
   })
 
   setCookie(event, 'auth_token', token, {

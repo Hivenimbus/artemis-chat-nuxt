@@ -8,6 +8,7 @@ interface UserPayload {
   email: string
   role: string
   name?: string
+  empresa_id?: string
 }
 
 export const signUserToken = (user: UserPayload): string => {
@@ -16,7 +17,8 @@ export const signUserToken = (user: UserPayload): string => {
       id: user.id,
       email: user.email,
       role: user.role,
-      name: user.name
+      name: user.name,
+      empresa_id: user.empresa_id
     },
     SECRET,
     { expiresIn: '7d' }

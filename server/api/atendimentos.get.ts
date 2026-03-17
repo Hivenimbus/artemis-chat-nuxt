@@ -1,4 +1,4 @@
-import { eq, and, ne, inArray, or, lte, desc, asc } from 'drizzle-orm'
+import { eq, and, ne, inArray, or, desc, count } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
 
 export default defineEventHandler(async (event) => {
@@ -6,18 +6,23 @@ export default defineEventHandler(async (event) => {
     const user = event.context.user
     if (!user) throw createError({ statusCode: 401, statusMessage: 'Usuário não autenticado' })
 
-    // Buscar dados do usuário
-    const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
-      .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+    // empresa_id vem direto do JWT — sem query extra ao DB
+    let empresaId = user.empresa_id as string | undefined
+    let userRole = user.role as string
 
-    if (!userData?.empresa_id) throw createError({ statusCode: 403, statusMessage: 'Usuário não está associado a nenhuma empresa' })
-
-    const empresaId = userData.empresa_id
+    // Fallback: se o JWT antigo não tiver empresa_id, buscar do DB
+    if (!empresaId) {
+      const [userData] = await db.select({ empresa_id: schema.users.empresa_id, role: schema.users.role })
+        .from(schema.users).where(eq(schema.users.id, user.id)).limit(1)
+      if (!userData?.empresa_id) throw createError({ statusCode: 403, statusMessage: 'Usuário não está associado a nenhuma empresa' })
+      empresaId = userData.empresa_id
+      userRole = userData.role
+    }
 
     // --- Permissões de Inboxes ---
     let allowedInboxIds: string[] = []
 
-    if (userData.role !== 'admin' && userData.role !== 'superadmin') {
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
       const [directAssignments, userTeams] = await Promise.all([
         db.select({ inbox_id: schema.inboxAgents.inbox_id }).from(schema.inboxAgents).where(eq(schema.inboxAgents.user_id, user.id)),
         db.select({ equipe_id: schema.equipesAgentes.equipe_id }).from(schema.equipesAgentes).where(eq(schema.equipesAgentes.user_id, user.id))
@@ -44,12 +49,13 @@ export default defineEventHandler(async (event) => {
     const page = parseInt(query.page as string) || 1
     const limit = parseInt(query.limit as string) || 50
     const offset = (page - 1) * limit
+    const includeCounts = query.include_counts !== 'false'
 
     if (inboxId && allowedInboxIds.length > 0 && !allowedInboxIds.includes(inboxId)) {
       throw createError({ statusCode: 403, statusMessage: 'Sem permissão para esta caixa de entrada' })
     }
 
-    // Buscar IDs de inboxes da empresa para filtrar atendimentos
+    // Buscar IDs de inboxes da empresa
     const companyInboxes = await db.select({ id: schema.inboxes.id }).from(schema.inboxes).where(eq(schema.inboxes.empresa_id, empresaId))
     const companyInboxIds = companyInboxes.map(i => i.id)
 
@@ -62,7 +68,7 @@ export default defineEventHandler(async (event) => {
       const conditions: any[] = [inArray(schema.atendimentos.inbox_id, companyInboxIds)]
 
       const isMinhas = statusFilter === 'ativo' && forCount
-      if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhas) {
+      if ((userRole !== 'admin' && userRole !== 'superadmin') || isMinhas) {
         if (isMinhas) {
           conditions.push(eq(schema.atendimentos.assignee_id, user.id))
         } else if (allowedInboxIds.length > 0) {
@@ -80,22 +86,11 @@ export default defineEventHandler(async (event) => {
       return and(...conditions)
     }
 
-    // Counts em paralelo
-    const [allRows, aguardRows, ativoRows, concluidoRows] = await Promise.all([
-      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos)
-        .where(and(buildConditions(), ne(schema.atendimentos.status, 'concluido'))),
-      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('aguardando', true)),
-      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('ativo', true)),
-      db.select({ id: schema.atendimentos.id }).from(schema.atendimentos).where(buildConditions('concluido', true)),
-    ])
-
-    const counts = { todos: allRows.length, aguardando: aguardRows.length, ativo: ativoRows.length, concluido: concluidoRows.length }
-
-    // Main query conditions
+    // Main query conditions (build before counts to reuse)
     const mainConditions: any[] = [inArray(schema.atendimentos.inbox_id, companyInboxIds)]
     const isMinhasQuery = status === 'ativo'
 
-    if ((userData.role !== 'admin' && userData.role !== 'superadmin') || isMinhasQuery) {
+    if ((userRole !== 'admin' && userRole !== 'superadmin') || isMinhasQuery) {
       if (isMinhasQuery) {
         mainConditions.push(eq(schema.atendimentos.assignee_id, user.id))
       } else if (allowedInboxIds.length > 0) {
@@ -113,7 +108,18 @@ export default defineEventHandler(async (event) => {
     else if (!status) mainConditions.push(ne(schema.atendimentos.status, 'concluido'))
     if (responsavelId) mainConditions.push(eq(schema.atendimentos.assignee_id, responsavelId))
 
-    const atendimentos = await db.query.atendimentos.findMany({
+    // Counts (SQL COUNT — muito mais rápido) + main query em paralelo
+    const countsPromise = includeCounts
+      ? Promise.all([
+          db.select({ value: count() }).from(schema.atendimentos)
+            .where(and(buildConditions(), ne(schema.atendimentos.status, 'concluido'))),
+          db.select({ value: count() }).from(schema.atendimentos).where(buildConditions('aguardando', true)),
+          db.select({ value: count() }).from(schema.atendimentos).where(buildConditions('ativo', true)),
+          db.select({ value: count() }).from(schema.atendimentos).where(buildConditions('concluido', true)),
+        ])
+      : Promise.resolve(null)
+
+    const atendimentosPromise = db.query.atendimentos.findMany({
       where: and(...mainConditions),
       orderBy: [desc(schema.atendimentos.last_message_at)],
       limit,
@@ -126,6 +132,22 @@ export default defineEventHandler(async (event) => {
         assignee: { columns: { id: true, name: true, email: true } }
       }
     })
+
+    const [countsResult, atendimentos] = await Promise.all([countsPromise, atendimentosPromise])
+
+    let counts = { todos: 0, aguardando: 0, ativo: 0, concluido: 0 }
+    let totalItems = 0
+
+    if (countsResult) {
+      const [allRows, aguardRows, ativoRows, concluidoRows] = countsResult
+      counts = {
+        todos: Number(allRows[0]?.value ?? 0),
+        aguardando: Number(aguardRows[0]?.value ?? 0),
+        ativo: Number(ativoRows[0]?.value ?? 0),
+        concluido: Number(concluidoRows[0]?.value ?? 0),
+      }
+      totalItems = counts.todos
+    }
 
     const atendimentosFormatados = atendimentos.map(a => ({
       id: a.id,
@@ -153,8 +175,7 @@ export default defineEventHandler(async (event) => {
       messages: []
     }))
 
-    const totalItems = allRows.length
-    const totalPages = Math.ceil(totalItems / limit)
+    const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 1
 
     return {
       success: true,
