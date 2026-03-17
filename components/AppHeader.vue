@@ -89,7 +89,7 @@ import NotificationList from '~/components/NotificationList.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { logout } = useAuth()
+const { logout, user: authUser } = useAuth()
 const { unreadCount, fetchNotifications, startPolling } = useNotifications()
 
 // Props
@@ -104,17 +104,9 @@ const props = defineProps({
   }
 })
 
-// Dados do usuário
-const { userData: user } = useUser()
-
-// Computados para dados do usuário
-const userName = computed(() => {
-  return user.value?.name || user.value?.email?.split('@')[0] || ''
-})
-
-const userEmail = computed(() => {
-  return user.value?.email || ''
-})
+// Dados do usuário — useAuth().user é síncrono e SSR-hidratado (sem flash)
+const userName = computed(() => authUser.value?.name || authUser.value?.email?.split('@')[0] || '')
+const userEmail = computed(() => authUser.value?.email || '')
 
 // Estados
 const showUserMenu = ref(false)

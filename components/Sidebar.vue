@@ -471,17 +471,13 @@ const props = defineProps({
 
 const route = useRoute()
 
-// Dados do usuário
-const { isSuperAdmin, isAdmin, userData: user } = useUser()
+// Dados do usuário — useAuth().user é síncrono e SSR-hidratado (sem flash)
+const { user: authUser } = useAuth()
 
-// Computados para dados do usuário
-const userName = computed(() => {
-  return user.value?.name || user.value?.email?.split('@')[0] || ''
-})
-
-const userEmail = computed(() => {
-  return user.value?.email || ''
-})
+const userName = computed(() => authUser.value?.name || authUser.value?.email?.split('@')[0] || '')
+const userEmail = computed(() => authUser.value?.email || '')
+const isSuperAdmin = computed(() => authUser.value?.role === 'superadmin')
+const isAdmin = computed(() => authUser.value?.role === 'admin' || isSuperAdmin.value)
 
 // Estado do menu de configurações
 const settingsExpanded = ref(false)
