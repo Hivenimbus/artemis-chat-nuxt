@@ -278,12 +278,6 @@
               </button>
             </div>
 
-            <!-- Interface de envio de áudio -->
-            <div v-if="isRecording === 'sending' || isSendingAudio" class="flex-1 flex items-center justify-center space-x-3 px-4 py-4 border border-green-300 rounded-lg bg-green-50">
-              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-              <span class="text-sm font-medium text-gray-700">Enviando áudio...</span>
-            </div>
-
             <!-- Botão de microfone (quando campo vazio e não está gravando) -->
             <button
               v-if="!newMessage.trim() && !selectedFile && !isRecording && !isSendingAudio"
