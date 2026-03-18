@@ -181,10 +181,26 @@
               <p class="text-sm">{{ message.text || message.texto }}</p>
             </div>
 
-            <!-- Timestamp da mensagem -->
-            <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-red-200' : 'text-gray-500'">
-              {{ formatTime(message.timestamp) }}
-            </p>
+            <!-- Timestamp + status de envio -->
+            <div class="flex items-center gap-1" :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+              <p class="text-xs mt-1" :class="message.sender === 'user' ? 'text-red-200' : 'text-gray-500'">
+                {{ formatTime(message.timestamp) }}
+              </p>
+              <!-- Spinner (enviando) -->
+              <svg v-if="message._status === 'sending'" class="animate-spin h-3 w-3 mt-1 text-red-200 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <!-- Erro com botão de reenviar -->
+              <template v-else-if="message._status === 'error'">
+                <svg class="h-3 w-3 mt-1 text-red-200 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <button @click="retryMessage(message)" class="text-xs mt-1 text-red-200 underline hover:text-white leading-none">
+                  Reenviar
+                </button>
+              </template>
+            </div>
           </div>
         </div>
 
@@ -219,7 +235,7 @@
             <!-- Textarea (esconder durante gravação ou envio) -->
             <textarea
               ref="messageTextarea"
-              v-if="!isRecording && !uploadingFile"
+              v-if="!isRecording"
               v-model="newMessage"
               @input="autoResizeTextarea"
               @keydown.enter.prevent="handleEnterKey"
@@ -876,6 +892,11 @@ const loadMessages = async (contactId, silent = false) => {
         // Se houver mudanças, atualiza
         if (hasChanges) {
           messages.value = newMessages
+          nextTick(() => {
+            if (!showScrollButton.value) {
+              scrollToBottom()
+            }
+          })
         }
       } else {
         messages.value = response.data.mensagens
@@ -913,6 +934,47 @@ const handleChatScroll = () => {
 const refreshMessages = async () => {
   if (props.selectedContact?.id) {
     await loadMessages(props.selectedContact.id, true)
+  }
+}
+
+// Reenviar mensagem com erro
+const retryMessage = async (message) => {
+  if (!props.selectedContact) return
+  const idx = messages.value.findIndex(m => m.id === message.id)
+  if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'sending' }
+
+  const { text, file, audioBlob, mimeType } = message._retryData || {}
+
+  try {
+    let response
+    if (audioBlob) {
+      const audioExt = (mimeType || '').includes('ogg') ? 'ogg' : 'webm'
+      const audioFile = new File([audioBlob], `audio_${Date.now()}.${audioExt}`, { type: mimeType })
+      const formData = new FormData()
+      formData.append('file', audioFile)
+      formData.append('texto', '')
+      response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, { method: 'POST', body: formData })
+    } else if (file) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('texto', text || '')
+      response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, { method: 'POST', body: formData })
+    } else {
+      response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, { method: 'POST', body: { texto: text } })
+    }
+
+    if (response?.success) {
+      const i = messages.value.findIndex(m => m.id === message.id)
+      if (i > -1) messages.value[i] = { ...response.data, sender: response.data.sender || 'user' }
+      emit('message-sent', { texto: text || '', timestamp: new Date() })
+      nextTick(() => scrollToBottom())
+    } else {
+      const i = messages.value.findIndex(m => m.id === message.id)
+      if (i > -1) messages.value[i] = { ...messages.value[i], _status: 'error' }
+    }
+  } catch {
+    const i = messages.value.findIndex(m => m.id === message.id)
+    if (i > -1) messages.value[i] = { ...messages.value[i], _status: 'error' }
   }
 }
 
@@ -968,19 +1030,24 @@ const sendMessage = async () => {
     uploadingFile.value = true
 
     // Adicionar mensagem otimista localmente
+    // _optimistic: true protege o array contra substituição pelo polling enquanto aguarda resposta
     const tempMessage = {
-      id: Date.now().toString(), // ID temporário
+      id: Date.now().toString(),
       text: file ? `📎 ${file.name}` : messageText,
       sender: 'user',
       timestamp: new Date(),
       lida: true,
       usuario_name: 'Você',
-      media_name: file?.name
+      media_name: file?.name,
+      _optimistic: true,
+      _status: 'sending',
+      _retryData: { text: messageText, file: file || null }
     }
 
     messages.value.push(tempMessage)
+    nextTick(() => scrollToBottom())
 
-    // Limpar inputs imediatamente (o spinner de imagem não depende mais de selectedFile)
+    // Limpar inputs imediatamente
     newMessage.value = ''
     clearSelectedFile()
     nextTick(() => { if (messageTextarea.value) messageTextarea.value.style.height = '40px' })
@@ -990,29 +1057,44 @@ const sendMessage = async () => {
       // Enviar com FormData (arquivo)
       const formData = new FormData()
       formData.append('file', file)
-      // Sempre adicionar texto, mesmo vazio (para o backend saber que é intencional)
       formData.append('texto', messageText || '')
 
-      // Fazer upload via $fetch
       const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
         method: 'POST',
         body: formData
       })
 
       if (response?.success) {
-        console.log('Arquivo enviado com sucesso:', response.data)
-        // Atualizar mensagem temporária com dados reais
         const index = messages.value.findIndex(m => m.id === tempMessage.id)
         if (index > -1) {
-          messages.value[index] = {
-            ...response.data,
-            sender: response.data.sender || 'user'
-          }
+          messages.value[index] = { ...response.data, sender: response.data.sender || 'user' }
         }
+        emit('message-sent', { texto: messageText || file?.name || '', timestamp: new Date() })
+        nextTick(() => {
+          scrollToBottom()
+          setTimeout(() => scrollToBottom(), 400)
+        })
+      } else {
+        const idx = messages.value.findIndex(m => m.id === tempMessage.id)
+        if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'error' }
       }
     } else {
-      // Enviar apenas texto (comportamento existente)
-      emit('send-message', messageText)
+      // Enviar texto diretamente (não mais via pai — evita flash)
+      const response = await $fetch(`/api/atendimentos/${props.selectedContact.id}/mensagens`, {
+        method: 'POST',
+        body: { texto: messageText }
+      })
+
+      if (response?.success) {
+        const index = messages.value.findIndex(m => m.id === tempMessage.id)
+        if (index > -1) {
+          messages.value[index] = { ...response.data, sender: response.data.sender || 'user' }
+        }
+        emit('message-sent', { texto: messageText, timestamp: new Date() })
+      } else {
+        const idx = messages.value.findIndex(m => m.id === tempMessage.id)
+        if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'error' }
+      }
     }
 
     // Rolar para ver a nova mensagem
@@ -1021,8 +1103,8 @@ const sendMessage = async () => {
     })
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error)
-    // Remover mensagem temporária em caso de erro
-    messages.value = messages.value.filter(m => m.id !== tempMessage.id)
+    const idx = messages.value.findIndex(m => m.id === tempMessage.id)
+    if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'error' }
     showToast('Erro ao enviar mensagem. Tente novamente.', 'error')
   } finally {
     uploadingFile.value = false
@@ -1248,6 +1330,8 @@ const sendAudioRecording = async () => {
       lida: true,
       usuario_name: 'Você',
       _optimistic: true,
+      _status: 'sending',
+      _retryData: { audioBlob: blobToSend, mimeType: actualMime }
     })
 
     // Limpar estado de gravação ANTES do await
@@ -1275,14 +1359,14 @@ const sendAudioRecording = async () => {
       }
       nextTick(() => scrollToBottom())
     } else {
-      messages.value = messages.value.filter(m => m.id !== tempId)
-      showToast('Erro ao enviar áudio.', 'error')
+      const idx = messages.value.findIndex(m => m.id === tempId)
+      if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'error' }
     }
 
   } catch (error) {
     console.error('Erro ao enviar áudio:', error)
-    messages.value = messages.value.filter(m => !m._optimistic)
-    showToast('Erro ao enviar áudio. Tente novamente.', 'error')
+    const idx = messages.value.findIndex(m => m.id === tempId)
+    if (idx > -1) messages.value[idx] = { ...messages.value[idx], _status: 'error' }
   } finally {
     isSendingAudio.value = false
     uploadingFile.value = false

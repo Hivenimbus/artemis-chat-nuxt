@@ -204,7 +204,7 @@ export async function createMessage(
       status: remetente === 'user' ? 'sent' : 'delivered',
       type: messageType === 'conversation' ? 'text' : messageType,
       external_id: externalMessageId || null,
-      created_at: messageTimestamp ? new Date(messageTimestamp * 1000) : new Date(),
+      created_at: new Date(),
       metadata: mediaData ? { media_url: mediaData.url, media_type: mediaData.type, media_name: mediaData.name } : {},
     }
 

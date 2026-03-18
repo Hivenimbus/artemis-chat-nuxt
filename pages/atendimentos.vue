@@ -27,7 +27,7 @@
         :caixas-entrada-map="caixasEntradaMap"
         :current-user-id="user?.id"
         :inbox-status="selectedInboxStatus"
-        @send-message="sendMessage"
+        @message-sent="handleMessageSent"
         @toggle-tag="toggleTag"
         @add-tag="addNewSystemTag"
         @resolve-chat="handleResolveChat"
@@ -197,30 +197,13 @@ const selectContact = async (contact) => {
   }
 }
 
-// Enviar mensagem
-const sendMessage = async (messageText) => {
-  if (!messageText.trim() || !selectedContact.value) return
-
-  try {
-    const response = await $fetch(`/api/atendimentos/${selectedContact.value.id}/mensagens`, {
-      method: 'POST',
-      body: {
-        texto: messageText
-      }
-    })
-
-    if (response?.success) {
-      // Atualizar atendimento local
-      const atendimentoIndex = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
-      if (atendimentoIndex > -1) {
-        atendimentos.value[atendimentoIndex].lastMessage = messageText
-        atendimentos.value[atendimentoIndex].lastMessageTime = new Date()
-      }
-    } else {
-      console.error('Erro ao enviar mensagem:', response)
-    }
-  } catch (error) {
-    console.error('Erro ao enviar mensagem:', error)
+// Atualizar lista de atendimentos após mensagem enviada pelo ChatArea
+const handleMessageSent = ({ texto, timestamp }) => {
+  if (!selectedContact.value) return
+  const atendimentoIndex = atendimentos.value.findIndex(a => a.id === selectedContact.value.id)
+  if (atendimentoIndex > -1) {
+    atendimentos.value[atendimentoIndex].lastMessage = texto
+    atendimentos.value[atendimentoIndex].lastMessageTime = timestamp
   }
 }
 
