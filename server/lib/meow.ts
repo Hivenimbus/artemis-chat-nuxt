@@ -661,6 +661,12 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
     const phone = (data.isFromMe ? data.to : data.from)!.replace(/\D/g, '')
     const pushName = data.isFromMe ? phone : (data.fromName || phone)
 
+    // Validar comprimento do telefone — LIDs não resolvidos têm >15 dígitos
+    if (phone.length > 15) {
+      webhookLogger.warn('message.invalid_phone', `Telefone inválido (possível LID não resolvido): ${phone}`, { instance, from: data.from })
+      return null
+    }
+
     // Deduplicar mensagens fromMe já salvas via mensagens.post.ts
     if (data.isFromMe && data.messageId) {
       const [existing] = await db.select({ id: schema.mensagens.id })
