@@ -84,13 +84,9 @@ export async function findOrCreateContact(
   try {
     contatoLogger.logContactProcessing(phone, name, empresaId)
 
-    // LID JIDs (ex: "237559137448078@lid") são usados como-estão — não normalizar
-    let normalizedPhone = phone
-    if (!phone.includes('@lid')) {
-      normalizedPhone = phone.replace(/\D/g, '')
-      if (!normalizedPhone.startsWith('55')) {
-        normalizedPhone = '55' + normalizedPhone
-      }
+    let normalizedPhone = phone.replace(/\D/g, '')
+    if (!normalizedPhone.startsWith('55')) {
+      normalizedPhone = '55' + normalizedPhone
     }
 
     const [contato] = await db.select({ id: schema.contatos.id, profile_picture_url: schema.contatos.avatar_url })
@@ -419,7 +415,7 @@ export async function fetchContactProfile(
       return null
     }
 
-    const cleanPhone = phoneNumber.includes('@') ? phoneNumber : phoneNumber.replace(/\D/g, '')
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
 
     // Buscar nome via lista de contatos
     const contactsRes = await fetch(`${meowApiUrl}/api/instances/${instanceName}/contacts`, {
@@ -475,7 +471,7 @@ export async function checkWhatsAppNumber(
       return { exists: false, error: 'Configuração da API-MEOW não encontrada' }
     }
 
-    const cleanPhone = phoneNumber.includes('@') ? phoneNumber : phoneNumber.replace(/\D/g, '')
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
 
     // Verificar via cache de contatos
     const response = await fetch(`${meowApiUrl}/api/instances/${instanceName}/contacts`, {
@@ -518,7 +514,7 @@ export async function sendTextMessageToWhatsApp(
       return { success: false, error: 'Configuração da API-MEOW não encontrada' }
     }
 
-    const cleanPhone = phoneNumber.includes('@') ? phoneNumber : phoneNumber.replace(/\D/g, '')
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
     const response = await fetch(`${meowApiUrl}/api/instances/${instanceName}/send-message`, {
       method: 'POST',
       headers: getMeowHeaders(config),
@@ -557,7 +553,7 @@ export async function sendMediaToWhatsApp(
       return { success: false, error: 'Configuração da API-MEOW não encontrada' }
     }
 
-    const cleanPhone = phoneNumber.includes('@') ? phoneNumber : phoneNumber.replace(/\D/g, '')
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
     const body: any = { to: cleanPhone, mediaType, url: mediaUrl }
     if (caption) body.caption = caption
     if (mimeType) body.mimeType = mimeType
@@ -598,7 +594,7 @@ export async function sendAudioToWhatsApp(
       return { success: false, error: 'Configuração da API-MEOW não encontrada' }
     }
 
-    const cleanPhone = phoneNumber.includes('@') ? phoneNumber : phoneNumber.replace(/\D/g, '')
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
     // PTT só funciona com audio/ogg;codecs=opus — para outros formatos desabilita ptt
     const isPtt = !mimeType || mimeType.includes('ogg')
     const body: any = { to: cleanPhone, mediaType: 'audio', url: audioUrl, ptt: isPtt }
@@ -662,14 +658,11 @@ export async function processMeowMessage(webhookData: MeowWebhookData): Promise<
       }
     }
 
-    // Detectar se o from é um JID LID completo (ex: "237559137448078@lid")
-    const rawFrom = data.isFromMe ? data.to : data.from
-    const isLidJid = rawFrom?.includes('@lid') ?? false
-    const phone = isLidJid ? rawFrom! : rawFrom!.replace(/\D/g, '')
+    const phone = (data.isFromMe ? data.to : data.from)!.replace(/\D/g, '')
     const pushName = data.isFromMe ? phone : (data.fromName || phone)
 
-    // Validar comprimento apenas para telefones normais — LID JIDs são aceitos como-estão
-    if (!isLidJid && phone.length > 15) {
+    // Validar comprimento do telefone — LIDs não resolvidos têm >15 dígitos
+    if (phone.length > 15) {
       webhookLogger.warn('message.invalid_phone', `Telefone inválido (possível LID não resolvido): ${phone}`, { instance, from: data.from })
       return null
     }
