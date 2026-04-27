@@ -129,7 +129,11 @@ export default defineEventHandler(async (event) => {
           with: { etiqueta: true }
         },
         inbox: true,
-        assignee: { columns: { id: true, name: true, email: true } }
+        assignee: { columns: { id: true, name: true, email: true } },
+        mensagens: {
+          limit: 1,
+          orderBy: [desc(schema.mensagens.created_at)],
+        }
       }
     })
 
@@ -159,7 +163,9 @@ export default defineEventHandler(async (event) => {
       company: (a.contato as any)?.empresa || '',
       city: (a.contato as any)?.cidade || '',
       profilePictureUrl: a.contato?.avatar_url || '',
-      lastMessage: '',
+      lastMessage: a.mensagens?.[0]?.content || '',
+      lastMessageDirection: a.mensagens?.[0]?.direction || 'inbound',
+      lastMessageStatus: a.mensagens?.[0]?.status || 'sent',
       lastMessageTime: a.last_message_at ? new Date(a.last_message_at) : new Date(a.created_at!),
       unreadCount: a.unread_count || 0,
       status: a.status,

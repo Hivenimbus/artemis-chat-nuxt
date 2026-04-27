@@ -100,14 +100,35 @@ export default defineEventHandler(async (event) => {
       mediaType = uploadMime
       const objectKey = `${userData.empresa_id}/${uniqueFileName}`
 
-      const s3 = getStorageClient()
-      await s3.send(new PutObjectCommand({
-        Bucket: MINIO_BUCKET,
-        Key: objectKey,
-        Body: uploadData,
-        ContentType: uploadMime,
-      }))
-      mediaUrl = getPublicUrl(objectKey)
+      try {
+        const s3 = getStorageClient()
+        await s3.send(new PutObjectCommand({
+          Bucket: MINIO_BUCKET,
+          Key: objectKey,
+          Body: uploadData,
+          ContentType: uploadMime,
+        }))
+        mediaUrl = getPublicUrl(objectKey)
+      } catch (err) {
+        console.warn('⚠️ Bucket AWS/Minio não configurado. Salvando arquivo localmente (Fallback).')
+        const fs = await import('fs')
+        const path = await import('path')
+        
+        // Criar pasta estática local se não existir
+        const dirPath = path.join(process.cwd(), 'public', 'uploads', userData.empresa_id || 'default')
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true })
+        }
+        
+        // Salvar arquivo
+        const localFilePath = path.join(dirPath, uniqueFileName)
+        fs.writeFileSync(localFilePath, uploadData)
+        
+        // Montar URL pública local
+        const config = useRuntimeConfig()
+        const baseUrl = config.public?.siteUrl || 'http://localhost:3002'
+        mediaUrl = `${baseUrl}/uploads/${userData.empresa_id || 'default'}/${uniqueFileName}`
+      }
     }
 
     // Criar mensagem no banco

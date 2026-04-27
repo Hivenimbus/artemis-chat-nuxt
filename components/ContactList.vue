@@ -264,14 +264,33 @@
                 </span>
               </div>
 
-              <p class="text-sm text-gray-600 mt-1">
-                {{ formatPhone(contact.phone) }}
-              </p>
+              <!-- Preview da Última Mensagem com Status -->
+              <div class="flex items-center space-x-1 mt-1">
+                <!-- Status icon (apenas se for nó que enviamos) -->
+                <span v-if="contact.lastMessageDirection === 'outbound'" class="flex-shrink-0">
+                  <!-- Lida (Check duplo azul) -->
+                  <svg v-if="contact.lastMessageStatus === 'read'" class="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M7 13l3 3 7-7M2 13l3 3 3-3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <!-- Entregue (Check duplo cinza) -->
+                  <svg v-else-if="contact.lastMessageStatus === 'delivered'" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M7 13l3 3 7-7M2 13l3 3 3-3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <!-- Falha (Exclamação vermelha) -->
+                  <svg v-else-if="contact.lastMessageStatus === 'failed'" class="h-4 w-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                  <!-- Enviado/Outros (Check único cinza) -->
+                  <svg v-else class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M5 13l4 4L19 7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
 
-              <!-- Última mensagem -->
-              <p class="text-sm text-gray-500 mt-1 truncate">
-                {{ contact.lastMessage }}
-              </p>
+                <p class="text-sm text-gray-500 truncate flex-1">
+                  {{ contact.lastMessage || 'Nenhuma mensagem' }}
+                </p>
+              </div>
+
 
               <!-- Tags e Botão Atribuir -->
               <div class="flex items-center justify-between mt-2">

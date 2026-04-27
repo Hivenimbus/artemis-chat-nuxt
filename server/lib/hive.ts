@@ -82,7 +82,7 @@ export async function getHivePanelHeaders(): Promise<Record<string, string>> {
 }
 
 // v1 endpoints: X-API-Key = inbox.id (definido como api_key na criação da instância)
-function getHiveV1Headers(inboxId: string): Record<string, string> {
+async function getHiveV1Headers(inboxId: string): Promise<Record<string, string>> {
   return {
     'X-API-Key': inboxId,
     'Content-Type': 'application/json'
@@ -98,7 +98,10 @@ export async function findInboxByHiveInstance(
 ): Promise<{ id: string; empresa_id: string } | null> {
   try {
     const [data] = await db
-      .select({ id: schema.inboxes.id, empresa_id: schema.inboxes.empresa_id })
+      .select({ 
+        id: schema.inboxes.id, 
+        empresa_id: schema.inboxes.empresa_id
+      })
       .from(schema.inboxes)
       .where(eq(schema.inboxes.hive_instance_id, hiveInstanceId))
       .limit(1)
@@ -342,6 +345,77 @@ export async function checkWhatsAppNumber(
   return { exists: true }
 }
 
+export async function fetchContactProfile(
+  apiKey: string,
+  phoneNumber: string
+): Promise<{ profilePictureUrl?: string | null } | null> {
+  try {
+    const config = useRuntimeConfig()
+    const cleanPhone = phoneNumber.replace(/\D/g, '')
+
+    const url = `${config.hiveApiUrl}/api/v1/contacts/${cleanPhone}/profile-picture`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-API-Key': apiKey,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) return null
+
+    const data = await response.json()
+    if (data.pictureUrl) {
+      return { profilePictureUrl: data.pictureUrl }
+    }
+    return null
+  } catch (error) {
+    console.error('❌ Erro ao buscar perfil na Hive API:', error)
+    return null
+  }
+}
+
+export async function downloadAndUploadProfilePicture(
+  empresaId: string,
+  pictureUrl: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(pictureUrl)
+    if (!response.ok) {
+      console.error(`Falha ao baixar imagem: ${response.status} ${response.statusText}`)
+      return null
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const mimeType = response.headers.get('content-type') || 'image/jpeg'
+    
+    // Convert to base64
+    const base64Data = buffer.toString('base64')
+    
+    // Usar a função existente
+    const uploadResult = await uploadMediaToMinio(
+      empresaId, 
+      base64Data, 
+      mimeType, 
+      `avatar_${Date.now()}.jpg`
+    )
+
+    if (uploadResult) {
+      return uploadResult.url
+    }
+    
+    // Fallback de emergência (caso o usuário não tenha configurado as keys do Minio)
+    console.warn('⚠️ Bucket AWS/Minio não configurado. Fallback para URL crua do WhatsApp.')
+    return pictureUrl
+  } catch (error) {
+    console.error('❌ Erro em downloadAndUploadProfilePicture:', error)
+    return pictureUrl // Retorna a originária se falhar a conversão também
+  }
+}
+
+
 // ─────────────────────────────────────────────
 // Funções de envio (Hive API v1)
 // ─────────────────────────────────────────────
@@ -355,19 +429,26 @@ export async function sendTextMessageToWhatsApp(
     const config = useRuntimeConfig()
     const cleanPhone = phoneNumber.replace(/\D/g, '')
 
+    const headers = await getHiveV1Headers(inboxId)
+    console.log(`[Hive Send] Enviando texto para ${cleanPhone}. URL: ${config.hiveApiUrl}/api/v1/messages/send`)
+    
     const response = await fetch(`${config.hiveApiUrl}/api/v1/messages/send`, {
       method: 'POST',
-      headers: getHiveV1Headers(inboxId),
+      headers: headers,
       body: JSON.stringify({ to: cleanPhone, message: messageText })
     })
 
     if (!response.ok) {
       const err = await response.text()
+      console.error(`❌ Erro Hive API (${response.status}):`, err)
       return { success: false, error: `Hive API ${response.status}: ${err}` }
     }
 
-    return { success: true, status: 'sent' }
+    const result = await response.json()
+    console.log(`✅ Sucesso Hive API:`, result)
+    return { success: true, status: 'sent', messageId: result.messageId }
   } catch (error) {
+    console.error('❌ Erro fatal ao chamar Hive API:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -388,19 +469,26 @@ export async function sendMediaToWhatsApp(
     if (caption) body.caption = caption
     if (fileName) body.file_name = fileName
 
+    const headers = await getHiveV1Headers(inboxId)
+    console.log(`[Hive Media] Enviando ${mediaType} para ${cleanPhone}. URL: ${mediaUrl}`)
+
     const response = await fetch(`${config.hiveApiUrl}/api/v1/messages/send-media`, {
       method: 'POST',
-      headers: getHiveV1Headers(inboxId),
+      headers: headers,
       body: JSON.stringify(body)
     })
 
     if (!response.ok) {
       const err = await response.text()
+      console.error(`❌ Erro Media Hive API (${response.status}):`, err)
       return { success: false, error: `Hive API ${response.status}: ${err}` }
     }
 
-    return { success: true, status: 'sent' }
+    const result = await response.json()
+    console.log(`✅ Sucesso Media Hive API:`, result)
+    return { success: true, status: 'sent', messageId: result.messageId }
   } catch (error) {
+    console.error('❌ Erro fatal ao chamar Media Hive API:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }
   }
 }
@@ -505,6 +593,25 @@ export async function processHiveMessage(webhookData: HiveWebhookData): Promise<
     // 4. Buscar ou criar atendimento
     const atendimento = await findOrCreateAtendimento(contato.id, inbox.id)
     if (!atendimento) return null
+
+    // 4.5 Buscar foto de perfil se o contato for novo ou ainda não tiver imagem
+    if (contato.isNew || !contato.profile_picture_url) {
+      try {
+        const profile = await fetchContactProfile(inbox.id, phone)
+          if (profile && profile.profilePictureUrl) {
+             const newInternalUrl = await downloadAndUploadProfilePicture(inbox.empresa_id, profile.profilePictureUrl)
+             if (newInternalUrl) {
+               await db.update(schema.contatos)
+                 .set({ avatar_url: newInternalUrl, updated_at: new Date() })
+                 .where(eq(schema.contatos.id, contato.id))
+               contato.profile_picture_url = newInternalUrl
+             }
+          }
+        } catch (e) {
+          console.error('Erro ao processar foto de perfil:', e)
+        }
+      }
+
 
     // 5. Criar mensagem
     const mensagemId = await createMessage(

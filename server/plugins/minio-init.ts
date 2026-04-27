@@ -1,8 +1,14 @@
-import { PutBucketPolicyCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3'
+import { HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3'
 import { getStorageClient, MINIO_BUCKET } from '~/server/lib/storage'
 
 export default defineNitroPlugin(async () => {
   try {
+    // Se for R2, não tentamos gerenciar permissões via API, pois o R2 não suporta PutBucketPolicy via S3 SDK
+    if (process.env.R2_ACCOUNT_ID) {
+        console.log('☁️ Usando Cloudflare R2. Certifique-se de ativar o Public Access no painel da Cloudflare.')
+        return
+    }
+
     const s3 = getStorageClient()
 
     // Criar bucket se não existir
@@ -13,20 +19,15 @@ export default defineNitroPlugin(async () => {
       console.log(`✅ Bucket '${MINIO_BUCKET}' criado`)
     }
 
-    // Definir política public-read para todos os objetos
-    const policy = JSON.stringify({
-      Version: '2012-10-17',
-      Statement: [{
-        Effect: 'Allow',
-        Principal: { AWS: ['*'] },
-        Action: ['s3:GetObject'],
-        Resource: [`arn:aws:s3:::${MINIO_BUCKET}/*`]
-      }]
-    })
-
-    await s3.send(new PutBucketPolicyCommand({ Bucket: MINIO_BUCKET, Policy: policy }))
-    console.log(`✅ Bucket '${MINIO_BUCKET}' configurado como public-read`)
+    // Nota: Pulando PutBucketPolicy pois muitos provedores S3 (como R2) 
+    // ou configurações restritas de Minio não permitem isso via IAM User simples.
+    // É melhor configurar a regra de leitura pública diretamente no painel do storage.
+    
   } catch (error: any) {
-    console.error('❌ Erro ao configurar bucket Minio:', error?.message || error)
+    if (error?.message?.includes('Unauthorized') || error?.message?.includes('Access Denied')) {
+        console.warn('⚠️ Storage: Erro de autenticação. Verifique suas chaves no .env')
+        return
+    }
+    console.error('❌ Erro ao configurar storage:', error?.message || error)
   }
 })
