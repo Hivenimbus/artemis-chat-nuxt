@@ -1,13 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
+import { getHivePanelHeaders } from '~/server/lib/hive'
 
 export default defineEventHandler(async (event) => {
   console.log('📥 [inboxes.post] Iniciando criação de inbox...')
 
   const config = useRuntimeConfig()
 
-  if (!config.meowApiUrl || !config.meowApiKey) {
-    throw createError({ statusCode: 500, statusMessage: 'Configuração do servidor incompleta: API-MEOW não configurada' })
+  if (!config.hiveApiUrl || !config.hiveApiKey) {
+    throw createError({ statusCode: 500, statusMessage: 'Configuração do servidor incompleta: Hive API não configurada' })
   }
 
   try {
@@ -33,29 +34,36 @@ export default defineEventHandler(async (event) => {
 
     if (!inboxData) throw createError({ statusCode: 500, statusMessage: 'Erro ao criar caixa de entrada' })
 
-    // Criar instância na API-MEOW
+    // Criar instância na Hive API
     const webhookUrl = `${config.public.siteUrl}/api/webhook/whatsapp`
-    let meowResponse = null
+    let hiveResponse = null
 
     try {
-      meowResponse = await $fetch(`${config.meowApiUrl}/api/instances`, {
+      const panelHeaders = await getHivePanelHeaders()
+      hiveResponse = await $fetch(`${config.hiveApiUrl}/api/instances`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${config.meowApiKey}`,
-          'Content-Type': 'application/json'
-        },
+        headers: panelHeaders,
         body: {
           name: inboxData.id,
-          webhookUrl,
-          ignoreGroups: true,
-          receiveMessages: true
+          webhook_url: webhookUrl,
+          ignore_groups: true,
+          api_key: inboxData.id  // chave única por instância = inbox UUID
         }
-      })
-    } catch (meowError: any) {
-      console.error('⚠️ [inboxes.post] Erro ao criar instância na API-MEOW (não crítico):', meowError.message || meowError)
+      }) as any
+
+      // Salvar o ID gerado pela Hive API
+      const hiveInstanceId = (hiveResponse as any)?.id ?? null
+      if (hiveInstanceId) {
+        await db.update(schema.inboxes)
+          .set({ hive_instance_id: hiveInstanceId, updated_at: new Date() })
+          .where(eq(schema.inboxes.id, inboxData.id))
+        inboxData.hive_instance_id = hiveInstanceId
+      }
+    } catch (hiveError: any) {
+      console.error('⚠️ [inboxes.post] Erro ao criar instância na Hive API (não crítico):', hiveError.message || hiveError)
     }
 
-    return { success: true, data: { ...inboxData, meowCreated: !!meowResponse } }
+    return { success: true, data: { ...inboxData, hiveCreated: !!hiveResponse } }
 
   } catch (error: any) {
     if (error.statusCode) throw error

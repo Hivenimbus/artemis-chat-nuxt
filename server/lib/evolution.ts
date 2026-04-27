@@ -721,9 +721,20 @@ export async function processEvolutionMessage(webhookData: any): Promise<Process
       webhookLogger.debug('message.ignored', 'Mensagem de newsletter, ignorando...', { instance, remoteJid })
       return null
     }
-    if (fromMe === true) {
-      webhookLogger.debug('message.ignored', 'Mensagem enviada por mim, ignorando...', { instance, remoteJid })
-      return null
+    if (fromMe === true && evolutionMessageId) {
+      // Pequeno atraso para dar tempo à api de envio (mensagens.post.ts) 
+      // salvar o external_id no banco, evitando duplicidade em envios feitos pelo app
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      const [existingMessage] = await db.select({ id: schema.mensagens.id })
+        .from(schema.mensagens)
+        .where(eq(schema.mensagens.external_id, evolutionMessageId))
+        .limit(1)
+
+      if (existingMessage) {
+        webhookLogger.debug('message.ignored', 'Eco do webhook detectado. Mensagem já enviada pela API.', { instance, evolutionMessageId })
+        return null
+      }
     }
     if (!remoteJid) {
       webhookLogger.warn('message.invalid_data', 'Mensagem sem remoteJid', { instance })

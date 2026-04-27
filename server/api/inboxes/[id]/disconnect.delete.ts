@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
+import { getHivePanelHeaders } from '~/server/lib/hive'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -46,23 +47,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Desconectar na API-MEOW
+    // Desconectar na Hive API
+    const hiveId = inbox.hive_instance_id
     try {
-      await $fetch(`${config.meowApiUrl}/api/instances/${id}/disconnect`, {
+      if (!hiveId) throw new Error('Sem hive_instance_id')
+      const panelHeaders = await getHivePanelHeaders()
+      await $fetch(`${config.hiveApiUrl}/api/instances/${hiveId}/disconnect`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${config.meowApiKey}`,
-          'Content-Type': 'application/json'
-        }
+        headers: panelHeaders
       })
-    } catch (meowError: any) {
-      console.error('Erro ao desconectar na API-MEOW:', meowError)
-
-      if (meowError.response?.status !== 404 && meowError.response?.status !== 403) {
-        throw createError({
-          statusCode: 500,
-          statusMessage: 'Erro ao desconectar WhatsApp. Tente novamente.'
-        })
+    } catch (hiveError: any) {
+      const status = hiveError.response?.status
+      if (status !== 404 && status !== 403 && hiveId) {
+        console.error('Erro ao desconectar na Hive API:', hiveError)
+        throw createError({ statusCode: 500, statusMessage: 'Erro ao desconectar WhatsApp. Tente novamente.' })
       }
     }
 

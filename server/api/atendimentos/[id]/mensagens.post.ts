@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/meow'
+import { sendTextMessageToWhatsApp, sendMediaToWhatsApp, sendAudioToWhatsApp } from '~/server/lib/hive'
 import { getStorageClient, getPublicUrl, MINIO_BUCKET } from '~/server/lib/storage'
 import { webmToOgg } from '~/server/lib/webm-to-ogg'
 import { PutObjectCommand } from '@aws-sdk/client-s3'

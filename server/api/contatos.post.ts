@@ -1,6 +1,6 @@
 import { eq, inArray } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
-import { checkWhatsAppNumber } from '~/server/lib/meow'
+import { checkWhatsAppNumber } from '~/server/lib/hive'
 
 export default defineEventHandler(async (event) => {
   try {

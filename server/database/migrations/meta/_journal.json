@@ -8,6 +8,13 @@
       "when": 1772144552865,
       "tag": "0000_loose_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777317131865,
+      "tag": "0001_sturdy_prodigy",
+      "breakpoints": true
     }
   ]
 }

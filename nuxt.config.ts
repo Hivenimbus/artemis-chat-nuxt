@@ -5,6 +5,11 @@ export default defineNuxtConfig({
   devServer: {
     port: parseInt(process.env.PORT || '3000')
   },
+  vite: {
+    server: {
+      allowedHosts: true
+    }
+  },
   nitro: {
     externals: {
       inline: []
@@ -25,8 +30,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Private keys (only available on server-side)
     databaseUrl: process.env.DATABASE_URL,
-    meowApiUrl: process.env.NUXT_MEOW_API_URL || process.env.MEOW_API_URL,
-    meowApiKey: process.env.NUXT_MEOW_API_KEY || process.env.MEOW_API_KEY,
+    hiveApiUrl: process.env.NUXT_HIVE_API_URL || process.env.HIVE_API_URL,
+    hiveApiKey: process.env.NUXT_HIVE_API_KEY || process.env.HIVE_API_KEY,
+    hiveEmail: process.env.HIVE_EMAIL,
+    hivePassword: process.env.HIVE_PASSWORD,
     openrouterApiKey: process.env.OPENROUTER_APIKEY,
     jwtSecret: process.env.JWT_SECRET,
     smtpHost: process.env.NUXT_SMTP_HOST || process.env.SMTP_HOST,

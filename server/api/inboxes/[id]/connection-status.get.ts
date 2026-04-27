@@ -21,26 +21,29 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Caixa de entrada não encontrada ou sem permissão' })
     }
 
-    // Buscar status na API-MEOW
+    const hiveId = inbox.hive_instance_id
+    if (!hiveId) {
+      return { success: true, data: { state: 'not_found', connected: false, phone: null } }
+    }
+
+    // Buscar status na Hive API via endpoint geral da instância
     try {
-      const response: any = await $fetch(`${config.meowApiUrl}/api/instances/${id}/wa-status`, {
+      const instance: any = await $fetch(`${config.hiveApiUrl}/api/instances/${hiveId}`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
+        headers: { 'Authorization': `Bearer ${config.hiveApiKey}` }
       })
 
-      const meowStatus = response?.status || 'disconnected' // "connected"|"connecting"|"disconnected"
-      const phone = response?.phone || null
+      const hiveStatus = instance?.status || 'disconnected'
+      const phone = instance?.phone ?? instance?.number ?? null
 
-      // Mapear status da API-MEOW para o formato do sistema
       const stateMap: Record<string, string> = {
         'connected': 'open',
         'connecting': 'connecting',
         'disconnected': 'closed'
       }
-      const state = stateMap[meowStatus] || 'closed'
-      const isConnected = meowStatus === 'connected'
+      const state = stateMap[hiveStatus] || 'closed'
+      const isConnected = hiveStatus === 'connected'
 
-      // Atualizar status no DB
       const newStatus = isConnected ? 'connected' : 'disconnected'
       if (inbox.status !== newStatus) {
         await db.update(schema.inboxes)
@@ -48,36 +51,12 @@ export default defineEventHandler(async (event) => {
           .where(eq(schema.inboxes.id, id))
       }
 
-      // Sempre sincronizar webhook URL no cliente em memória da API-Meow
-      if (isConnected) {
-        const correctWebhookUrl = `${config.public.siteUrl}/api/webhook/whatsapp`
-        try {
-          const instanceData: any = await $fetch(`${config.meowApiUrl}/api/instances/${id}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
-          })
-          await $fetch(`${config.meowApiUrl}/api/instances/${id}/settings`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${config.meowApiKey}`, 'Content-Type': 'application/json' },
-            body: {
-              webhookUrl: correctWebhookUrl,
-              ignoreGroups: instanceData?.ignoreGroups ?? true,
-              receiveMessages: instanceData?.receiveMessages ?? true,
-              proxyEnabled: instanceData?.proxyEnabled ?? false,
-              proxyUrl: instanceData?.proxyUrl ?? null,
-            }
-          })
-        } catch (e) {
-          console.error('Erro ao sincronizar webhook URL:', e)
-        }
-      }
-
       return { success: true, data: { state, connected: isConnected, phone } }
 
-    } catch (meowError: any) {
-      console.error('Erro ao buscar status na API-MEOW:', meowError)
+    } catch (hiveError: any) {
+      console.error('Erro ao buscar status na Hive API:', hiveError)
 
-      if (meowError.response?.status === 404) {
+      if (hiveError.response?.status === 404 || hiveError.statusCode === 404) {
         if (inbox.status === 'connected') {
           await db.update(schema.inboxes).set({ status: 'disconnected', updated_at: new Date() }).where(eq(schema.inboxes.id, id))
         }

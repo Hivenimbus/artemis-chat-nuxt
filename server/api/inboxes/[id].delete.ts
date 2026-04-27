@@ -1,5 +1,6 @@
 import { eq, and, inArray } from 'drizzle-orm'
 import { db, schema } from '~/server/database'
+import { getHivePanelHeaders } from '~/server/lib/hive'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -21,14 +22,18 @@ export default defineEventHandler(async (event) => {
 
     if (!inbox) throw createError({ statusCode: 404, statusMessage: 'Caixa de entrada não encontrada ou sem permissão' })
 
-    // Deletar instância na API-MEOW
-    try {
-      await $fetch(`${config.meowApiUrl}/api/instances/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${config.meowApiKey}` }
-      })
-    } catch (meowError) {
-      console.error('Erro ao deletar instância na API-MEOW:', meowError)
+    // Deletar instância na Hive API
+    const hiveId = inbox.hive_instance_id
+    if (hiveId) {
+      try {
+        const panelHeaders = await getHivePanelHeaders()
+        await $fetch(`${config.hiveApiUrl}/api/instances/${hiveId}`, {
+          method: 'DELETE',
+          headers: panelHeaders
+        })
+      } catch (hiveError) {
+        console.error('Erro ao deletar instância na Hive API:', hiveError)
+      }
     }
 
     // Limpar dados relacionados

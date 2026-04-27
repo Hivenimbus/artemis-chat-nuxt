@@ -61,6 +61,7 @@ export const inboxes = pgTable('inboxes', {
     empresa_id: uuid('empresa_id').references(() => empresas.id, { onDelete: 'cascade' }),
     status: varchar('status', { length: 50 }).default('disconnected').notNull(), // 'disconnected' | 'connected' | 'connecting'
     phone_number: varchar('phone_number', { length: 50 }),
+    hive_instance_id: varchar('hive_instance_id', { length: 255 }),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
